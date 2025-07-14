@@ -18,15 +18,15 @@ const Dashboard = () => {
         const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         });
         setEstablishments(data.establishments || []);
       } catch {
         Swal.fire({
           icon: "error",
           title: "Erro",
-          text: "Não foi possível carregar seus estabelecimentos."
+          text: "Não foi possível carregar seus estabelecimentos.",
         });
         setEstablishments([]);
       } finally {
@@ -35,7 +35,7 @@ const Dashboard = () => {
     })();
   }, []);
 
-  const handleLogoError = e => {
+  const handleLogoError = (e) => {
     e.target.src = "/images/logo.png";
   };
 
@@ -53,26 +53,39 @@ const Dashboard = () => {
                     <ProcessingIndicatorComponent
                       messages={[
                         "Carregando seus estabelecimentos...",
-                        "Por favor, aguarde..."
+                        "Por favor, aguarde...",
                       ]}
                     />
                   </Col>
                 ) : establishments.length > 0 ? (
                   <Row className="inner-row">
-                    {establishments.map(est => (
-                      <Col key={est.id} xs={12} md={6} lg={4} className="inner-col mb-4">
+                    {establishments.map((est) => (
+                      <Col
+                        key={est.id}
+                        xs={12}
+                        md={6}
+                        lg={4}
+                        className="inner-col mb-4"
+                      >
                         <Card className="inner-card h-100">
                           <div
                             className="card-bg"
                             style={{
-                              backgroundImage: `url('${storageUrl}/${est.logo || "images/logo.png"}')`
+                              backgroundImage: `url('${storageUrl}/${
+                                est.logo || "images/logo.png"
+                              }')`,
                             }}
                           />
                           <Card.Body className="inner-card-body card-content d-flex flex-column justify-content-center">
-                            <Link to={`/establishment/view/${est.slug}`} className="link-component">
+                            <Link
+                              to={`/establishment/view/${est.slug}`}
+                              className="link-component"
+                            >
                               <div className="d-flex flex-column flex-sm-row align-items-center justify-content-center text-center text-sm-start">
                                 <img
-                                  src={`${storageUrl}/${est.logo || "images/logo.png"}`}
+                                  src={`${storageUrl}/${
+                                    est.logo || "images/logo.png"
+                                  }`}
                                   className="img-component"
                                   alt={est.name}
                                   onError={handleLogoError}
@@ -80,6 +93,21 @@ const Dashboard = () => {
                                 <p className="label-name-bg m-2">{est.name}</p>
                               </div>
                             </Link>
+                            <div className="mt-3 text-center">
+                              <Button
+                                as={Link}
+                                to={`/order/create/${est.id}`}
+                                variant="success"
+                                className="w-100"
+                              >
+                                Novo Pedido
+                              </Button>
+                              <Link to={`/order/list/${est.id}`}>
+                                <Button variant="info" className="w-100 mt-2">
+                                  Ver Pedidos
+                                </Button>
+                              </Link>
+                            </div>
                           </Card.Body>
                         </Card>
                       </Col>
@@ -87,7 +115,9 @@ const Dashboard = () => {
                   </Row>
                 ) : (
                   <Col xs={12} className="empty-section text-center">
-                    <p className="empty-text">Você não possui estabelecimentos cadastrados.</p>
+                    <p className="empty-text">
+                      Você não possui estabelecimentos cadastrados.
+                    </p>
                     <Link to="/establishment/create" className="link-component">
                       <Button variant="primary" className="action-button">
                         Cadastrar Novo Estabelecimento

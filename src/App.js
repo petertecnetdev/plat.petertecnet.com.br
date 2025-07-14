@@ -14,7 +14,11 @@ import PasswordPage from "./pages/auth/PasswordPage";
 // Dashboard
 import DashboardPage from "./pages/DashboardPage";
 
-// Administrativo
+// Order
+import OrderCreatePage from "./pages/order/OrderCreatePage";
+import OrderListPage from "./pages/order/OrderListPage";
+
+// Administrative
 import UserListPage from "./pages/admin/user/UserListPage";
 import UserCreatePage from "./pages/admin/user/UserCreatePage";
 
@@ -101,6 +105,10 @@ const App = () => {
 
         {/* Dashboard */}
         <Route path="/dashboard" element={protectedRoute(<DashboardPage />)} />
+        <Route path="/order/list/:entityId" element={protectedRoute(<OrderListPage />)}/>
+
+        {/* Order Creation */}
+       <Route  path="/order/create/:entityId"  element={protectedRoute(<OrderCreatePage />)}/>
 
         {/* User */}
         <Route path="/user/update" element={protectedRoute(<UserUpdatePage />)} />
