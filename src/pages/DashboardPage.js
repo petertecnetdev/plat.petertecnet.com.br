@@ -9,7 +9,6 @@ import { apiBaseUrl, storageUrl } from "../config";
 
 const Dashboard = () => {
   const [establishments, setEstablishments] = useState([]);
-  const [barbershops, setBarbershops] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,15 +22,13 @@ const Dashboard = () => {
           }
         });
         setEstablishments(data.establishments || []);
-        setBarbershops(data.barbershops || []);
       } catch {
         Swal.fire({
           icon: "error",
           title: "Erro",
-          text: "Não foi possível carregar seus estabelecimentos e barbearias."
+          text: "Não foi possível carregar seus estabelecimentos."
         });
         setEstablishments([]);
-        setBarbershops([]);
       } finally {
         setIsLoading(false);
       }
@@ -94,59 +91,6 @@ const Dashboard = () => {
                     <Link to="/establishment/create" className="link-component">
                       <Button variant="primary" className="action-button">
                         Cadastrar Novo Estabelecimento
-                      </Button>
-                    </Link>
-                  </Col>
-                )}
-              </Card.Body>
-            </Card>
-
-            <Card className="card-component shadow-sm mt-4">
-              <p className="section-title text-center">Minhas Barbearias</p>
-              <Card.Body className="card-body">
-                {isLoading ? (
-                  <Col xs={12} className="loading-section">
-                    <ProcessingIndicatorComponent
-                      messages={[
-                        "Carregando suas barbearias...",
-                        "Por favor, aguarde..."
-                      ]}
-                    />
-                  </Col>
-                ) : barbershops.length > 0 ? (
-                  <Row className="inner-row">
-                    {barbershops.map(bs => (
-                      <Col key={bs.id} xs={12} md={6} lg={4} className="inner-col mb-4">
-                        <Card className="inner-card h-100">
-                          <div
-                            className="card-bg"
-                            style={{
-                              backgroundImage: `url('${storageUrl}/${bs.logo || "images/logo.png"}')`
-                            }}
-                          />
-                          <Card.Body className="inner-card-body card-content d-flex flex-column justify-content-center">
-                            <Link to={`/barbershop/view/${bs.slug}`} className="link-component">
-                              <div className="d-flex flex-column flex-sm-row align-items-center justify-content-center text-center text-sm-start">
-                                <img
-                                  src={`${storageUrl}/${bs.logo || "images/logo.png"}`}
-                                  className="img-component"
-                                  alt={bs.name}
-                                  onError={handleLogoError}
-                                />
-                                <p className="label-name-bg m-2">{bs.name}</p>
-                              </div>
-                            </Link>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                ) : (
-                  <Col xs={12} className="empty-section text-center">
-                    <p className="empty-text">Você não possui barbearias cadastradas.</p>
-                    <Link to="/barbershop/create" className="link-component">
-                      <Button variant="primary" className="action-button">
-                        Cadastrar Nova Barbearia
                       </Button>
                     </Link>
                   </Col>
