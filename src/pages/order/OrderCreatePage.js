@@ -15,12 +15,18 @@ import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import { apiBaseUrl } from "../../config";
 
-const OrderCreatePage = () => {
+export default function OrderCreatePage() {
   const { entityId } = useParams();
   const navigate = useNavigate();
   const printRef = useRef();
 
   const [items, setItems] = useState([]);
+  const [estName, setEstName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptText, setReceiptText] = useState("");
+
   const [form, setForm] = useState({
     customer_name: "",
     customer_phone: "",
@@ -31,25 +37,26 @@ const OrderCreatePage = () => {
     payment_method: "Dinheiro",
     notes: ""
   });
+
   const [orderLines, setOrderLines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
 
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [receiptText, setReceiptText] = useState("");
-
-  // carrega itens
   useEffect(() => {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const { data } = await axios.get(
-          `${apiBaseUrl}/item?entity_name=establishment&entity_id=${entityId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setItems(data);
+        const [itemsRes, estRes] = await Promise.all([
+          axios.get(
+            `${apiBaseUrl}/item?entity_name=establishment&entity_id=${entityId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        ]);
+        setItems(itemsRes.data);
+        setEstName(estRes.data.establishment.name.toUpperCase());
         setOrderLines(
-          data.map(it => ({
+          itemsRes.data.map(it => ({
             item_id: it.id,
             quantity: 0,
             additions: [],
@@ -57,47 +64,103 @@ const OrderCreatePage = () => {
           }))
         );
       } catch {
-        Swal.fire("Erro", "Não foi possível carregar itens.", "error");
+        Swal.fire("Erro", "Não foi possível carregar dados.", "error");
       } finally {
         setLoading(false);
       }
     })();
   }, [entityId]);
 
-  // quando showReceipt muda pra true, dispara impressão
   useEffect(() => {
-    if (showReceipt) {
-      setTimeout(() => window.print(), 300);
-    }
+    if (showReceipt) setTimeout(() => window.print(), 300);
   }, [showReceipt]);
 
   const handleLineChange = (idx, field, value) => {
-    const lines = [...orderLines];
-    lines[idx][field] = value;
-    setOrderLines(lines);
+    const copy = [...orderLines];
+    copy[idx][field] = value;
+    setOrderLines(copy);
+  };
+
+  const buildReceipt = order => {
+    const lines = [];
+    lines.push("█".repeat(32));
+    lines.push("        " + estName);
+    lines.push("█".repeat(32));
+    lines.push("");
+    lines.push(`Pedido Nº: ${order.order_number}`);
+    lines.push("");
+    lines.push(
+      `${order.origin} - ${order.fulfillment.replace("-", " ")}`
+    );
+    lines.push(
+      new Date(order.order_datetime).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }) + " BRT"
+    );
+    lines.push("");
+    lines.push(`Cliente: ${order.customer_name}`);
+    lines.push("");
+    lines.push("-".repeat(32));
+    lines.push("        ITENS DO PEDIDO");
+    lines.push("-".repeat(32));
+    order.items.forEach(i => {
+      const qty = i.quantity + "x";
+      const name = i.item.name;
+      const price = Number(i.unit_price)
+        .toFixed(2)
+        .replace(".", ",");
+      const combos = i.modifiers.filter(
+        m => m.modifier.name === "Combo"
+      );
+      const comboTag = combos.length ? " (Combo)" : "";
+      lines.push(`${qty} ${name}...........R$${price}${comboTag}`);
+      combos.forEach(() =>
+        lines.push(`🔸 Combo...................R$12,00`)
+      );
+      i.modifiers
+        .filter(
+          m => m.type === "addition" && m.modifier.name !== "Combo"
+        )
+        .forEach(m =>
+          lines.push(`[Adicional de ${m.modifier.name}]`)
+        );
+      i.modifiers
+        .filter(m => m.type === "removal")
+        .forEach(m =>
+          lines.push(`[Sem ${m.modifier.name}]`)
+        );
+    });
+    lines.push("-".repeat(44));
+    const total = Number(order.total_price)
+      .toFixed(2)
+      .replace(".", ",");
+    lines.push("TOTAL".padEnd(32, ".") + `R$${total}`);
+    return lines.join("\n");
   };
 
   const handleSubmit = async e => {
     e.preventDefault();
     setSubmitting(true);
-
     const payload = {
       app_id: 3,
       entity_name: "establishment",
-      entity_id: parseInt(entityId, 10),
+      entity_id: +entityId,
       items: orderLines.filter(l => l.quantity > 0),
       ...form
     };
-
     try {
       const token = localStorage.getItem("token");
-      const { data } = await axios.post(`${apiBaseUrl}/order`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-      setReceiptText(data.receipt);
+      const { data } = await axios.post(
+        `${apiBaseUrl}/order`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setReceiptText(buildReceipt(data.order));
       setShowReceipt(true);
     } catch (err) {
       const msgs = err.response?.data?.errors || {};
@@ -110,7 +173,7 @@ const OrderCreatePage = () => {
   if (loading) {
     return (
       <Container className="text-center mt-5">
-        <Spinner animation="border" /> Carregando itens...
+        <Spinner animation="border" /> Carregando...
       </Container>
     );
   }
@@ -118,8 +181,6 @@ const OrderCreatePage = () => {
   return (
     <>
       <NavlogComponent />
-
-      {/* Modal de Nota */}
       <Modal
         show={showReceipt}
         backdrop="static"
@@ -131,24 +192,25 @@ const OrderCreatePage = () => {
         size="lg"
       >
         <Modal.Body>
-          <div
+          <pre
             ref={printRef}
-            style={{ whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: "14px" }}
+            style={{
+              whiteSpace: "pre-wrap",
+              fontFamily: "monospace",
+              fontSize: 14
+            }}
           >
             {receiptText}
-          </div>
+          </pre>
         </Modal.Body>
       </Modal>
-
-      {/* Formulário */}
       <Container className="mt-4">
         <h3>Novo Pedido</h3>
         <Form onSubmit={handleSubmit}>
-          {/* campos de cliente, acesso, origem, etc */}
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Nome do Cliente</Form.Label>
+                <Form.Label>Cliente</Form.Label>
                 <Form.Control
                   required
                   value={form.customer_name}
@@ -170,12 +232,10 @@ const OrderCreatePage = () => {
               </Form.Group>
             </Col>
           </Row>
-
-          {/* acesso, origem, consumo */}
           <Row>
             <Col md={4}>
               <Form.Group className="mb-3">
-                <Form.Label>Código de Acesso</Form.Label>
+                <Form.Label>Código Acesso</Form.Label>
                 <Form.Control
                   required
                   value={form.access_code}
@@ -210,15 +270,13 @@ const OrderCreatePage = () => {
                     setForm({ ...form, fulfillment: e.target.value })
                   }
                 >
-                  <option value="dine-in">Na loja</option>
-                  <option value="take-away">Para levar</option>
+                  <option value="dine-in">Local</option>
+                  <option value="take-away">Levar</option>
                   <option value="delivery">Delivery</option>
                 </Form.Select>
               </Form.Group>
             </Col>
           </Row>
-
-          {/* pagamento */}
           <Row>
             <Col md={4}>
               <Form.Group className="mb-3">
@@ -250,7 +308,7 @@ const OrderCreatePage = () => {
                   <option>Débito</option>
                   <option>Fiado</option>
                   <option>Cortesia</option>
-                  <option>Transferência bancária</option>
+                  <option>Transferência</option>
                   <option>Vale-refeição</option>
                   <option>Cheque</option>
                   <option>PayPal</option>
@@ -258,10 +316,7 @@ const OrderCreatePage = () => {
               </Form.Group>
             </Col>
           </Row>
-
           <hr />
-
-          {/* itens */}
           {items.map((it, idx) => (
             <Card className="mb-3" key={it.id}>
               <Card.Header>
@@ -273,7 +328,7 @@ const OrderCreatePage = () => {
                     <Form.Control
                       type="number"
                       min={0}
-                      value={orderLines[idx]?.quantity || 0}
+                      value={orderLines[idx].quantity}
                       onChange={e =>
                         handleLineChange(idx, "quantity", +e.target.value)
                       }
@@ -283,7 +338,7 @@ const OrderCreatePage = () => {
                     <Form.Label>Adições</Form.Label>
                     <Form.Select
                       multiple
-                      value={orderLines[idx]?.additions}
+                      value={orderLines[idx].additions}
                       onChange={e => {
                         const opts = Array.from(
                           e.target.selectedOptions
@@ -291,9 +346,9 @@ const OrderCreatePage = () => {
                         handleLineChange(idx, "additions", opts);
                       }}
                     >
-                      {items.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
+                      {items.map(opt => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.name}
                         </option>
                       ))}
                     </Form.Select>
@@ -302,7 +357,7 @@ const OrderCreatePage = () => {
                     <Form.Label>Remoções</Form.Label>
                     <Form.Select
                       multiple
-                      value={orderLines[idx]?.removals}
+                      value={orderLines[idx].removals}
                       onChange={e => {
                         const opts = Array.from(
                           e.target.selectedOptions
@@ -310,9 +365,9 @@ const OrderCreatePage = () => {
                         handleLineChange(idx, "removals", opts);
                       }}
                     >
-                      {items.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
+                      {items.map(opt => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.name}
                         </option>
                       ))}
                     </Form.Select>
@@ -321,7 +376,6 @@ const OrderCreatePage = () => {
               </Card.Body>
             </Card>
           ))}
-
           <Form.Group className="mb-3">
             <Form.Label>Observações</Form.Label>
             <Form.Control
@@ -331,7 +385,6 @@ const OrderCreatePage = () => {
               onChange={e => setForm({ ...form, notes: e.target.value })}
             />
           </Form.Group>
-
           <Button type="submit" disabled={submitting}>
             {submitting ? (
               <>
@@ -345,6 +398,4 @@ const OrderCreatePage = () => {
       </Container>
     </>
   );
-};
-
-export default OrderCreatePage;
+}
