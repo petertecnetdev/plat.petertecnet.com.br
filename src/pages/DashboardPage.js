@@ -12,39 +12,27 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMe = async () => {
+    (async () => {
       try {
         const token = localStorage.getItem("token");
-        const headers = {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        };
-        const response = await axios.get(`${apiBaseUrl}/auth/me`, { headers });
-        const data = response?.data?.user?.establishments || [];
-        setEstablishments(data);
-      } catch (err) {
+        const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        });
+        setEstablishments(data.establishments || []);
+      } catch {
         Swal.fire({
           icon: "error",
           title: "Erro",
-          text: "Não foi possível carregar seus estabelecimentos.",
-          customClass: {
-            popup: "custom-swal",
-            title: "custom-swal-title",
-            content: "custom-swal-text",
-          },
+          text: "Não foi possível carregar seus estabelecimentos."
         });
         setEstablishments([]);
       } finally {
         setIsLoading(false);
       }
-    };
-
-    fetchMe();
+    })();
   }, []);
 
-  const handleLogoError = (e) => {
-    e.target.src = "/images/logo.png";
-  };
+  const handleLogoError = e => { e.target.src = "/images/logo.png"; };
 
   return (
     <>
@@ -60,68 +48,45 @@ const Dashboard = () => {
                     <ProcessingIndicatorComponent
                       messages={[
                         "Carregando seus estabelecimentos...",
-                        "Por favor, aguarde...",
+                        "Por favor, aguarde..."
                       ]}
                     />
                   </Col>
                 ) : (
-                  <>
-                    {establishments.length > 0 ? (
-                      <Row className="inner-row">
-                        {establishments.map((est) => (
-                          <Col
-                            key={est.id}
-                            xs={12}
-                            md={6}
-                            lg={4}
-                            className="inner-col mb-4"
-                          >
-                            <Card className="inner-card h-100">
-                              <div
-                                className="card-bg"
-                                style={{
-                                  backgroundImage: `url('${storageUrl}/${
-                                    est.logo || "images/logo.png"
-                                  }')`,
-                                }}
-                              />
-                              <Card.Body className="inner-card-body card-content d-flex flex-column justify-content-center">
-                                <Link
-                                  to={`/establishment/view/${est.slug}`}
-                                  className="link-component"
-                                >
-                                  <div className="d-flex flex-column flex-sm-row align-items-center justify-content-center text-center text-sm-start">
-                                    <img
-                                      src={`${storageUrl}/${
-                                        est.logo || "images/logo.png"
-                                      }`}
-                                      className="img-component"
-                                      alt={est.name}
-                                      onError={handleLogoError}
-                                    />
-                                    <p className="label-name-bg m-2">
-                                      {est.name}
-                                    </p>
-                                  </div>
-                                </Link>
-                              </Card.Body>
-                            </Card>
-                          </Col>
-                        ))}
-                      </Row>
-                    ) : (
-                      <Col xs={12} className="empty-section text-center">
-                        <p className="empty-text">
-                          Você não possui estabelecimentos cadastrados.
-                        </p>
-                        <Link to="/establishment/create" className="link-component">
-                          <Button variant="primary" className="action-button">
-                            Cadastrar Novo Estabelecimento
-                          </Button>
-                        </Link>
-                      </Col>
-                    )}
-                  </>
+                  establishments.length > 0 ? (
+                    <Row className="inner-row">
+                      {establishments.map(est => (
+                        <Col key={est.id} xs={12} md={6} lg={4} className="inner-col mb-4">
+                          <Card className="inner-card h-100">
+                            <div
+                              className="card-bg"
+                              style={{ backgroundImage: `url('${storageUrl}/${est.logo || "images/logo.png"}')` }}
+                            />
+                            <Card.Body className="inner-card-body card-content d-flex flex-column justify-content-center">
+                              <Link to={`/establishment/view/${est.slug}`} className="link-component">
+                                <div className="d-flex flex-column flex-sm-row align-items-center justify-content-center text-center text-sm-start">
+                                  <img
+                                    src={`${storageUrl}/${est.logo || "images/logo.png"}`}
+                                    className="img-component"
+                                    alt={est.name}
+                                    onError={handleLogoError}
+                                  />
+                                  <p className="label-name-bg m-2">{est.name}</p>
+                                </div>
+                              </Link>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  ) : (
+                    <Col xs={12} className="empty-section text-center">
+                      <p className="empty-text">Você não possui estabelecimentos cadastrados.</p>
+                      <Link to="/establishment/create" className="link-component">
+                        <Button variant="primary" className="action-button">Cadastrar Novo Estabelecimento</Button>
+                      </Link>
+                    </Col>
+                  )
                 )}
               </Card.Body>
             </Card>
