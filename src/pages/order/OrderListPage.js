@@ -27,7 +27,12 @@ export default function OrderListPage() {
     customer: "",
     item: ""
   });
-
+  const originLabels = {
+    WhatsApp: "WhatsApp",
+    Balcão: "Balcão",
+    Telefone: "Telefone",
+    App: "Aplicativo",
+  };
   const fulfillmentLabels = {
     "dine-in": "Local",
     "take-away": "Levar",
@@ -66,35 +71,54 @@ export default function OrderListPage() {
     })();
   }, [entityId]);
 
-  const buildReceipt = (order) => {
-    const WIDTH = 42;
-    const pad = (l, r) => {
-      const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
-      return `${l}${dots}${r}`;
-    };
-    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-    const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
-    const L = [];
-    L.push("█".repeat(WIDTH));
-    L.push(estName.padStart((WIDTH + estName.length) / 2));
-    L.push("█".repeat(WIDTH));
-    L.push("");
-    L.push("ITENS DO PEDIDO".padStart((WIDTH + 15) / 2));
-    L.push("-".repeat(WIDTH));
-    order.items.forEach((i) => {
-      const qty = `${i.quantity}x`;
-      L.push(pad(`${qty} ${i.item.name}`, fmt(i.subtotal || 0)));
-      i.modifiers.forEach((m) =>
-        L.push((m.type === "addition" ? "+ " : "- ") + m.modifier.name)
-      );
-    });
-    L.push("-".repeat(WIDTH));
-    L.push(pad("TOTAL", fmt(order.total_price)));
-    L.push("");
-    L.push(`Origem: ${order.origin} | Consumo: ${consLabel}`);
-    L.push(`Data: ${new Date(order.order_datetime).toLocaleString("pt-BR",{ hour12: false })}`);
-    return L.join("\n");
+ const buildReceipt = (order) => {
+  const WIDTH = 42;
+  const pad = (l, r) => {
+    const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
+    return `${l}${dots}${r}`;
   };
+  const fmt = (v) =>
+    `R$${Number(v).toFixed(2).replace(".", ",")}`;
+  const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
+  const origLabel = originLabels[order.origin] || order.origin;
+  const L = [];
+
+  L.push(""); // margem topo
+  L.push("");
+
+  L.push("█".repeat(WIDTH));
+  L.push(estName.padStart((WIDTH + estName.length) / 2));
+  L.push("█".repeat(WIDTH));
+  L.push("");
+  L.push(`👤 Cliente: ${(order.customer_name || "NÃO INFORMADO").toUpperCase()}`);
+  L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
+  L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
+  L.push("-".repeat(WIDTH));
+  L.push("ITENS DO PEDIDO".padStart((WIDTH + 15) / 2));
+  L.push("-".repeat(WIDTH));
+
+  order.items.forEach((i) => {
+    const qty = `${i.quantity}x`;
+    L.push(pad(`${qty} ${i.item.name}`, fmt(i.subtotal || 0)));
+    i.modifiers.forEach((m) =>
+      L.push(`${m.type === "addition" ? "+ " : "- "}${m.modifier.name}`)
+    );
+  });
+
+  L.push("-".repeat(WIDTH));
+  L.push(pad("TOTAL", fmt(order.total_price)));
+  L.push("");
+  L.push(`Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
+    hour12: false
+  })}`);
+
+  L.push(""); // margem final
+  L.push("");
+  L.push("");
+  L.push("");
+
+  return L.join("\n");
+};
 
   const handleReprint = async (orderId) => {
     try {
@@ -116,7 +140,7 @@ export default function OrderListPage() {
         cancelButtonText: "Fechar"
       }).then((res) => {
         if (res.isConfirmed) {
-          const w = window.open("", "_blank", "width=200,height=600");
+          const w = window.open("", "_blank", "fullscreen=yes");
           w.document.write(`
             <html><head><title>Recibo</title>
             <style>@page{margin:0;}body{margin:4px;font-family:monospace;font-size:12px;}pre{margin:0;}</style>

@@ -9,7 +9,7 @@ import {
   Button,
   Card,
   Spinner,
-  Badge
+  Badge,
 } from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -30,14 +30,19 @@ export default function OrderCreatePage() {
     fulfillment: "dine-in",
     payment_status: "pending",
     payment_method: "Dinheiro",
-    notes: ""
+    notes: "",
   });
   const [orderLines, setOrderLines] = useState([]);
-
+  const originLabels = {
+    WhatsApp: "WhatsApp",
+    Balcão: "Balcão",
+    Telefone: "Telefone",
+    App: "Aplicativo",
+  };
   const fulfillmentLabels = {
     "dine-in": "Local",
     "take-away": "Levar",
-    delivery: "Delivery"
+    delivery: "Delivery",
   };
 
   useEffect(() => {
@@ -49,10 +54,9 @@ export default function OrderCreatePage() {
             `${apiBaseUrl}/item?entity_name=establishment&entity_id=${entityId}`,
             { headers: { Authorization: `Bearer ${token}` } }
           ),
-          axios.get(
-            `${apiBaseUrl}/establishment/show/${entityId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          )
+          axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
         setProducts(resItems.data);
         setEstName(resEst.data.establishment.name.toUpperCase());
@@ -64,45 +68,58 @@ export default function OrderCreatePage() {
     })();
   }, [entityId]);
 
-  const buildReceipt = order => {
+  const buildReceipt = (order) => {
     const WIDTH = 42;
     const pad = (l, r) => {
       const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
       return `${l}${dots}${r}`;
     };
-    const fmt = v =>
-      `R$${Number(v)
-        .toFixed(2)
-        .replace(".", ",")}`;
+    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
     const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
+    const origLabel = originLabels[order.origin] || order.origin;
     const L = [];
+
+    L.push(""); // margem topo
+    L.push("");
+
     L.push("█".repeat(WIDTH));
     L.push(estName.padStart((WIDTH + estName.length) / 2));
     L.push("█".repeat(WIDTH));
     L.push("");
+    L.push(`👤 Cliente: ${(order.customer_name || "NÃO INFORMADO").toUpperCase()}`);
+    L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
+    L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
+    L.push("-".repeat(WIDTH));
     L.push("ITENS DO PEDIDO".padStart((WIDTH + 15) / 2));
     L.push("-".repeat(WIDTH));
-    order.items.forEach(i => {
+
+    order.items.forEach((i) => {
       const qty = `${i.quantity}x`;
       L.push(pad(`${qty} ${i.item.name}`, fmt(i.subtotal || 0)));
-      i.modifiers.forEach(m =>
+      i.modifiers.forEach((m) =>
         L.push(`${m.type === "addition" ? "+ " : "- "}${m.modifier.name}`)
       );
     });
+
     L.push("-".repeat(WIDTH));
     L.push(pad("TOTAL", fmt(order.total_price)));
     L.push("");
-    L.push(`Origem: ${order.origin} | Consumo: ${consLabel}`);
     L.push(
       `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
-        hour12: false
+        hour12: false,
       })}`
     );
+
+    L.push(""); // margem final
+    L.push("");
+    L.push("");
+    L.push("");
+
     return L.join("\n");
   };
 
   const handleAddItem = async () => {
-    const available = products.filter(p => p.category !== "Adicionais");
+    const available = products.filter((p) => p.category !== "Adicionais");
     let idx = null;
     const html = `
       <style>
@@ -124,9 +141,7 @@ export default function OrderCreatePage() {
           .map(
             (p, i) =>
               `<button type="button" class="item-btn" data-idx="${i}">
-                ${p.name} — R$ ${Number(p.price)
-                  .toFixed(2)
-                  .replace(".", ",")}
+                ${p.name} — R$ ${Number(p.price).toFixed(2).replace(".", ",")}
               </button>`
           )
           .join("")}
@@ -139,20 +154,18 @@ export default function OrderCreatePage() {
       showConfirmButton: false,
       width: 350,
       didOpen: () => {
-        document
-          .querySelectorAll(".item-btn")
-          .forEach(btn =>
-            btn.addEventListener("click", () => {
-              idx = Number(btn.dataset.idx);
-              Swal.close();
-            })
-          );
-      }
+        document.querySelectorAll(".item-btn").forEach((btn) =>
+          btn.addEventListener("click", () => {
+            idx = Number(btn.dataset.idx);
+            Swal.close();
+          })
+        );
+      },
     });
     if (idx !== null) {
-      setOrderLines(lines => [
+      setOrderLines((lines) => [
         ...lines,
-        { product: available[idx], quantity: 1, additions: [], removals: [] }
+        { product: available[idx], quantity: 1, additions: [], removals: [] },
       ]);
     }
   };
@@ -160,16 +173,17 @@ export default function OrderCreatePage() {
   const handleManage = async (lineIndex, type) => {
     const title =
       type === "additions" ? "Selecione Adicionais" : "Selecione Remoções";
-    const opts = products.filter(p => p.category === "Adicionais");
+    const opts = products.filter((p) => p.category === "Adicionais");
     let html = `<form id="modForm">`;
-    opts.forEach(o => {
+    opts.forEach((o) => {
       const currentQty =
-        orderLines[lineIndex].additions.find(a => a.id === o.id)?.quantity || 1;
+        orderLines[lineIndex].additions.find((a) => a.id === o.id)?.quantity ||
+        1;
       html += `
         <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">
           <label>
             <input type="checkbox" value="${o.id}" name="mod" ${
-        orderLines[lineIndex][type].some(m => m.id === o.id) ? "checked" : ""
+        orderLines[lineIndex][type].some((m) => m.id === o.id) ? "checked" : ""
       }/>
             ${o.name}
           </label>
@@ -189,20 +203,18 @@ export default function OrderCreatePage() {
       preConfirm: () => {
         const checked = Array.from(
           document.querySelectorAll("#modForm input[name='mod']:checked")
-        ).map(el => Number(el.value));
+        ).map((el) => Number(el.value));
         if (type === "additions") {
-          return checked.map(id => ({
+          return checked.map((id) => ({
             id,
-            quantity: Number(
-              document.getElementById(`qty-${id}`)?.value || 1
-            )
+            quantity: Number(document.getElementById(`qty-${id}`)?.value || 1),
           }));
         }
         return checked;
-      }
+      },
     });
     if (res.value !== undefined) {
-      setOrderLines(lines => {
+      setOrderLines((lines) => {
         const copy = [...lines];
         copy[lineIndex][type] = res.value;
         return copy;
@@ -210,29 +222,29 @@ export default function OrderCreatePage() {
     }
   };
 
-  const removeLine = i =>
-    setOrderLines(lines => lines.filter((_, idx) => idx !== i));
+  const removeLine = (i) =>
+    setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
   const updateLine = (i, field, v) =>
-    setOrderLines(lines => {
+    setOrderLines((lines) => {
       const copy = [...lines];
       copy[i][field] = v;
       return copy;
     });
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     const payload = {
       app_id: 3,
       entity_name: "establishment",
       entity_id: +entityId,
-      items: orderLines.map(l => ({
+      items: orderLines.map((l) => ({
         item_id: l.product.id,
         quantity: l.quantity,
-        additions: l.additions.flatMap(a => Array(a.quantity).fill(a.id)),
-        removals: l.removals
+        additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
+        removals: l.removals,
       })),
-      ...form
+      ...form,
     };
     try {
       const token = localStorage.getItem("token");
@@ -256,10 +268,10 @@ export default function OrderCreatePage() {
         `,
         showCancelButton: true,
         confirmButtonText: "Imprimir",
-        cancelButtonText: "Fechar"
-      }).then(res => {
+        cancelButtonText: "Fechar",
+      }).then((res) => {
         if (res.isConfirmed) {
-          const w = window.open("", "_blank", "width=200,height=600");
+          const w = window.open("", "_blank", "fullscreen=yes");
           w.document.write(`
             <html>
               <head>
@@ -330,7 +342,7 @@ export default function OrderCreatePage() {
                       type="number"
                       min={1}
                       value={line.quantity}
-                      onChange={e =>
+                      onChange={(e) =>
                         updateLine(i, "quantity", +e.target.value)
                       }
                     />
@@ -348,15 +360,15 @@ export default function OrderCreatePage() {
                 </Row>
                 <Row className="mt-2">
                   <Col>
-                    {line.additions.map(a => (
+                    {line.additions.map((a) => (
                       <Badge key={a.id} bg="info" className="me-1">
                         +{a.quantity}{" "}
-                        {products.find(p => p.id === a.id)?.name}
+                        {products.find((p) => p.id === a.id)?.name}
                       </Badge>
                     ))}
-                    {line.removals.map(id => (
+                    {line.removals.map((id) => (
                       <Badge key={id} bg="secondary" className="me-1">
-                        -{products.find(p => p.id === id)?.name}
+                        -{products.find((p) => p.id === id)?.name}
                       </Badge>
                     ))}
                   </Col>
@@ -373,7 +385,7 @@ export default function OrderCreatePage() {
                 <Form.Control
                   required
                   value={form.customer_name}
-                  onChange={e =>
+                  onChange={(e) =>
                     setForm({ ...form, customer_name: e.target.value })
                   }
                 />
@@ -384,9 +396,7 @@ export default function OrderCreatePage() {
                 <Form.Label>Origem</Form.Label>
                 <Form.Select
                   value={form.origin}
-                  onChange={e =>
-                    setForm({ ...form, origin: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, origin: e.target.value })}
                 >
                   <option>WhatsApp</option>
                   <option>Balcão</option>
@@ -400,9 +410,8 @@ export default function OrderCreatePage() {
                 <Form.Label>Consumo</Form.Label>
                 <Form.Select
                   value={form.fulfillment}
-                  onChange={e =>
-                    setForm({ ...form, fulfillment: e.target
-                      .value })
+                  onChange={(e) =>
+                    setForm({ ...form, fulfillment: e.target.value })
                   }
                 >
                   <option value="dine-in">Local</option>
@@ -418,7 +427,7 @@ export default function OrderCreatePage() {
                 <Form.Label>Status Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_status}
-                  onChange={e =>
+                  onChange={(e) =>
                     setForm({ ...form, payment_status: e.target.value })
                   }
                 >
@@ -433,7 +442,7 @@ export default function OrderCreatePage() {
                 <Form.Label>Método Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_method}
-                  onChange={e =>
+                  onChange={(e) =>
                     setForm({ ...form, payment_method: e.target.value })
                   }
                 >
@@ -457,16 +466,10 @@ export default function OrderCreatePage() {
               as="textarea"
               rows={3}
               value={form.notes}
-              onChange={e =>
-                setForm({ ...form, notes: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </Form.Group>
-          <Button
-            type="submit"
-            className="mt-3"
-            disabled={submitting}
-          >
+          <Button type="submit" className="mt-3" disabled={submitting}>
             {submitting ? (
               <Spinner animation="border" size="sm" />
             ) : (
