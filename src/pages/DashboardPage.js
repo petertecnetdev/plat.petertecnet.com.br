@@ -12,7 +12,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    const fetchEstablishments = async () => {
       try {
         const token = localStorage.getItem("token");
         const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
@@ -22,7 +22,7 @@ const Dashboard = () => {
           },
         });
         setEstablishments(data.establishments || []);
-      } catch {
+      } catch (error) {
         Swal.fire({
           icon: "error",
           title: "Erro",
@@ -32,10 +32,12 @@ const Dashboard = () => {
       } finally {
         setIsLoading(false);
       }
-    })();
+    };
+    fetchEstablishments();
   }, []);
 
   const handleLogoError = (e) => {
+    e.target.onerror = null;
     e.target.src = "/images/logo.png";
   };
 
@@ -46,8 +48,13 @@ const Dashboard = () => {
         <Row className="section-row justify-content-center">
           <Col xs={12} lg={10} className="m-2">
             <Card className="card-component shadow-sm">
-              <p className="section-title text-center">Meus Estabelecimentos</p>
               <Card.Body className="card-body">
+                <p className="section-title text-center">Meus Estabelecimentos</p>
+ <Link to="/establishment/create" className="link-component">
+                      <Button variant="primary" className="action-button m-4">
+                        Cadastrar Novo Estabelecimento
+                      </Button>
+                    </Link>
                 {isLoading ? (
                   <Col xs={12} className="loading-section">
                     <ProcessingIndicatorComponent
@@ -86,11 +93,13 @@ const Dashboard = () => {
                                   src={`${storageUrl}/${
                                     est.logo || "images/logo.png"
                                   }`}
-                                  className="img-component"
                                   alt={est.name}
+                                  className="img-component "
                                   onError={handleLogoError}
                                 />
-                                <p className="label-name-bg m-2">{est.name}</p>
+                                <p className="label-name-bg m-2">
+                                  {est.name}
+                                </p>
                               </div>
                             </Link>
                             <div className="mt-3 text-center">
@@ -102,11 +111,14 @@ const Dashboard = () => {
                               >
                                 Novo Pedido
                               </Button>
-                              <Link to={`/order/list/${est.id}`}>
-                                <Button variant="info" className="w-100 mt-2">
-                                  Ver Pedidos
-                                </Button>
-                              </Link>
+                              <Button
+                                as={Link}
+                                to={`/order/list/${est.id}`}
+                                variant="info"
+                                className="w-100 mt-2"
+                              >
+                                Ver Pedidos
+                              </Button>
                             </div>
                           </Card.Body>
                         </Card>
@@ -114,17 +126,9 @@ const Dashboard = () => {
                     ))}
                   </Row>
                 ) : (
-                  <Col xs={12} className="empty-section text-center">
-                    <p className="empty-text">
-                      Você não possui estabelecimentos cadastrados.
-                    </p>
-                    <Link to="/establishment/create" className="link-component">
-                      <Button variant="primary" className="action-button">
-                        Cadastrar Novo Estabelecimento
-                      </Button>
-                    </Link>
-                  </Col>
+                  <p className="text-center">Nenhum estabelecimento encontrado.</p>
                 )}
+
               </Card.Body>
             </Card>
           </Col>

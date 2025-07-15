@@ -9,7 +9,7 @@ import { apiBaseUrl, storageUrl } from "../../config";
 
 const ItemListPage = () => {
   const { slug } = useParams();
-  const [barbershop, setBarbershop] = useState(null);
+  const [Establishment, setEstablishment] = useState(null);
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState([]);
@@ -18,8 +18,8 @@ const ItemListPage = () => {
     e.target.src = "images/logo.png";
   };
 
-  const fetchBarbershopAndItems = async () => {
-    setMessages(["Carregando itens da barbearia..."]);
+  const fetchEstablishmentAndItems = async () => {
+    setMessages(["Carregando itens da estabelecimento..."]);
     try {
       const token = localStorage.getItem("token");
       const headers = {
@@ -28,10 +28,10 @@ const ItemListPage = () => {
       };
 
       const response = await axios.get(
-        `${apiBaseUrl}/barbershop/view/${slug}`,
+        `${apiBaseUrl}/Establishment/view/${slug}`,
         { headers }
       );
-      setBarbershop(response.data.barbershop);
+      setEstablishment(response.data.Establishment);
       setItems(response.data.items);
     } catch (error) {
       const errors = error?.response?.data?.errors;
@@ -43,7 +43,7 @@ const ItemListPage = () => {
         Swal.fire({
           title: "Erro",
           text:
-            errorMessage.trim() || "Erro ao carregar informações da barbearia.",
+            errorMessage.trim() || "Erro ao carregar informações da estabelecimento.",
           icon: "error",
           confirmButtonText: "OK",
           customClass: {
@@ -57,7 +57,7 @@ const ItemListPage = () => {
           title: "Erro",
           text:
             error.response?.data?.error ||
-            "Erro ao carregar informações da barbearia.",
+            "Erro ao carregar informações da estabelecimento.",
           icon: "error",
           confirmButtonText: "OK",
           customClass: {
@@ -73,7 +73,7 @@ const ItemListPage = () => {
   };
 
   useEffect(() => {
-    fetchBarbershopAndItems();
+    fetchEstablishmentAndItems();
   }, [slug]);
 
   const handleDelete = async (id) => {
@@ -150,7 +150,7 @@ const ItemListPage = () => {
     <>
       <NavlogComponent />
       <p className="section-title text-center">
-        {barbershop ? `Itens de ${barbershop.name}` : "Itens da Barbearia"}
+        {Establishment ? `Itens de ${Establishment.name}` : "Itens da estabelecimento"}
       </p>
 
       <Container className="main-container" fluid>
@@ -159,9 +159,9 @@ const ItemListPage = () => {
             <Card className="card-component shadow-sm">
               <Card.Body className="card-body">
                 <div className="mb-3 text-center">
-                  {barbershop && (
+                  {Establishment && (
                     <Link
-                      to={`/item/create/${barbershop.slug}`}
+                      to={`/item/create/${Establishment.slug}`}
                       className="link-component"
                     >
                       <Button variant="primary" className="action-button">
