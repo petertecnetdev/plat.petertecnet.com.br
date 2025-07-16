@@ -17,6 +17,7 @@ import DashboardPage from "./pages/DashboardPage";
 // Order
 import OrderCreatePage from "./pages/order/OrderCreatePage";
 import OrderListPage from "./pages/order/OrderListPage";
+import OrderEditPage from "./pages/order/OrderEditPage";
 
 // Administrative
 import UserListPage from "./pages/admin/user/UserListPage";
@@ -105,10 +106,13 @@ const App = () => {
 
         {/* Dashboard */}
         <Route path="/dashboard" element={protectedRoute(<DashboardPage />)} />
-        <Route path="/order/list/:entityId" element={protectedRoute(<OrderListPage />)}/>
 
-        {/* Order Creation */}
-       <Route  path="/order/create/:entityId"  element={protectedRoute(<OrderCreatePage />)}/>
+
+        {/* Order */}
+        <Route path="/order/list/:entityId" element={protectedRoute(<OrderListPage />)}/>
+        <Route path="/order/create/:entityId"  element={protectedRoute(<OrderCreatePage />)}/>
+        <Route path="/order/edit/:entityId/:id" element={protectedRoute(<OrderEditPage />)}
+/>
 
         {/* User */}
         <Route path="/user/update" element={protectedRoute(<UserUpdatePage />)} />

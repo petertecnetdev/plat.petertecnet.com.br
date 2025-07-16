@@ -7,14 +7,13 @@ import {
   Col,
   Form,
   Button,
-  Card,
   Spinner,
   Badge,
 } from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
-import { apiBaseUrl } from "../../config";
+import { apiBaseUrl, storageUrl } from "../../config";
 
 export default function OrderCreatePage() {
   const { entityId } = useParams();
@@ -22,6 +21,7 @@ export default function OrderCreatePage() {
 
   const [products, setProducts] = useState([]);
   const [estName, setEstName] = useState("");
+  const [estLogo, setEstLogo] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -33,6 +33,7 @@ export default function OrderCreatePage() {
     notes: "",
   });
   const [orderLines, setOrderLines] = useState([]);
+
   const originLabels = {
     WhatsApp: "WhatsApp",
     Balcão: "Balcão",
@@ -47,6 +48,7 @@ export default function OrderCreatePage() {
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       const token = localStorage.getItem("token");
       try {
         const [resItems, resEst] = await Promise.all([
@@ -59,7 +61,9 @@ export default function OrderCreatePage() {
           }),
         ]);
         setProducts(resItems.data);
-        setEstName(resEst.data.establishment.name.toUpperCase());
+        const est = resEst.data.establishment;
+        setEstName(est.name.toUpperCase());
+        setEstLogo(est.logo || "");
       } catch {
         Swal.fire("Erro", "Não foi possível carregar dados.", "error");
       } finally {
@@ -69,127 +73,255 @@ export default function OrderCreatePage() {
   }, [entityId]);
 
   const buildReceipt = (order) => {
-    const WIDTH = 42;
+    const WIDTH = 32;
+    const center = (text) =>
+      text.padStart(Math.floor((WIDTH + text.length) / 2)).padEnd(WIDTH);
+    const line = (char = "-") => char.repeat(WIDTH);
+    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
     const pad = (l, r) => {
       const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
       return `${l}${dots}${r}`;
     };
-    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-    const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
+
+    const consLabel =
+      fulfillmentLabels[order.fulfillment] || order.fulfillment;
     const origLabel = originLabels[order.origin] || order.origin;
+
     const L = [];
-
-    L.push(""); // margem topo
     L.push("");
-
     L.push("█".repeat(WIDTH));
-    L.push(estName.padStart((WIDTH + estName.length) / 2));
+    L.push(center(estName));
     L.push("█".repeat(WIDTH));
     L.push("");
-    L.push(`👤 Cliente: ${(order.customer_name || "NÃO INFORMADO").toUpperCase()}`);
+    L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
     L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
     L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
-    L.push("-".repeat(WIDTH));
-    L.push("ITENS DO PEDIDO".padStart((WIDTH + 15) / 2));
-    L.push("-".repeat(WIDTH));
+    L.push(line());
+    L.push(center("ITENS DO PEDIDO"));
+    L.push(line());
 
-    order.items.forEach((i) => {
-      const qty = `${i.quantity}x`;
-      L.push(pad(`${qty} ${i.item.name}`, fmt(i.subtotal || 0)));
-      i.modifiers.forEach((m) =>
-        L.push(`${m.type === "addition" ? "+ " : "- "}${m.modifier.name}`)
-      );
+    let total = 0;
+    order.items.forEach((it) => {
+      const unitPrice = Number(it.item.price);
+      const itemSubtotal = unitPrice * it.quantity;
+      total += itemSubtotal;
+      L.push(pad(`${it.quantity}x ${it.item.name}`, fmt(itemSubtotal)));
+
+      const additions = it.modifiers.filter((m) => m.type === "addition");
+      additions.forEach((m) => {
+        const prod = products.find((p) => p.id === m.modifier_id);
+        if (prod) {
+          const addUnit = Number(prod.price || 0);
+          const addQty = m.quantity || 1;
+          const addSubtotal = addUnit * addQty;
+          total += addSubtotal;
+          L.push(pad(`  + ${prod.name}`, fmt(addSubtotal)));
+        }
+      });
+
+      const removals = it.modifiers.filter((m) => m.type === "removal");
+      removals.forEach((m) => {
+        const prod = products.find((p) => p.id === m.modifier_id);
+        if (prod) {
+          L.push(`  - ${prod.name}`);
+        }
+      });
     });
 
-    L.push("-".repeat(WIDTH));
-    L.push(pad("TOTAL", fmt(order.total_price)));
+    L.push(line());
+    L.push(pad("TOTAL", fmt(total)));
     L.push("");
     L.push(
       `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
         hour12: false,
       })}`
     );
-
-    L.push(""); // margem final
     L.push("");
     L.push("");
-    L.push("");
-
     return L.join("\n");
   };
 
   const handleAddItem = async () => {
     const available = products.filter((p) => p.category !== "Adicionais");
-    let idx = null;
-    const html = `
+    const grouped = available.reduce((acc, item) => {
+      const cat = item.category || "Outros";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    }, {});
+    const categories = Object.keys(grouped);
+    let selectedCategory = categories[0];
+
+    const renderHtml = () => `
       <style>
-        .item-btn {
-          display: block;
+        .swal2-popup.swal2-fullscreen {
+          width: 100vw !important;
+          height: 100vh !important;
+          max-width: none !important;
+          max-height: none !important;
+          border-radius: 0;
+          margin: 0;
+          padding: 0;
+        }
+        .swal2-html-container {
+          position: relative !important;
+          padding: 0 !important;
+          margin: 0 !important;
           width: 100%;
-          margin: 4px 0;
-          padding: 8px;
-          border: 2px solid #FFA500;
-          background-color: #FFF3E0;
-          color: #E65100;
-          border-radius: 4px;
-          text-align: left;
+          height: 100%;
+          overflow: hidden;
+        }
+        .category-tabs {
+          position: fixed;
+          top: 0; left: 0; right: 0;
+          height: 56px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 16px;
+          background: #1A1A1A;
+          border-bottom: 2px solid #FDAE26;
+          overflow-x: auto;
           white-space: nowrap;
+          z-index: 10000;
+        }
+        .category-tab {
+          flex: none;
+          padding: 8px 16px;
+          border: 1px solid #FDAE26;
+          background: #1A1A1A;
+          color: #FDAE26;
+          cursor: pointer;
+          white-space: nowrap;
+          border-radius: 4px;
+        }
+        .category-tab.active {
+          background: #FDAE26;
+          color: #1A1A1A;
+        }
+        .item-list {
+          position: fixed;
+          top: 56px; bottom: 0;
+          left: 0; right: 0;
+          padding: 16px;
+          background: #fff;
+          overflow-y: auto;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .item-card {
+          flex: 1 0 calc(25% - 12px);
+          max-width: calc(25% - 12px);
+          height: 100px;
+          border: 1px solid #FDAE26;
+          border-radius: 4px;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          cursor: pointer;
+        }
+        .item-name {
+          font-size: 0.9rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .item-price {
+          font-size: 0.8rem;
+          color: #E65100;
         }
       </style>
-      <div style="max-height:300px; overflow-y:auto;">
-        ${available
+      <div class="category-tabs">
+        ${categories
           .map(
-            (p, i) =>
-              `<button type="button" class="item-btn" data-idx="${i}">
-                ${p.name} — R$ ${Number(p.price).toFixed(2).replace(".", ",")}
-              </button>`
+            (cat) =>
+              `<div class="category-tab ${
+                cat === selectedCategory ? "active" : ""
+              }" data-cat="${cat}">${cat}</div>`
           )
           .join("")}
       </div>
+      <div class="item-list" id="swal-item-list"></div>
     `;
+
+    const attachEvents = () => {
+      const tabs = document.querySelectorAll(".category-tab");
+      tabs.forEach((tab) =>
+        tab.addEventListener("click", () => {
+          selectedCategory = tab.dataset.cat;
+          tabs.forEach((t) => t.classList.remove("active"));
+          tab.classList.add("active");
+          renderItems();
+        })
+      );
+
+      function renderItems() {
+        const container = document.getElementById("swal-item-list");
+        container.innerHTML = grouped[selectedCategory]
+          .map(
+            (p) => `
+              <div class="item-card" data-id="${p.id}">
+                <div class="item-name">${p.name}</div>
+                <div class="item-price">R$${Number(p.price)
+                  .toFixed(2)
+                  .replace(".", ",")}</div>
+              </div>`
+          )
+          .join("");
+        container
+          .querySelectorAll(".item-card")
+          .forEach((card) =>
+            card.addEventListener("click", () => {
+              const id = +card.dataset.id;
+              const prod = products.find((x) => x.id === id);
+              if (prod) {
+                setOrderLines((l) => [
+                  ...l,
+                  { product: prod, quantity: 1, additions: [], removals: [] },
+                ]);
+              }
+              Swal.close();
+            })
+          );
+      }
+
+      renderItems();
+    };
+
     await Swal.fire({
-      title: "Selecione Item",
-      html,
+      title: null,
+      html: renderHtml(),
       showCancelButton: true,
       showConfirmButton: false,
-      width: 350,
-      didOpen: () => {
-        document.querySelectorAll(".item-btn").forEach((btn) =>
-          btn.addEventListener("click", () => {
-            idx = Number(btn.dataset.idx);
-            Swal.close();
-          })
-        );
-      },
+      width: "100%",
+      heightAuto: false,
+      customClass: { popup: "swal2-fullscreen" },
+      didRender: attachEvents,
+      scrollbarPadding: false,
     });
-    if (idx !== null) {
-      setOrderLines((lines) => [
-        ...lines,
-        { product: available[idx], quantity: 1, additions: [], removals: [] },
-      ]);
-    }
   };
 
-  const handleManage = async (lineIndex, type) => {
-    const title =
-      type === "additions" ? "Selecione Adicionais" : "Selecione Remoções";
+  const handleManage = async (index, type) => {
+    const title = type === "additions" ? "Adicionais" : "Remoções";
     const opts = products.filter((p) => p.category === "Adicionais");
     let html = `<form id="modForm">`;
     opts.forEach((o) => {
-      const currentQty =
-        orderLines[lineIndex].additions.find((a) => a.id === o.id)?.quantity ||
-        1;
+      const added = orderLines[index][type].find((m) => m.id === o.id);
       html += `
         <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">
           <label>
             <input type="checkbox" value="${o.id}" name="mod" ${
-        orderLines[lineIndex][type].some((m) => m.id === o.id) ? "checked" : ""
+        added ? "checked" : ""
       }/>
             ${o.name}
           </label>
           ${
             type === "additions"
-              ? `<input id="qty-${o.id}" type="number" min="1" value="${currentQty}" style="width:40px"/>`
+              ? `<input id="qty-${o.id}" type="number" min="1" value="${
+                  added?.quantity || 1
+                }" style="width:40px"/>`
               : ""
           }
         </div>`;
@@ -203,21 +335,22 @@ export default function OrderCreatePage() {
       preConfirm: () => {
         const checked = Array.from(
           document.querySelectorAll("#modForm input[name='mod']:checked")
-        ).map((el) => Number(el.value));
-        if (type === "additions") {
-          return checked.map((id) => ({
-            id,
-            quantity: Number(document.getElementById(`qty-${id}`)?.value || 1),
-          }));
-        }
-        return checked;
+        ).map((el) => +el.value);
+        return type === "additions"
+          ? checked.map((id) => ({
+              id,
+              quantity: Number(
+                document.getElementById(`qty-${id}`)?.value || 1
+              ),
+            }))
+          : checked;
       },
     });
     if (res.value !== undefined) {
       setOrderLines((lines) => {
-        const copy = [...lines];
-        copy[lineIndex][type] = res.value;
-        return copy;
+        const c = [...lines];
+        c[index][type] = res.value;
+        return c;
       });
     }
   };
@@ -226,9 +359,9 @@ export default function OrderCreatePage() {
     setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
   const updateLine = (i, field, v) =>
     setOrderLines((lines) => {
-      const copy = [...lines];
-      copy[i][field] = v;
-      return copy;
+      const c = [...lines];
+      c[i][field] = v;
+      return c;
     });
 
   const handleSubmit = async (e) => {
@@ -243,7 +376,7 @@ export default function OrderCreatePage() {
         quantity: l.quantity,
         additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
         removals: l.removals,
-      })),
+      })),      
       ...form,
     };
     try {
@@ -260,48 +393,17 @@ export default function OrderCreatePage() {
       const receiptText = buildReceipt(fetched.order);
       await Swal.fire({
         title: `Recibo Pedido #${fetched.order.order_number}`,
-        html: `
-          <style>
-            .swal2-html-container { font-family: monospace; white-space: pre; text-align: left; }
-          </style>
-          <div class="print-area"><pre>${receiptText}</pre></div>
-        `,
+        html: `<pre style="font-family:monospace;white-space:pre-wrap">${receiptText}</pre>`,
         showCancelButton: true,
         confirmButtonText: "Imprimir",
-        cancelButtonText: "Fechar",
-      }).then((res) => {
-        if (res.isConfirmed) {
-          const w = window.open("", "_blank", "fullscreen=yes");
-          w.document.write(`
-            <html>
-              <head>
-                <title>Recibo</title>
-                <style>
-                  @page { margin: 0; }
-                  body { margin: 4px; font-family: monospace; font-size: 12px; }
-                  pre { margin: 0; }
-                </style>
-              </head>
-              <body><pre>${receiptText}</pre></body>
-            </html>
-          `);
-          w.document.close();
-          w.focus();
-          w.print();
-          w.close();
-        }
       });
-      navigate("/dashboard");
+      navigate(`/order/list/${entityId}`);
     } catch (err) {
       if (err.response?.status === 422) {
         const msgs = Object.values(err.response.data.errors || {}).flat();
         Swal.fire("Erro de Validação", msgs.join("\n"), "warning");
       } else {
-        Swal.fire(
-          "Erro",
-          err.response?.data?.error || "Ocorreu um erro.",
-          "error"
-        );
+        Swal.fire("Erro", "Não foi possível criar pedido.", "error");
       }
     } finally {
       setSubmitting(false);
@@ -315,120 +417,165 @@ export default function OrderCreatePage() {
     <>
       <NavlogComponent />
       <Container className="m-4">
-        <h3>Novo Pedido</h3>
-        <p className="text-center">
-          <strong>{estName}</strong>
-        </p>
+        {/* cabeçalho com logo e nome */}
+        <div className="est-header text-center mb-4">
+          {estLogo && (
+            <img 
+              src={`${storageUrl}/${estLogo|| "images/logo.png"}`}
+              alt={`${estName} logo`}
+              className="img-component align-self-left"
+            />
+          )}
+          <p className="bg-dark text-white py-1 px-3 rounded d-inline-block mb-0 ">
+            <strong>{estName}</strong>
+          </p>
+                 </div>
+
         <Button variant="success" onClick={handleAddItem}>
           + Adicionar Item
         </Button>
-        <Col md={6} className="m-2">
-          {orderLines.map((line, i) => (
-            <Card key={i} className="m-2">
-              <Card.Header className="d-flex justify-content-between bg-warning text-dark">
-                {line.product.name}
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => removeLine(i)}
-                >
-                  X
-                </Button>
-              </Card.Header>
-              <Card.Body>
-                <Row className="align-items-center">
-                  <Col md={4}>
-                    <Form.Control
-                      type="number"
-                      min={1}
-                      value={line.quantity}
-                      onChange={(e) =>
-                        updateLine(i, "quantity", +e.target.value)
-                      }
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <Button onClick={() => handleManage(i, "additions")}>
-                      Adicionais
-                    </Button>
-                  </Col>
-                  <Col md={4}>
-                    <Button onClick={() => handleManage(i, "removals")}>
-                      Remoções
-                    </Button>
-                  </Col>
-                </Row>
-                <Row className="mt-2">
-                  <Col>
-                    {line.additions.map((a) => (
-                      <Badge key={a.id} bg="info" className="me-1">
-                        +{a.quantity}{" "}
-                        {products.find((p) => p.id === a.id)?.name}
-                      </Badge>
-                    ))}
-                    {line.removals.map((id) => (
-                      <Badge key={id} bg="secondary" className="me-1">
-                        -{products.find((p) => p.id === id)?.name}
-                      </Badge>
-                    ))}
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
+
+        {/* linhas de pedido */}
+    <div className="order-lines-container border rounded p-4 mt-3">
+  <p className="mb-3 h6">Itens do Pedido</p>
+  <Row className="order-lines">
+    {orderLines.map((line, i) => (
+      <Row
+        key={i}
+        className="order-line-row align-items-center border-bottom py-2"
+      >
+        {/* Nome do item + botão remover */}
+        <Col xs={12} lg={4} className="d-flex align-items-center mb-2 mb-lg-0">
+          <span className="order-line-title flex-grow-1 text-truncate">
+            {line.product.name} - R$ {line.product.price}
+          </span>
+          <Button
+            size="sm"
+            variant="outline-danger"
+            className="ms-2"
+            onClick={() => removeLine(i)}
+          >
+            ×
+          </Button>
+        </Col>
+
+        {/* Quantidade */}
+        <Col xs={12} sm={6} lg={2} className="d-flex align-items-center mb-2 mb-sm-0">
+          <Button
+            size="sm"
+            variant="outline-info"
+            onClick={() =>
+              updateLine(i, "quantity", Math.max(1, line.quantity - 1))
+            }
+          >
+            −
+          </Button>
+          <span className="mx-2 fw-bold">{line.quantity}</span>
+          <Button
+            size="sm"
+            variant="outline-info"
+            onClick={() => updateLine(i, "quantity", line.quantity + 1)}
+          >
+            +
+          </Button>
+        </Col>
+
+        {/* Adicionais / Remoções */}
+        <Col xs={12} sm={6} lg={3} className="d-flex gap-2 mb-2 mb-sm-0">
+          <Button
+            size="sm"
+            variant="outline-primary"
+            className="flex-grow-1"
+            onClick={() => handleManage(i, "additions")}
+          >
+            Adicionais
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            className="flex-grow-1"
+            onClick={() => handleManage(i, "removals")}
+          >
+            Remoções
+          </Button>
+        </Col>
+
+        {/* Badges */}
+        <Col xs={12} lg={3} className="order-modifiers d-flex flex-wrap gap-1">
+          {line.additions.map((a) => (
+            <Badge key={`add-${a.id}`} bg="success" className="order-mod-badge ">
+              + {a.quantity} {products.find((p) => p.id === a.id)?.name} - R$ {products.find((p) => p.id === a.id)?.price}
+            </Badge>
+          ))}
+          {line.removals.map((rid) => (
+            <Badge key={`rem-${rid}`} bg="danger" className="order-mod-badge">
+              − {products.find((p) => p.id === rid)?.name}
+            </Badge>
           ))}
         </Col>
-        <Form onSubmit={handleSubmit} className="mt-3">
+      </Row>
+    ))}
+  </Row>
+</div>
+
+
+        {/* formulário de dados e envio */}
+        <Form onSubmit={handleSubmit} className="mt-4">
           <Row className="g-3">
             <Col md={6}>
-              <Form.Group>
+              <Form.Group controlId="customer">
                 <Form.Label>Cliente</Form.Label>
                 <Form.Control
                   required
                   value={form.customer_name}
                   onChange={(e) =>
-                    setForm({ ...form, customer_name: e.target.value })
+                    setForm((f) => ({ ...f, customer_name: e.target.value }))
                   }
                 />
               </Form.Group>
             </Col>
             <Col md={3}>
-              <Form.Group>
+              <Form.Group controlId="origin">
                 <Form.Label>Origem</Form.Label>
                 <Form.Select
                   value={form.origin}
-                  onChange={(e) => setForm({ ...form, origin: e.target.value })}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, origin: e.target.value }))
+                  }
                 >
-                  <option>WhatsApp</option>
-                  <option>Balcão</option>
-                  <option>Telefone</option>
-                  <option>App</option>
+                  {Object.keys(originLabels).map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
                 </Form.Select>
               </Form.Group>
             </Col>
             <Col md={3}>
-              <Form.Group>
+              <Form.Group controlId="fulfillment">
                 <Form.Label>Consumo</Form.Label>
                 <Form.Select
                   value={form.fulfillment}
                   onChange={(e) =>
-                    setForm({ ...form, fulfillment: e.target.value })
+                    setForm((f) => ({ ...f, fulfillment: e.target.value }))
                   }
                 >
-                  <option value="dine-in">Local</option>
-                  <option value="take-away">Levar</option>
-                  <option value="delivery">Delivery</option>
+                  {Object.entries(fulfillmentLabels).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
                 </Form.Select>
               </Form.Group>
             </Col>
           </Row>
-          <Row className="g-3 mt-2">
+
+          <Row className="g-3 mt-3">
             <Col md={4}>
-              <Form.Group>
+              <Form.Group controlId="payment_status">
                 <Form.Label>Status Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_status}
                   onChange={(e) =>
-                    setForm({ ...form, payment_status: e.target.value })
+                    setForm((f) => ({ ...f, payment_status: e.target.value }))
                   }
                 >
                   <option value="pending">Pendente</option>
@@ -438,12 +585,12 @@ export default function OrderCreatePage() {
               </Form.Group>
             </Col>
             <Col md={8}>
-              <Form.Group>
+              <Form.Group controlId="payment_method">
                 <Form.Label>Método Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_method}
                   onChange={(e) =>
-                    setForm({ ...form, payment_method: e.target.value })
+                    setForm((f) => ({ ...f, payment_method: e.target.value }))
                   }
                 >
                   <option>Dinheiro</option>
@@ -460,21 +607,21 @@ export default function OrderCreatePage() {
               </Form.Group>
             </Col>
           </Row>
-          <Form.Group className="mt-3">
+
+          <Form.Group controlId="notes" className="mt-3">
             <Form.Label>Observações</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
               value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, notes: e.target.value }))
+              }
             />
           </Form.Group>
+
           <Button type="submit" className="mt-3" disabled={submitting}>
-            {submitting ? (
-              <Spinner animation="border" size="sm" />
-            ) : (
-              "Criar Pedido"
-            )}
+            {submitting ? <Spinner animation="border" size="sm" /> : "Criar Pedido"}
           </Button>
         </Form>
       </Container>

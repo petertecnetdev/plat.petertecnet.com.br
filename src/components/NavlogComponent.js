@@ -125,8 +125,8 @@ const Navigation = () => {
   return (
     <>
       <Navbar expand="lg" sticky="top" bg="dark" variant="dark" className="px-3">
-        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
-          <img src="/images/logo.png" alt="Logo" style={{ height: "40px" }} />
+        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2 ">
+          <img src="/images/logo.png" alt="Logo"  className="logo-image"/>
         </Navbar.Brand>
         <div className="ms-auto d-flex align-items-center gap-3">
           <button
