@@ -26,7 +26,7 @@ export default function OrderCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     customer_name: "",
-    origin: "WhatsApp",
+    origin: "Balcão",
     fulfillment: "dine-in",
     payment_status: "pending",
     payment_method: "Dinheiro",
@@ -34,9 +34,9 @@ export default function OrderCreatePage() {
   });
   const [orderLines, setOrderLines] = useState([]);
 
-  const originLabels = {
-    WhatsApp: "WhatsApp",
+  const originLabels = {    
     Balcão: "Balcão",
+    WhatsApp: "WhatsApp",
     Telefone: "Telefone",
     App: "Aplicativo",
   };
