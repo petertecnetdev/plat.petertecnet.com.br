@@ -92,7 +92,7 @@ export default function OrderListPage() {
   }, [entityId]);
 
   const buildReceipt = (order) => {
-    const WIDTH = 16;
+    const WIDTH = 24;
     const center = (text) =>
       text.padStart(Math.floor((WIDTH + text.length) / 2)).padEnd(WIDTH);
     const line = () => "-".repeat(WIDTH);
