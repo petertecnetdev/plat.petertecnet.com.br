@@ -90,21 +90,18 @@ export default function OrderListPage() {
       }
     })();
   }, [entityId]);
-
   const buildReceipt = (order) => {
     const WIDTH = 32;
-    const center = (text) =>
-      text.padStart(Math.floor((WIDTH + text.length) / 2)).padEnd(WIDTH);
     const line = () => "-".repeat(WIDTH);
     const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-    const pad = (l, r) => {
-      const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
-      return `${l}${dots}${r}`;
-    };
-    const consLabel =
-      fulfillmentLabels[order.fulfillment] || order.fulfillment;
+    const padLine = (left, right) => left.padEnd(WIDTH - right.length) + right;
+    const center = (text) =>
+      text.padStart((WIDTH + text.length) / 2).padEnd(WIDTH);
+
+    const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
     const origLabel = originLabels[order.origin] || order.origin;
     const L = [];
+
     L.push("");
     L.push("█".repeat(WIDTH));
     L.push(center(estName));
@@ -116,13 +113,15 @@ export default function OrderListPage() {
     L.push(line());
     L.push(center("ITENS DO PEDIDO"));
     L.push(line());
+
     let total = 0;
     order.items.forEach((it) => {
       const qty = it.quantity;
       const name = it.item.name;
       const sub = Number(it.subtotal);
       total += sub;
-      L.push(pad(`${qty}x ${name}`, fmt(sub)));
+      L.push(padLine(`${qty}x ${name}`, fmt(sub)));
+
       it.modifiers
         .filter((m) => m.type === "addition")
         .forEach((m) => {
@@ -131,16 +130,18 @@ export default function OrderListPage() {
           const count = m.quantity || 1;
           const subAdd = unit * count;
           total += subAdd;
-          L.push(pad(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd)));
+          L.push(padLine(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd)));
         });
+
       it.modifiers
         .filter((m) => m.type === "removal")
         .forEach((m) => {
           L.push(`  - ${m.modifier.name}`);
         });
     });
+
     L.push(line());
-    L.push(pad("TOTAL", fmt(total)));
+    L.push(padLine("TOTAL", fmt(total)));
     L.push("");
     L.push(
       `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
@@ -148,29 +149,25 @@ export default function OrderListPage() {
       })}`
     );
     L.push("");
+
     return L.join("\n");
   };
 
   const handleReprint = async (orderId) => {
     try {
       const token = localStorage.getItem("token");
-      const { data } = await axios.get(
-        `${apiBaseUrl}/order/${orderId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const receiptText = buildReceipt(data.order);
       Swal.fire({
         title: `Recibo Pedido #${data.order.order_number}`,
         html: `
-          <style>
-            .swal2-html-container {
-              font-family: monospace;
-              white-space: pre;
-              text-align: left;
-            }
-          </style>
-          <pre>${receiptText}</pre>
-        `,
+        <style>
+          .swal2-html-container { font-family: monospace; white-space: pre; text-align: left; }
+        </style>
+        <pre>${receiptText}</pre>
+      `,
         showCancelButton: true,
         confirmButtonText: "Imprimir",
         cancelButtonText: "Fechar",
@@ -181,14 +178,7 @@ export default function OrderListPage() {
 <html><head><title>Recibo</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
-  body {
-    margin: 0;
-    padding: 0;
-    width: 80mm;
-    font-family: monospace;
-    font-size: 18px;
-    line-height: 1.4;
-  }
+  body { margin: 0; padding: 0; width: 80mm; font-family: monospace; font-size: 18px; line-height: 1.4; }
   pre { white-space: pre-wrap; word-wrap: break-word; }
 </style>
 </head><body><pre>${receiptText}</pre></body></html>`);
@@ -212,18 +202,14 @@ export default function OrderListPage() {
         const day = String(dt.getDate()).padStart(2, "0");
         const date = `${year}-${month}-${day}`;
         const time = dt.toTimeString().slice(0, 5);
-        const okDate =
-          date >= filters.startDate && date <= filters.endDate;
-        const okTime =
-          time >= filters.startTime && time <= filters.endTime;
+        const okDate = date >= filters.startDate && date <= filters.endDate;
+        const okTime = time >= filters.startTime && time <= filters.endTime;
         const okCust = o.customer_name
           .toLowerCase()
           .includes(filters.customer.toLowerCase());
         const okItem = filters.item
           ? o.items.some((i) =>
-              i.item.name
-                .toLowerCase()
-                .includes(filters.item.toLowerCase())
+              i.item.name.toLowerCase().includes(filters.item.toLowerCase())
             )
           : true;
         return okDate && okTime && okCust && okItem;
@@ -321,13 +307,7 @@ export default function OrderListPage() {
         </Form>
 
         <div className="d-none d-md-block">
-          <Table
-            striped
-            bordered
-            hover
-            responsive
-            className="table-list-order"
-          >
+          <Table striped bordered hover responsive className="table-list-order">
             <thead>
               <tr>
                 <th>#</th>
@@ -355,9 +335,7 @@ export default function OrderListPage() {
                   <td>{paymentStatusLabels[o.payment_status]}</td>
                   <td>
                     R$
-                    {parseFloat(o.total_price)
-                      .toFixed(2)
-                      .replace(".", ",")}
+                    {parseFloat(o.total_price).toFixed(2).replace(".", ",")}
                   </td>
                   <td className="d-flex gap-2">
                     <Button
