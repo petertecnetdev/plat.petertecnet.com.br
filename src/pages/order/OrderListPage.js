@@ -180,12 +180,14 @@ export default function OrderListPage() {
           w.document.write(`
 <html><head><title>Recibo</title>
 <style>
-  @page { margin: 0; }
+  @page { size: 80mm auto; margin: 0; }
   body {
     margin: 0;
+    padding: 0;
+    width: 80mm;
     font-family: monospace;
-    font-size: 26px;
-    line-height: 1.6;
+    font-size: 12px;
+    line-height: 1.4;
   }
   pre { white-space: pre-wrap; word-wrap: break-word; }
 </style>
@@ -210,7 +212,6 @@ export default function OrderListPage() {
         const day = String(dt.getDate()).padStart(2, "0");
         const date = `${year}-${month}-${day}`;
         const time = dt.toTimeString().slice(0, 5);
-
         const okDate =
           date >= filters.startDate && date <= filters.endDate;
         const okTime =
@@ -225,7 +226,6 @@ export default function OrderListPage() {
                 .includes(filters.item.toLowerCase())
             )
           : true;
-
         return okDate && okTime && okCust && okItem;
       }),
     [orders, filters]

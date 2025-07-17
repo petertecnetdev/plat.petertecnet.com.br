@@ -141,167 +141,171 @@ export default function OrderCreatePage() {
     return L.join("\n");
   };
 
-  const handleAddItem = async () => {
-    const available = products.filter((p) => p.category !== "Adicionais");
-    const grouped = available.reduce((acc, item) => {
-      const cat = item.category || "Outros";
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {});
-    const categories = Object.keys(grouped);
-    let selectedCategory = categories[0];
+ const handleAddItem = async () => {
+  const available = products.filter((p) => p.category !== "Adicionais");
+  const grouped = available.reduce((acc, item) => {
+    const cat = item.category || "Outros";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {});
+  const categories = Object.keys(grouped);
+  let selectedCategory = categories[0];
 
-    const renderHtml = () => `
-      <style>
-        .swal2-popup.swal2-fullscreen {
-          width: 100vw !important;
-          height: 100vh !important;
-          max-width: none !important;
-          max-height: none !important;
-          border-radius: 0;
-          margin: 0;
-          padding: 0;
-        }
-        .swal2-html-container {
-          position: relative !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-        }
-        .category-tabs {
-          position: fixed;
-          top: 0; left: 0; right: 0;
-          height: 56px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 0 16px;
-          background: #1A1A1A;
-          border-bottom: 2px solid #FDAE26;
-          overflow-x: auto;
-          white-space: nowrap;
-          z-index: 10000;
-        }
-        .category-tab {
-          flex: none;
-          padding: 8px 16px;
-          border: 1px solid #FDAE26;
-          background: #1A1A1A;
-          color: #FDAE26;
-          cursor: pointer;
-          white-space: nowrap;
-          border-radius: 4px;
-        }
-        .category-tab.active {
-          background: #FDAE26;
-          color: #1A1A1A;
-        }
-        .item-list {
-          position: fixed;
-          top: 56px; bottom: 0;
-          left: 0; right: 0;
-          padding: 16px;
-          background: #fff;
-          overflow-y: auto;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .item-card {
-          flex: 1 0 calc(25% - 12px);
-          max-width: calc(25% - 12px);
-          height: 100px;
-          border: 1px solid #FDAE26;
-          border-radius: 4px;
-          padding: 8px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          cursor: pointer;
-        }
-        .item-name {
-          font-size: 0.9rem;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .item-price {
-          font-size: 0.8rem;
-          color: #E65100;
-        }
-      </style>
-      <div class="category-tabs">
-        ${categories
-          .map(
-            (cat) =>
-              `<div class="category-tab ${
-                cat === selectedCategory ? "active" : ""
-              }" data-cat="${cat}">${cat}</div>`
-          )
-          .join("")}
-      </div>
-      <div class="item-list" id="swal-item-list"></div>
-    `;
-
-    const attachEvents = () => {
-      const tabs = document.querySelectorAll(".category-tab");
-      tabs.forEach((tab) =>
-        tab.addEventListener("click", () => {
-          selectedCategory = tab.dataset.cat;
-          tabs.forEach((t) => t.classList.remove("active"));
-          tab.classList.add("active");
-          renderItems();
-        })
-      );
-
-      function renderItems() {
-        const container = document.getElementById("swal-item-list");
-        container.innerHTML = grouped[selectedCategory]
-          .map(
-            (p) => `
-              <div class="item-card" data-id="${p.id}">
-                <div class="item-name">${p.name}</div>
-                <div class="item-price">R$${Number(p.price)
-                  .toFixed(2)
-                  .replace(".", ",")}</div>
-              </div>`
-          )
-          .join("");
-        container
-          .querySelectorAll(".item-card")
-          .forEach((card) =>
-            card.addEventListener("click", () => {
-              const id = +card.dataset.id;
-              const prod = products.find((x) => x.id === id);
-              if (prod) {
-                setOrderLines((l) => [
-                  ...l,
-                  { product: prod, quantity: 1, additions: [], removals: [] },
-                ]);
-              }
-              Swal.close();
-            })
-          );
+  const renderHtml = () => `
+    <style>
+      .swal2-popup {
+        width: 80vw !important;
+        height: 80vh !important;
+        max-width: none !important;
+        max-height: none !important;
+        border-radius: 8px !important;
+        padding: 0 !important;
       }
+      .swal2-html-container {
+        position: relative !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      .category-tabs {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 12px;
+        background: #1A1A1A;
+        border-bottom: 2px solid #FDAE26;
+        overflow-x: auto;
+        white-space: nowrap;
+        z-index: 10000;
+      }
+      .category-tab {
+        flex: none;
+        padding: 6px 12px;
+        border: 1px solid #FDAE26;
+        background: #1A1A1A;
+        color: #FDAE26;
+        cursor: pointer;
+        white-space: nowrap;
+        border-radius: 4px;
+        font-size: 0.85rem;
+      }
+      .category-tab.active {
+        background: #FDAE26;
+        color: #1A1A1A;
+      }
+      .item-list {
+        position: fixed;
+        top: 48px;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 12px;
+        background: #fff;
+        overflow-y: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .item-card {
+        flex: 1 0 calc(30% - 10px);
+        max-width: calc(30% - 10px);
+        height: 80px;
+        border: 1px solid #FDAE26;
+        border-radius: 4px;
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+      .item-name {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .item-price {
+        font-size: 0.7rem;
+        color: #E65100;
+      }
+    </style>
+    <div class="category-tabs">
+      ${categories
+        .map(
+          (cat) =>
+            `<div class="category-tab ${
+              cat === selectedCategory ? "active" : ""
+            }" data-cat="${cat}">${cat}</div>`
+        )
+        .join("")}
+    </div>
+    <div class="item-list" id="swal-item-list"></div>
+  `;
 
-      renderItems();
-    };
+  const attachEvents = () => {
+    const tabs = document.querySelectorAll(".category-tab");
+    tabs.forEach((tab) =>
+      tab.addEventListener("click", () => {
+        selectedCategory = tab.dataset.cat;
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        renderItems();
+      })
+    );
 
-    await Swal.fire({
-      title: null,
-      html: renderHtml(),
-      showCancelButton: true,
-      showConfirmButton: false,
-      width: "100%",
-      heightAuto: false,
-      customClass: { popup: "swal2-fullscreen" },
-      didRender: attachEvents,
-      scrollbarPadding: false,
-    });
+    function renderItems() {
+      const container = document.getElementById("swal-item-list");
+      container.innerHTML = grouped[selectedCategory]
+        .map(
+          (p) => `
+            <div class="item-card" data-id="${p.id}">
+              <div class="item-name">${p.name}</div>
+              <div class="item-price">R$${Number(p.price)
+                .toFixed(2)
+                .replace(".", ",")}</div>
+            </div>`
+        )
+        .join("");
+      container
+        .querySelectorAll(".item-card")
+        .forEach((card) =>
+          card.addEventListener("click", () => {
+            const id = +card.dataset.id;
+            const prod = products.find((x) => x.id === id);
+            if (prod) {
+              setOrderLines((l) => [
+                ...l,
+                { product: prod, quantity: 1, additions: [], removals: [] },
+              ]);
+            }
+            Swal.close();
+          })
+        );
+    }
+
+    renderItems();
   };
+
+  Swal.fire({
+    html: renderHtml(),
+    showConfirmButton: false,
+    width: "auto",
+    padding: 0,
+    background: "transparent",
+    didOpen: () => {
+      attachEvents();
+    },
+  });
+};
+
 
   const handleManage = async (index, type) => {
     const title = type === "additions" ? "Adicionais" : "Remoções";
