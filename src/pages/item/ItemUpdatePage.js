@@ -120,7 +120,7 @@ export default function ItemUpdatePage() {
       Swal.fire('Sucesso', 'Item atualizado com sucesso.', 'success');
       navigate('/');
     } catch (err) {
-      
+
       if (err.response?.status === 422) {
         const msgs = Object.values(err.response.data.errors || {}).flat();
         Swal.fire('Erro de Validação', msgs.join('\n'), 'warning');
@@ -184,7 +184,7 @@ export default function ItemUpdatePage() {
             <Col md={4}><Form.Group controlId="subcategory"><Form.Label>Subcategoria</Form.Label><Form.Control value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))}/></Form.Group></Col>
             <Col md={4}><Form.Group controlId="brand"><Form.Label>Marca</Form.Label><Form.Control value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}/></Form.Group></Col>
             <Col md={3}><Form.Group controlId="price"><Form.Label>Preço (R$)</Form.Label><Form.Control type="number" step="0.01" required value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}/></Form.Group></Col>
-            <Col md={3}><Form.Group controlId="stock"><Form.Label>Estoque</Form.Label><Form.Control type="number" required value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}/></Form.Group></Col>
+            <Col md={3}><Form.Group controlId="stock"><Form.Label>Estoque</Form.Label><Form.Control type="number"  value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}/></Form.Group></Col>
             <Col md={3}><Form.Group controlId="status"><Form.Label>Status</Form.Label><Form.Select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="1">Ativo</option><option value="0">Inativo</option></Form.Select></Form.Group></Col>
             <Col md={3}><Form.Group controlId="limited_by_user"><Form.Label>Limitado por usuário</Form.Label><Form.Select value={form.limited_by_user} onChange={e => setForm(f => ({ ...f, limited_by_user: e.target.value }))}><option value="0">Não</option><option value="1">Sim</option></Form.Select></Form.Group></Col>
             <Col md={4}><Form.Group controlId="availability_start"><Form.Label>Disponível de</Form.Label><Form.Control type="datetime-local" value={form.availability_start} onChange={e => setForm(f => ({ ...f, availability_start: e.target.value }))}/></Form.Group></Col>
