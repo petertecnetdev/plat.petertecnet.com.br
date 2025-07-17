@@ -120,6 +120,7 @@ export default function ItemUpdatePage() {
       Swal.fire('Sucesso', 'Item atualizado com sucesso.', 'success');
       navigate('/');
     } catch (err) {
+      
       if (err.response?.status === 422) {
         const msgs = Object.values(err.response.data.errors || {}).flat();
         Swal.fire('Erro de Validação', msgs.join('\n'), 'warning');
