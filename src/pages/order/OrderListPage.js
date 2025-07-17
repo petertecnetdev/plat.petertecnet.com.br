@@ -186,7 +186,7 @@ export default function OrderListPage() {
     padding: 0;
     width: 80mm;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 26px;
     line-height: 1.4;
   }
   pre { white-space: pre-wrap; word-wrap: break-word; }
