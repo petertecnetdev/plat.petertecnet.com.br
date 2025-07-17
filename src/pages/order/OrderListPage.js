@@ -18,7 +18,7 @@ import { apiBaseUrl } from "../../config";
 
 export default function OrderListPage() {
   const { entityId } = useParams();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [estName, setEstName] = useState("");
