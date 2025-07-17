@@ -118,7 +118,7 @@ export default function ItemUpdatePage() {
         }
       });
       Swal.fire('Sucesso', 'Item atualizado com sucesso.', 'success');
-      navigate('/item/list');
+      navigate('/');
     } catch (err) {
       if (err.response?.status === 422) {
         const msgs = Object.values(err.response.data.errors || {}).flat();
