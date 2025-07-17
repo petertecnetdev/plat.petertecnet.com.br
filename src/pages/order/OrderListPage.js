@@ -91,8 +91,8 @@ export default function OrderListPage() {
     })();
   }, [entityId]);
 const buildReceipt = (order) => {
-  const header = estName; // ex: "BUDDY’S ROYALE BURGER GRILL E AÇAÍ"
-  const WIDTH = Math.max(32, header.length);
+  const header = estName; 
+  const WIDTH = Math.max(28, header.length);
   const bar = "█".repeat(WIDTH);
   const line = () => "-".repeat(WIDTH);
   const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
