@@ -199,7 +199,7 @@ const handleReprint = async (orderId) => {
     width: 80mm;
     font-family: monospace;
     font-size: 16px;
-    line-height: 1.4;
+    line-height: 2.4;
   }
   pre { white-space: pre-wrap; word-wrap: break-word; }
 </style>
