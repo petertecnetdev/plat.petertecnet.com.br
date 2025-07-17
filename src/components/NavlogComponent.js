@@ -9,7 +9,6 @@ const Navigation = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMenu, setLoadingMenu] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showCorporateSubmenu, setShowCorporateSubmenu] = useState(false);
   const [showAdminSubmenu, setShowAdminSubmenu] = useState(false);
 
   useEffect(() => {
@@ -54,23 +53,6 @@ const Navigation = () => {
     setShowMobileMenu(!showMobileMenu);
   };
 
-  const renderCorporateMenu = () => (
-    <>
-      <button
-        onClick={() => setShowCorporateSubmenu(!showCorporateSubmenu)}
-        style={buttonStyle}
-      >
-        Corporativo {showCorporateSubmenu ? "▲" : "▼"}
-      </button>
-      {showCorporateSubmenu && (
-        <div style={submenuStyle}>
-          <Link to="/barbershop" onClick={handleToggleMobileMenu} style={linkStyle}>
-            Minhas Barbearias
-          </Link>
-        </div>
-      )}
-    </>
-  );
 
   const renderAdminMenu = () => (
     <>
@@ -216,10 +198,10 @@ const Navigation = () => {
                   <Link to="/user/update" onClick={handleToggleMobileMenu} style={linkStyle}>
                     Gerenciar Conta
                   </Link>
-                  {user.profile?.name === "Gerente de Barbearia" && renderCorporateMenu()}
+                 
                   {user.profile?.name === "Administrador" && (
                     <>
-                      {renderCorporateMenu()}
+                     
                       {renderAdminMenu()}
                     </>
                   )}

@@ -35,7 +35,11 @@ export default function ItemListPage() {
         );
         setSelectedCategory(cats[0] || null);
       } catch (err) {
-        Swal.fire("Erro", err.response?.data?.error || "Não foi possível carregar o menu.", "error");
+        Swal.fire(
+          "Erro",
+          err.response?.data?.error || "Não foi possível carregar o menu.",
+          "error"
+        );
       } finally {
         setLoading(false);
       }
@@ -66,9 +70,13 @@ export default function ItemListPage() {
     );
   }
 
-  const categories = Array.from(new Set(menu.map((item) => item.category || "Sem categoria")));
+  const categories = Array.from(
+    new Set(menu.map((item) => item.category || "Sem categoria"))
+  );
   const itemsToShow = selectedCategory
-    ? menu.filter((item) => (item.category || "Sem categoria") === selectedCategory)
+    ? menu.filter(
+        (item) => (item.category || "Sem categoria") === selectedCategory
+      )
     : menu;
 
   return (
@@ -79,9 +87,17 @@ export default function ItemListPage() {
           <h3>{establishment.name.toUpperCase()}</h3>
           <div>
             <Link to={`/item/create/${establishment.slug}`}>
-              <Button variant="success" className="me-2">Novo</Button>
+              <Button variant="success" className="me-2">
+                Novo
+              </Button>
             </Link>
-            <Button variant="primary" onClick={handleExportPDF} className="me-2">Exportar PDF</Button>
+            <Button
+              variant="primary"
+              onClick={handleExportPDF}
+              className="me-2"
+            >
+              Exportar PDF
+            </Button>
             <Link to="/dashboard">
               <Button variant="secondary">Voltar</Button>
             </Link>
@@ -102,16 +118,16 @@ export default function ItemListPage() {
         <div ref={pdfRef} className="item-grid">
           {itemsToShow.map((item) => (
             <div key={item.id} className="ifood-card">
-              <div className="ifood-card-img-wrapper">
-                {item.image ? (
+              {item.image && (
+                <div className="ifood-card-img-wrapper">
                   <img src={`${storageUrl}/${item.image}`} alt={item.name} />
-                ) : (
-                  <div style={{ background: "#444", width: "100%", height: "100%" }} />
-                )}
-              </div>
+                </div>
+              )}
               <div className="ifood-card-body">
                 <div className="ifood-card-title">{item.name}</div>
-                <div className="ifood-card-category">{item.brand || item.category}</div>
+                <div className="ifood-card-category">
+                  {item.brand || item.category}
+                </div>
                 <div className="ifood-card-desc">{item.description}</div>
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <div className="ifood-price-badge">
@@ -124,7 +140,9 @@ export default function ItemListPage() {
               </div>
               <div className="ifood-footer">
                 <Link to={`/item/update/${item.id}`}>
-                  <Button size="sm" variant="warning" className="ifood-btn">Editar</Button>
+                  <Button size="sm" variant="warning" className="ifood-btn">
+                    Editar
+                  </Button>
                 </Link>
                 <Button
                   size="sm"
@@ -142,10 +160,24 @@ export default function ItemListPage() {
                       if (res.isConfirmed) {
                         axios
                           .delete(`${apiBaseUrl}/item/${item.id}`, {
-                            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+                            headers: {
+                              Authorization: `Bearer ${localStorage.getItem(
+                                "token"
+                              )}`,
+                            },
                           })
-                          .then(() => setMenu((prev) => prev.filter((i) => i.id !== item.id)))
-                          .catch(() => Swal.fire("Erro", "Não foi possível excluir item.", "error"));
+                          .then(() =>
+                            setMenu((prev) =>
+                              prev.filter((i) => i.id !== item.id)
+                            )
+                          )
+                          .catch(() =>
+                            Swal.fire(
+                              "Erro",
+                              "Não foi possível excluir item.",
+                              "error"
+                            )
+                          );
                       }
                     })
                   }

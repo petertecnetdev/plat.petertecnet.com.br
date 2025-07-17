@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from 'react';
 import { Form, Button, Container, Row, Col, Card } from 'react-bootstrap';
 import NavlogComponent from '../../../components/NavlogComponent';
@@ -11,6 +12,7 @@ export default function EstablishmentCreatePage() {
   const [messages, setMessages] = useState([]);
   const [data, setData] = useState({
     logo: null,
+    background: null,
     name: '',
     email: '',
     phone: '',
@@ -24,7 +26,9 @@ export default function EstablishmentCreatePage() {
     instagram: '',
     description: ''
   });
+
   const [logoPreview, setLogoPreview] = useState(null);
+  const [backgroundPreview, setBackgroundPreview] = useState(null);
 
   const handleInputChange = e => {
     const { name, value } = e.target;
@@ -59,6 +63,12 @@ export default function EstablishmentCreatePage() {
     setData(prev => ({ ...prev, logo: file }));
   };
 
+  const handleBackgroundChange = e => {
+    const file = e.target.files[0];
+    handleResizeImage(file, setBackgroundPreview, 1920, 600);
+    setData(prev => ({ ...prev, background: file }));
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     setIsProcessing(true);
@@ -73,8 +83,17 @@ export default function EstablishmentCreatePage() {
         console.error(err);
       }
     }
+    if (backgroundPreview) {
+      try {
+        const backgroundBlob = await fetch(backgroundPreview).then(res => res.blob());
+        formData.append('background', backgroundBlob, 'background.png');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     Object.entries(data).forEach(([key, val]) => {
-      if (key !== 'logo') formData.append(key, val);
+      if (key !== 'logo' && key !== 'background') formData.append(key, val);
     });
 
     try {
@@ -130,6 +149,19 @@ export default function EstablishmentCreatePage() {
                         </div>
                         <Form.Control id="logoInput" type="file" accept="image/*" onChange={handleLogoChange} style={{ display: 'none' }} />
                       </Col>
+
+                      <Col xs={12} className="mb-4 text-center">
+                        <label htmlFor="backgroundInput" style={{ cursor: 'pointer' }}>
+                          <img src={backgroundPreview || '/images/background-default.png'} alt="Preview Background" className="img-fluid" style={{ maxHeight: 150 }} />
+                        </label>
+                        <div className="mt-3">
+                          <Button variant="secondary" className="action-button" onClick={() => document.getElementById('backgroundInput').click()}>
+                            Adicionar Background
+                          </Button>
+                        </div>
+                        <Form.Control id="backgroundInput" type="file" accept="image/*" onChange={handleBackgroundChange} style={{ display: 'none' }} />
+                      </Col>
+
                       <Col md={4} className="mb-3"><Form.Group controlId="formName"><Form.Label>Nome</Form.Label><Form.Control name="name" value={data.name} onChange={handleInputChange} required /></Form.Group></Col>
                       <Col md={4} className="mb-3"><Form.Group controlId="formEmail"><Form.Label>Email</Form.Label><Form.Control type="email" name="email" value={data.email} onChange={handleInputChange} required /></Form.Group></Col>
                       <Col md={4} className="mb-3"><Form.Group controlId="formPhone"><Form.Label>Telefone</Form.Label><Form.Control name="phone" value={data.phone} onChange={handleInputChange} required /></Form.Group></Col>

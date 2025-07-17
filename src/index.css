@@ -1101,3 +1101,68 @@ form.mb-4 .form-control:focus {
   padding: 0.4rem 0.75rem;
   text-transform: uppercase;
 }
+.card-component {
+  background: rgba(26, 26, 26, 0.85);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card-component .card-bg {
+  display: none !important;
+}
+
+.inner-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.link-component .d-flex.align-items-center {
+  display: flex;
+  align-items: center;
+}
+
+.img-component {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--plat-primary);
+  box-shadow: var(--neon-glow);
+  background-color: var(--plat-dark);
+}
+
+.label-name-bg {
+  color: var(--plat-text);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.inner-card-body .d-flex.justify-content-around {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.dashboard-button {
+  background: rgba(26, 26, 26, 0.75);
+  color: var(--plat-text);
+  border: var(--neon-border);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: var(--neon-glow);
+  font-size: 0.875rem;
+  padding: 8px 12px;
+  margin: 4px 0;
+  min-width: 110px;
+}
+
+.dashboard-button:hover {
+  background: rgba(26, 26, 26, 0.9);
+}
+/* Alinhar os botões à esquerda */
+.inner-card-body .d-flex.justify-content-around {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;  /* antes era flex-end */
+}

@@ -34,7 +34,7 @@ export default function OrderCreatePage() {
   });
   const [orderLines, setOrderLines] = useState([]);
 
-  const originLabels = {    
+  const originLabels = {
     Balcão: "Balcão",
     WhatsApp: "WhatsApp",
     Telefone: "Telefone",
@@ -83,8 +83,7 @@ export default function OrderCreatePage() {
       return `${l}${dots}${r}`;
     };
 
-    const consLabel =
-      fulfillmentLabels[order.fulfillment] || order.fulfillment;
+    const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
     const origLabel = originLabels[order.origin] || order.origin;
 
     const L = [];
@@ -141,18 +140,18 @@ export default function OrderCreatePage() {
     return L.join("\n");
   };
 
- const handleAddItem = async () => {
-  const available = products.filter((p) => p.category !== "Adicionais");
-  const grouped = available.reduce((acc, item) => {
-    const cat = item.category || "Outros";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {});
-  const categories = Object.keys(grouped);
-  let selectedCategory = categories[0];
+  const handleAddItem = async () => {
+    const available = products.filter((p) => p.category !== "Adicionais");
+    const grouped = available.reduce((acc, item) => {
+      const cat = item.category || "Outros";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    }, {});
+    const categories = Object.keys(grouped);
+    let selectedCategory = categories[0];
 
-  const renderHtml = () => `
+    const renderHtml = () => `
     <style>
       .swal2-popup {
         width: 80vw !important;
@@ -250,33 +249,31 @@ export default function OrderCreatePage() {
     <div class="item-list" id="swal-item-list"></div>
   `;
 
-  const attachEvents = () => {
-    const tabs = document.querySelectorAll(".category-tab");
-    tabs.forEach((tab) =>
-      tab.addEventListener("click", () => {
-        selectedCategory = tab.dataset.cat;
-        tabs.forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
-        renderItems();
-      })
-    );
+    const attachEvents = () => {
+      const tabs = document.querySelectorAll(".category-tab");
+      tabs.forEach((tab) =>
+        tab.addEventListener("click", () => {
+          selectedCategory = tab.dataset.cat;
+          tabs.forEach((t) => t.classList.remove("active"));
+          tab.classList.add("active");
+          renderItems();
+        })
+      );
 
-    function renderItems() {
-      const container = document.getElementById("swal-item-list");
-      container.innerHTML = grouped[selectedCategory]
-        .map(
-          (p) => `
+      function renderItems() {
+        const container = document.getElementById("swal-item-list");
+        container.innerHTML = grouped[selectedCategory]
+          .map(
+            (p) => `
             <div class="item-card" data-id="${p.id}">
               <div class="item-name">${p.name}</div>
               <div class="item-price">R$${Number(p.price)
                 .toFixed(2)
                 .replace(".", ",")}</div>
             </div>`
-        )
-        .join("");
-      container
-        .querySelectorAll(".item-card")
-        .forEach((card) =>
+          )
+          .join("");
+        container.querySelectorAll(".item-card").forEach((card) =>
           card.addEventListener("click", () => {
             const id = +card.dataset.id;
             const prod = products.find((x) => x.id === id);
@@ -289,23 +286,22 @@ export default function OrderCreatePage() {
             Swal.close();
           })
         );
-    }
+      }
 
-    renderItems();
+      renderItems();
+    };
+
+    Swal.fire({
+      html: renderHtml(),
+      showConfirmButton: false,
+      width: "auto",
+      padding: 0,
+      background: "transparent",
+      didOpen: () => {
+        attachEvents();
+      },
+    });
   };
-
-  Swal.fire({
-    html: renderHtml(),
-    showConfirmButton: false,
-    width: "auto",
-    padding: 0,
-    background: "transparent",
-    didOpen: () => {
-      attachEvents();
-    },
-  });
-};
-
 
   const handleManage = async (index, type) => {
     const title = type === "additions" ? "Adicionais" : "Remoções";
@@ -380,7 +376,7 @@ export default function OrderCreatePage() {
         quantity: l.quantity,
         additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
         removals: l.removals,
-      })),      
+      })),
       ...form,
     };
     try {
@@ -422,106 +418,134 @@ export default function OrderCreatePage() {
       <NavlogComponent />
       <Container className="m-4">
         {/* cabeçalho com logo e nome */}
-        <div className="est-header text-center mb-4">
+        <div className="est-header d-flex justify-content-end align-items-center mb-4">
           {estLogo && (
-            <img 
-              src={`${storageUrl}/${estLogo|| "images/logo.png"}`}
+            <img
+              src={`${storageUrl}/${estLogo}`}
               alt={`${estName} logo`}
-              className="img-component align-self-left"
+              className="img-component me-2"
+              style={{ width: "80px", height: "80px", objectFit: "contain" }}
+              onError={(e) => (e.currentTarget.src = "/images/logo.png")}
             />
           )}
-          <p className="bg-dark text-white py-1 px-3 rounded d-inline-block mb-0 ">
+          <p className="bg-dark text-white py-1 px-3 rounded m-0">
             <strong>{estName}</strong>
           </p>
-                 </div>
+        </div>
 
         <Button variant="success" onClick={handleAddItem}>
           + Adicionar Item
         </Button>
 
         {/* linhas de pedido */}
-    <div className="order-lines-container border rounded p-4 mt-3">
-  <p className="mb-3 h6">Itens do Pedido</p>
-  <Row className="order-lines">
-    {orderLines.map((line, i) => (
-      <Row
-        key={i}
-        className="order-line-row align-items-center border-bottom py-2"
-      >
-        {/* Nome do item + botão remover */}
-        <Col xs={12} lg={4} className="d-flex align-items-center mb-2 mb-lg-0">
-          <span className="order-line-title flex-grow-1 text-truncate">
-            {line.product.name} - R$ {line.product.price}
-          </span>
-          <Button
-            size="sm"
-            variant="outline-danger"
-            className="ms-2"
-            onClick={() => removeLine(i)}
-          >
-            ×
-          </Button>
-        </Col>
+        <div className="order-lines-container border rounded p-4 mt-3">
+          <p className="mb-3 h6">Itens do Pedido</p>
+          <Row className="order-lines">
+            {orderLines.map((line, i) => (
+              <Row
+                key={i}
+                className="order-line-row align-items-center border-bottom py-2"
+              >
+                {/* Nome do item + botão remover */}
+                <Col
+                  xs={12}
+                  lg={4}
+                  className="d-flex align-items-center mb-2 mb-lg-0"
+                >
+                  <span className="order-line-title flex-grow-1 text-truncate">
+                    {line.product.name} - R$ {line.product.price}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    className="ms-2"
+                    onClick={() => removeLine(i)}
+                  >
+                    ×
+                  </Button>
+                </Col>
 
-        {/* Quantidade */}
-        <Col xs={12} sm={6} lg={2} className="d-flex align-items-center mb-2 mb-sm-0">
-          <Button
-            size="sm"
-            variant="outline-info"
-            onClick={() =>
-              updateLine(i, "quantity", Math.max(1, line.quantity - 1))
-            }
-          >
-            −
-          </Button>
-          <span className="mx-2 fw-bold">{line.quantity}</span>
-          <Button
-            size="sm"
-            variant="outline-info"
-            onClick={() => updateLine(i, "quantity", line.quantity + 1)}
-          >
-            +
-          </Button>
-        </Col>
+                {/* Quantidade */}
+                <Col
+                  xs={12}
+                  sm={6}
+                  lg={2}
+                  className="d-flex align-items-center mb-2 mb-sm-0"
+                >
+                  <Button
+                    size="sm"
+                    variant="outline-info"
+                    onClick={() =>
+                      updateLine(i, "quantity", Math.max(1, line.quantity - 1))
+                    }
+                  >
+                    −
+                  </Button>
+                  <span className="mx-2 fw-bold">{line.quantity}</span>
+                  <Button
+                    size="sm"
+                    variant="outline-info"
+                    onClick={() => updateLine(i, "quantity", line.quantity + 1)}
+                  >
+                    +
+                  </Button>
+                </Col>
 
-        {/* Adicionais / Remoções */}
-        <Col xs={12} sm={6} lg={3} className="d-flex gap-2 mb-2 mb-sm-0">
-          <Button
-            size="sm"
-            variant="outline-primary"
-            className="flex-grow-1"
-            onClick={() => handleManage(i, "additions")}
-          >
-            Adicionais
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            className="flex-grow-1"
-            onClick={() => handleManage(i, "removals")}
-          >
-            Remoções
-          </Button>
-        </Col>
+                {/* Adicionais / Remoções */}
+                <Col
+                  xs={12}
+                  sm={6}
+                  lg={3}
+                  className="d-flex gap-2 mb-2 mb-sm-0"
+                >
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    className="flex-grow-1"
+                    onClick={() => handleManage(i, "additions")}
+                  >
+                    Adicionais
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    className="flex-grow-1"
+                    onClick={() => handleManage(i, "removals")}
+                  >
+                    Remoções
+                  </Button>
+                </Col>
 
-        {/* Badges */}
-        <Col xs={12} lg={3} className="order-modifiers d-flex flex-wrap gap-1">
-          {line.additions.map((a) => (
-            <Badge key={`add-${a.id}`} bg="success" className="order-mod-badge ">
-              + {a.quantity} {products.find((p) => p.id === a.id)?.name} - R$ {products.find((p) => p.id === a.id)?.price}
-            </Badge>
-          ))}
-          {line.removals.map((rid) => (
-            <Badge key={`rem-${rid}`} bg="danger" className="order-mod-badge">
-              − {products.find((p) => p.id === rid)?.name}
-            </Badge>
-          ))}
-        </Col>
-      </Row>
-    ))}
-  </Row>
-</div>
-
+                {/* Badges */}
+                <Col
+                  xs={12}
+                  lg={3}
+                  className="order-modifiers d-flex flex-wrap gap-1"
+                >
+                  {line.additions.map((a) => (
+                    <Badge
+                      key={`add-${a.id}`}
+                      bg="success"
+                      className="order-mod-badge "
+                    >
+                      + {a.quantity} {products.find((p) => p.id === a.id)?.name}{" "}
+                      - R$ {products.find((p) => p.id === a.id)?.price}
+                    </Badge>
+                  ))}
+                  {line.removals.map((rid) => (
+                    <Badge
+                      key={`rem-${rid}`}
+                      bg="danger"
+                      className="order-mod-badge"
+                    >
+                      − {products.find((p) => p.id === rid)?.name}
+                    </Badge>
+                  ))}
+                </Col>
+              </Row>
+            ))}
+          </Row>
+        </div>
 
         {/* formulário de dados e envio */}
         <Form onSubmit={handleSubmit} className="mt-4">
@@ -625,7 +649,11 @@ export default function OrderCreatePage() {
           </Form.Group>
 
           <Button type="submit" className="mt-3" disabled={submitting}>
-            {submitting ? <Spinner animation="border" size="sm" /> : "Criar Pedido"}
+            {submitting ? (
+              <Spinner animation="border" size="sm" />
+            ) : (
+              "Criar Pedido"
+            )}
           </Button>
         </Form>
       </Container>
