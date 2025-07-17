@@ -120,6 +120,15 @@ export default function Dashboard() {
                           >
                             Itens
                           </Button>
+                          <Button
+                            as={Link}
+                            to={`/establishment/update/${est.id}`}
+                            variant="warning"
+                            size="sm"
+                            className="dashboard-button mb-2"
+                          >
+                            Editar
+                          </Button>
                         </div>
                       </Card.Body>
                     </Card>
