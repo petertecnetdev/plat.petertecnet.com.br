@@ -203,7 +203,13 @@ const handleReprint = async (orderId) => {
   }
   pre { white-space: pre-wrap; word-wrap: break-word; }
 </style>
-</head><body><pre>${receiptText}</pre></body></html>`);
+</head><body><pre>${receiptText}
+
+
+    
+
+
+</pre></body></html>`);
         w.document.close();
         w.focus();
         w.print();
