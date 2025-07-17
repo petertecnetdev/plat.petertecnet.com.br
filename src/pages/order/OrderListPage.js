@@ -90,108 +90,130 @@ export default function OrderListPage() {
       }
     })();
   }, [entityId]);
-  const buildReceipt = (order) => {
-    const WIDTH = 32;
-    const line = () => "-".repeat(WIDTH);
-    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-    const padLine = (left, right) => left.padEnd(WIDTH - right.length) + right;
-    const center = (text) =>
-      text.padStart((WIDTH + text.length) / 2).padEnd(WIDTH);
-
-    const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
-    const origLabel = originLabels[order.origin] || order.origin;
-    const L = [];
-
-    L.push("");
-    L.push("█".repeat(WIDTH));
-    L.push(center(estName));
-    L.push("█".repeat(WIDTH));
-    L.push("");
-    L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
-    L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
-    L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
-    L.push(line());
-    L.push(center("ITENS DO PEDIDO"));
-    L.push(line());
-
-    let total = 0;
-    order.items.forEach((it) => {
-      const qty = it.quantity;
-      const name = it.item.name;
-      const sub = Number(it.subtotal);
-      total += sub;
-      L.push(padLine(`${qty}x ${name}`, fmt(sub)));
-
-      it.modifiers
-        .filter((m) => m.type === "addition")
-        .forEach((m) => {
-          const prod = products.find((p) => p.id === m.modifier_id);
-          const unit = prod ? Number(prod.price) : 0;
-          const count = m.quantity || 1;
-          const subAdd = unit * count;
-          total += subAdd;
-          L.push(padLine(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd)));
-        });
-
-      it.modifiers
-        .filter((m) => m.type === "removal")
-        .forEach((m) => {
-          L.push(`  - ${m.modifier.name}`);
-        });
-    });
-
-    L.push(line());
-    L.push(padLine("TOTAL", fmt(total)));
-    L.push("");
-    L.push(
-      `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
-        hour12: false,
-      })}`
-    );
-    L.push("");
-
-    return L.join("\n");
+const buildReceipt = (order) => {
+  const header = estName; // ex: "BUDDY’S ROYALE BURGER GRILL E AÇAÍ"
+  const WIDTH = Math.max(32, header.length);
+  const bar = "█".repeat(WIDTH);
+  const line = () => "-".repeat(WIDTH);
+  const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
+  const padLine = (left, right) => {
+    const dots = ".".repeat(Math.max(WIDTH - left.length - right.length, 0));
+    return `${left}${dots}${right}`;
   };
+  const center = (text) =>
+    text.padStart((WIDTH + text.length) / 2).padEnd(WIDTH);
 
-  const handleReprint = async (orderId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+  const consLabel =
+    fulfillmentLabels[order.fulfillment] || order.fulfillment;
+  const origLabel = originLabels[order.origin] || order.origin;
+  const L = [];
+
+  L.push(bar);
+  L.push(header);
+  L.push(bar);
+  L.push("");
+  L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
+  L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
+  L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
+  L.push(line());
+  L.push(center("ITENS DO PEDIDO"));
+  L.push(line());
+
+  let total = 0;
+  order.items.forEach((it) => {
+    const qty = it.quantity;
+    const name = it.item.name;
+    const sub = Number(it.subtotal);
+    total += sub;
+    L.push(padLine(`${qty}x ${name}`, fmt(sub)));
+
+    it.modifiers
+      .filter((m) => m.type === "addition")
+      .forEach((m) => {
+        const prod = products.find((p) => p.id === m.modifier_id);
+        const unit = prod ? Number(prod.price) : 0;
+        const count = m.quantity || 1;
+        const subAdd = unit * count;
+        total += subAdd;
+        L.push(padLine(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd)));
       });
-      const receiptText = buildReceipt(data.order);
-      Swal.fire({
-        title: `Recibo Pedido #${data.order.order_number}`,
-        html: `
+
+    it.modifiers
+      .filter((m) => m.type === "removal")
+      .forEach((m) => {
+        L.push(`  - ${m.modifier.name}`);
+      });
+  });
+
+  L.push(line());
+  L.push(padLine("TOTAL", fmt(total)));
+  L.push("");
+  L.push(
+    `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })}`
+  );
+  L.push("");
+
+  return L.join("\n");
+};
+
+const handleReprint = async (orderId) => {
+  try {
+    const token = localStorage.getItem("token");
+    const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const receiptText = buildReceipt(data.order);
+    Swal.fire({
+      title: `Recibo Pedido #${data.order.order_number}`,
+      html: `
         <style>
-          .swal2-html-container { font-family: monospace; white-space: pre; text-align: left; }
+          .swal2-html-container {
+            font-family: monospace;
+            white-space: pre;
+            text-align: left;
+          }
         </style>
         <pre>${receiptText}</pre>
       `,
-        showCancelButton: true,
-        confirmButtonText: "Imprimir",
-        cancelButtonText: "Fechar",
-      }).then((res) => {
-        if (res.isConfirmed) {
-          const w = window.open("", "_blank", "fullscreen=yes");
-          w.document.write(`
+      showCancelButton: true,
+      confirmButtonText: "Imprimir",
+      cancelButtonText: "Fechar",
+    }).then((res) => {
+      if (res.isConfirmed) {
+        const w = window.open("", "_blank", "fullscreen=yes");
+        w.document.write(`
 <html><head><title>Recibo</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
-  body { margin: 0; padding: 0; width: 80mm; font-family: monospace; font-size: 18px; line-height: 1.4; }
+  body {
+    margin: 0;
+    padding: 0;
+    width: 80mm;
+    font-family: monospace;
+    font-size: 18px;
+    line-height: 1.4;
+  }
   pre { white-space: pre-wrap; word-wrap: break-word; }
 </style>
 </head><body><pre>${receiptText}</pre></body></html>`);
-          w.document.close();
-          w.focus();
-          w.print();
-          w.close();
-        }
-      });
-    } catch {
-      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-    }
-  };
+        w.document.close();
+        w.focus();
+        w.print();
+        w.close();
+      }
+    });
+  } catch {
+    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+  }
+};
 
   const filteredOrders = useMemo(
     () =>
