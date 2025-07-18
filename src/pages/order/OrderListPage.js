@@ -18,7 +18,9 @@ import { apiBaseUrl } from "../../config";
 
 export default function OrderListPage() {
   const { entityId } = useParams();
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  });
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [estName, setEstName] = useState("");
@@ -69,10 +71,7 @@ export default function OrderListPage() {
             headers: { Authorization: `Bearer ${token}` },
           }),
           axios.get(`${apiBaseUrl}/item`, {
-            params: {
-              entity_name: "establishment",
-              entity_id: entityId,
-            },
+            params: { entity_name: "establishment", entity_id: entityId },
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -90,90 +89,95 @@ export default function OrderListPage() {
       }
     })();
   }, [entityId]);
-const buildReceipt = (order) => {
-  const header = estName; 
-  const WIDTH = Math.max(28, header.length);
-  const bar = "█".repeat(WIDTH);
-  const line = () => "-".repeat(WIDTH);
-  const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-  const padLine = (left, right) => {
-    const dots = ".".repeat(Math.max(WIDTH - left.length - right.length, 0));
-    return `${left}${dots}${right}`;
-  };
-  const center = (text) =>
-    text.padStart((WIDTH + text.length) / 2).padEnd(WIDTH);
 
-  const consLabel =
-    fulfillmentLabels[order.fulfillment] || order.fulfillment;
-  const origLabel = originLabels[order.origin] || order.origin;
-  const L = [];
+  const buildReceipt = (order) => {
+    const header = estName;
+    const WIDTH = Math.max(28, header.length);
+    const bar = "█".repeat(WIDTH);
+    const line = () => "-".repeat(WIDTH);
+    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
+    const padLine = (left, right) => {
+      const dots = ".".repeat(
+        Math.max(WIDTH - left.length - right.length, 0)
+      );
+      return `${left}${dots}${right}`;
+    };
+    const center = (text) =>
+      text.padStart((WIDTH + text.length) / 2).padEnd(WIDTH);
 
-  L.push(bar);
-  L.push(header);
-  L.push(bar);
-  L.push("");
-  L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
-  L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
-  L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
-  L.push(line());
-  L.push(center("ITENS DO PEDIDO"));
-  L.push(line());
+    const consLabel =
+      fulfillmentLabels[order.fulfillment] || order.fulfillment;
+    const origLabel = originLabels[order.origin] || order.origin;
+    const L = [];
 
-  let total = 0;
-  order.items.forEach((it) => {
-    const qty = it.quantity;
-    const name = it.item.name;
-    const sub = Number(it.subtotal);
-    total += sub;
-    L.push(padLine(`${qty}x ${name}`, fmt(sub)));
+    L.push(bar);
+    L.push(header);
+    L.push(bar);
+    L.push("");
+    L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
+    L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
+    L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
+    L.push(line());
+    L.push(center("ITENS DO PEDIDO"));
+    L.push(line());
 
-    it.modifiers
-      .filter((m) => m.type === "addition")
-      .forEach((m) => {
-        const prod = products.find((p) => p.id === m.modifier_id);
-        const unit = prod ? Number(prod.price) : 0;
-        const count = m.quantity || 1;
-        const subAdd = unit * count;
-        total += subAdd;
-        L.push(padLine(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd)));
-      });
+    let total = 0;
+    order.items.forEach((it) => {
+      const qty = it.quantity;
+      const name = it.item.name;
+      const sub = Number(it.subtotal);
+      total += sub;
+      L.push(padLine(`${qty}x ${name}`, fmt(sub)));
 
-    it.modifiers
-      .filter((m) => m.type === "removal")
-      .forEach((m) => {
-        L.push(`  - ${m.modifier.name}`);
-      });
-  });
+      it.modifiers
+        .filter((m) => m.type === "addition")
+        .forEach((m) => {
+          const prod = products.find((p) => p.id === m.modifier_id);
+          const unit = prod ? Number(prod.price) : 0;
+          const count = m.quantity || 1;
+          const subAdd = unit * count;
+          total += subAdd;
+          L.push(
+            padLine(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd))
+          );
+        });
 
-  L.push(line());
-  L.push(padLine("TOTAL", fmt(total)));
-  L.push("");
-  L.push(
-    `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })}`
-  );
-  L.push("");
-
-  return L.join("\n");
-};
-
-const handleReprint = async (orderId) => {
-  try {
-    const token = localStorage.getItem("token");
-    const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      it.modifiers
+        .filter((m) => m.type === "removal")
+        .forEach((m) => {
+          L.push(`  - ${m.modifier.name}`);
+        });
     });
-    const receiptText = buildReceipt(data.order);
-    Swal.fire({
-      title: `Recibo Pedido #${data.order.order_number}`,
-      html: `
+
+    L.push(line());
+    L.push(padLine("TOTAL", fmt(total)));
+    L.push("");
+    L.push(
+      `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })}`
+    );
+    L.push("");
+
+    return L.join("\n");
+  };
+
+  const handleReprint = async (orderId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const receiptText = buildFiscalReceipt(data.order);
+      Swal.fire({
+        title: `Cupom Fiscal #${data.order.order_number}`,
+        html: `
         <style>
           .swal2-html-container {
             font-family: monospace;
@@ -183,14 +187,14 @@ const handleReprint = async (orderId) => {
         </style>
         <pre>${receiptText}</pre>
       `,
-      showCancelButton: true,
-      confirmButtonText: "Imprimir",
-      cancelButtonText: "Fechar",
-    }).then((res) => {
-      if (res.isConfirmed) {
-        const w = window.open("", "_blank", "fullscreen=yes");
-        w.document.write(`
-<html><head><title>Recibo</title>
+        showCancelButton: true,
+        confirmButtonText: "Imprimir",
+        cancelButtonText: "Fechar",
+      }).then((res) => {
+        if (res.isConfirmed) {
+          const w = window.open("", "_blank", "fullscreen=yes");
+          w.document.write(`
+<html><head><title>Cupom Fiscal</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
   body {
@@ -203,23 +207,34 @@ const handleReprint = async (orderId) => {
   }
   pre { white-space: pre-wrap; word-wrap: break-word; }
 </style>
-</head><body><pre>${receiptText}
+</head><body><pre>${receiptText}</pre></body></html>`);
+          w.document.close();
+          w.focus();
+          w.print();
+          w.close();
+        }
+      });
+    } catch {
+      Swal.fire("Erro", "Não foi possível reimprimir o cupom fiscal.", "error");
+    }
+  };
 
 
-    
-
-
-</pre></body></html>`);
-        w.document.close();
-        w.focus();
-        w.print();
-        w.close();
-      }
+  const computeTotal = (order) => {
+    let sum = 0;
+    order.items.forEach((it) => {
+      sum += Number(it.subtotal);
+      it.modifiers
+        .filter((m) => m.type === "addition")
+        .forEach((m) => {
+          const prod = products.find((p) => p.id === m.modifier_id);
+          const unit = prod ? Number(prod.price) : 0;
+          const count = m.quantity || 1;
+          sum += unit * count;
+        });
     });
-  } catch {
-    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-  }
-};
+    return sum;
+  };
 
   const filteredOrders = useMemo(
     () =>
@@ -230,17 +245,20 @@ const handleReprint = async (orderId) => {
         const day = String(dt.getDate()).padStart(2, "0");
         const date = `${year}-${month}-${day}`;
         const time = dt.toTimeString().slice(0, 5);
-        const okDate = date >= filters.startDate && date <= filters.endDate;
-        const okTime = time >= filters.startTime && time <= filters.endTime;
-        const okCust = o.customer_name
-          .toLowerCase()
-          .includes(filters.customer.toLowerCase());
-        const okItem = filters.item
-          ? o.items.some((i) =>
+        return (
+          date >= filters.startDate &&
+          date <= filters.endDate &&
+          time >= filters.startTime &&
+          time <= filters.endTime &&
+          o.customer_name
+            .toLowerCase()
+            .includes(filters.customer.toLowerCase()) &&
+          (filters.item
+            ? o.items.some((i) =>
               i.item.name.toLowerCase().includes(filters.item.toLowerCase())
             )
-          : true;
-        return okDate && okTime && okCust && okItem;
+            : true)
+        );
       }),
     [orders, filters]
   );
@@ -257,6 +275,16 @@ const handleReprint = async (orderId) => {
     <>
       <NavlogComponent />
       <Container className="mt-4">
+
+        <Row className="mb-3">
+          <Col className="text-end">
+            <Link to={`/order/create/${entityId}`}>
+              <Button variant="success">
+                Gerar Pedido
+              </Button>
+            </Link>
+          </Col>
+        </Row>
         <Row className="mb-3">
           <Col>
             <h3>Pedidos do Estabelecimento</h3>
@@ -333,7 +361,6 @@ const handleReprint = async (orderId) => {
             </Col>
           </Row>
         </Form>
-
         <div className="d-none d-md-block">
           <Table striped bordered hover responsive className="table-list-order">
             <thead>
@@ -362,8 +389,7 @@ const handleReprint = async (orderId) => {
                   <td>{fulfillmentLabels[o.fulfillment]}</td>
                   <td>{paymentStatusLabels[o.payment_status]}</td>
                   <td>
-                    R$
-                    {parseFloat(o.total_price).toFixed(2).replace(".", ",")}
+                    R${computeTotal(o).toFixed(2).replace(".", ",")}
                   </td>
                   <td className="d-flex gap-2">
                     <Button
@@ -387,7 +413,6 @@ const handleReprint = async (orderId) => {
             </tbody>
           </Table>
         </div>
-
         <div className="d-block d-md-none">
           {filteredOrders.map((o) => (
             <Card key={o.id} className="mb-3 shadow-sm">
@@ -403,8 +428,7 @@ const handleReprint = async (orderId) => {
                 <div>Consumo: {fulfillmentLabels[o.fulfillment]}</div>
                 <div>Status Pgto: {paymentStatusLabels[o.payment_status]}</div>
                 <div>
-                  Total: R$
-                  {parseFloat(o.total_price).toFixed(2).replace(".", ",")}
+                  Total: R${computeTotal(o).toFixed(2).replace(".", ",")}
                 </div>
               </Card.Body>
               <Card.Footer className="d-flex justify-content-between">
