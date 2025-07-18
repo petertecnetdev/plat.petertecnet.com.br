@@ -34,6 +34,14 @@ import ItemCreatePage from "./pages/item/ItemCreatePage";
 import ItemUpdatePage from "./pages/item/ItemUpdatePage";
 import ItemViewPage from "./pages/item/ItemViewPage";
 
+
+// Menu
+import MenuListPage   from "./pages/menu/MenuListPage";
+import MenuCreatePage from "./pages/menu/MenuCreatePage";
+import MenuUpdatePage from "./pages/menu/MenuUpdatePage";
+import MenuShowPage   from "./pages/menu/MenuShowPage";
+
+
 // Establishment
 import EstablishmentListPage from "./pages/corp/establishment/EstablishmentListPage";
 import EstablishmentCreatePage from "./pages/corp/establishment/EstablishmentCreatePage";
@@ -149,6 +157,13 @@ const App = () => {
         <Route path="/service-record/barbershop/:slug" element={protectedRoute(<ServiceRecordListPage />)} />
         <Route path="/service-record/barber/:username" element={protectedRoute(<ServiceRecordListPage />)} />
         <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage />)} />
+
+        {/*  Menu*/}
+        <Route  path="/menu"  element={protectedRoute(<MenuListPage />)}/>
+        <Route  path="/menu/create"  element={protectedRoute(<MenuCreatePage />)}/>
+        <Route  path="/menu/update/:id"  element={protectedRoute(<MenuUpdatePage />)}/>
+        <Route  path="/menu/show/:id"  element={<MenuShowPage />}/>
+
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" />} />

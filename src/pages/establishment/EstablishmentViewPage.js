@@ -96,6 +96,8 @@ export default function EstablishmentViewPage() {
                       <div className="menu-item-info">
                         <p className="item-name">{item.name}</p>
                         {item.description && <p>{item.description}</p>}
+                        
+                        <p className="item-name">R${item.price}</p>
                         <div className="bottom">
                           <span className="price">
                             R$ {isNaN(price) ? item.price : price.toFixed(2)}

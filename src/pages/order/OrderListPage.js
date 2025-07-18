@@ -164,6 +164,9 @@ export default function OrderListPage() {
       })}`
     );
     L.push("");
+    L.push(""); // Espaço extra após a data
+    L.push("");
+    L.push("");
 
     return L.join("\n");
   };
@@ -174,9 +177,9 @@ export default function OrderListPage() {
       const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const receiptText = buildFiscalReceipt(data.order);
+      const receiptText = buildReceipt(data.order);
       Swal.fire({
-        title: `Cupom Fiscal #${data.order.order_number}`,
+        title: `Nota Pedido #${data.order.order_number}`,
         html: `
         <style>
           .swal2-html-container {
@@ -194,7 +197,7 @@ export default function OrderListPage() {
         if (res.isConfirmed) {
           const w = window.open("", "_blank", "fullscreen=yes");
           w.document.write(`
-<html><head><title>Cupom Fiscal</title>
+<html><head><title>Nota Pedido</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
   body {
@@ -215,10 +218,9 @@ export default function OrderListPage() {
         }
       });
     } catch {
-      Swal.fire("Erro", "Não foi possível reimprimir o cupom fiscal.", "error");
+      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
     }
   };
-
 
   const computeTotal = (order) => {
     let sum = 0;
@@ -255,8 +257,8 @@ export default function OrderListPage() {
             .includes(filters.customer.toLowerCase()) &&
           (filters.item
             ? o.items.some((i) =>
-              i.item.name.toLowerCase().includes(filters.item.toLowerCase())
-            )
+                i.item.name.toLowerCase().includes(filters.item.toLowerCase())
+              )
             : true)
         );
       }),
@@ -275,13 +277,10 @@ export default function OrderListPage() {
     <>
       <NavlogComponent />
       <Container className="mt-4">
-
         <Row className="mb-3">
           <Col className="text-end">
             <Link to={`/order/create/${entityId}`}>
-              <Button variant="success">
-                Gerar Pedido
-              </Button>
+              <Button variant="success">Gerar Pedido</Button>
             </Link>
           </Col>
         </Row>
@@ -413,6 +412,8 @@ export default function OrderListPage() {
             </tbody>
           </Table>
         </div>
+
+        {/* Mobile */}
         <div className="d-block d-md-none">
           {filteredOrders.map((o) => (
             <Card key={o.id} className="mb-3 shadow-sm">

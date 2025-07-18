@@ -123,17 +123,6 @@ const Navigation = () => {
           >
             ☰
           </button>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "1.5rem",
-              color: "#ffffff",
-              cursor: "pointer",
-            }}
-          >
-            🔍
-          </button>
         </div>
       </Navbar>
 
