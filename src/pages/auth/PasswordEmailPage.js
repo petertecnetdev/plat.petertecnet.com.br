@@ -4,7 +4,8 @@ import Swal from 'sweetalert2';
 import axios from 'axios';
 import { apiBaseUrl } from "../../config";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
-import './css/Auth.css';
+
+import "./Auth.css";
 
 const PasswordEmailPage = () => {
   const [email, setEmail] = useState('');

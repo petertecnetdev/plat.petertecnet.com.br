@@ -1,6 +1,5 @@
-// src/pages/order/OrderCreatePage.js
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Container,
   Row,
@@ -14,11 +13,11 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import { apiBaseUrl, storageUrl } from "../../config";
+import "./Order.css";
 
 export default function OrderCreatePage() {
   const { entityId } = useParams();
   const navigate = useNavigate();
-
   const [products, setProducts] = useState([]);
   const [estName, setEstName] = useState("");
   const [estLogo, setEstLogo] = useState("");
@@ -52,10 +51,10 @@ export default function OrderCreatePage() {
       const token = localStorage.getItem("token");
       try {
         const [resItems, resEst] = await Promise.all([
-          axios.get(
-            `${apiBaseUrl}/item?entity_name=establishment&entity_id=${entityId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
+          axios.get(`${apiBaseUrl}/item`, {
+            params: { entity_name: "establishment", entity_id: entityId },
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -72,6 +71,20 @@ export default function OrderCreatePage() {
     })();
   }, [entityId]);
 
+  const total = useMemo(() => {
+    let t = 0;
+    orderLines.forEach((line) => {
+      t += line.quantity * Number(line.product.price);
+      line.additions.forEach((a) => {
+        const prod = products.find((p) => p.id === a.id);
+        if (prod) t += Number(prod.price) * a.quantity;
+      });
+    });
+    return t;
+  }, [orderLines, products]);
+
+  const formattedTotal = `R$${total.toFixed(2).replace(".", ",")}`;
+
   const buildReceipt = (order) => {
     const WIDTH = 32;
     const center = (text) =>
@@ -82,10 +95,8 @@ export default function OrderCreatePage() {
       const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
       return `${l}${dots}${r}`;
     };
-
     const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
     const origLabel = originLabels[order.origin] || order.origin;
-
     const L = [];
     L.push("");
     L.push("█".repeat(WIDTH));
@@ -98,37 +109,35 @@ export default function OrderCreatePage() {
     L.push(line());
     L.push(center("ITENS DO PEDIDO"));
     L.push(line());
-
-    let total = 0;
+    let totalRec = 0;
     order.items.forEach((it) => {
       const unitPrice = Number(it.item.price);
       const itemSubtotal = unitPrice * it.quantity;
-      total += itemSubtotal;
+      totalRec += itemSubtotal;
       L.push(pad(`${it.quantity}x ${it.item.name}`, fmt(itemSubtotal)));
-
-      const additions = it.modifiers.filter((m) => m.type === "addition");
-      additions.forEach((m) => {
-        const prod = products.find((p) => p.id === m.modifier_id);
-        if (prod) {
-          const addUnit = Number(prod.price || 0);
-          const addQty = m.quantity || 1;
-          const addSubtotal = addUnit * addQty;
-          total += addSubtotal;
-          L.push(pad(`  + ${prod.name}`, fmt(addSubtotal)));
-        }
-      });
-
-      const removals = it.modifiers.filter((m) => m.type === "removal");
-      removals.forEach((m) => {
-        const prod = products.find((p) => p.id === m.modifier_id);
-        if (prod) {
-          L.push(`  - ${prod.name}`);
-        }
-      });
+      it.modifiers
+        .filter((m) => m.type === "addition")
+        .forEach((m) => {
+          const prod = products.find((p) => p.id === m.modifier_id);
+          if (prod) {
+            const addUnit = Number(prod.price);
+            const addQty = m.quantity || 1;
+            const addSubtotal = addUnit * addQty;
+            totalRec += addSubtotal;
+            L.push(pad(`  + ${prod.name}`, fmt(addSubtotal)));
+          }
+        });
+      it.modifiers
+        .filter((m) => m.type === "removal")
+        .forEach((m) => {
+          const prod = products.find((p) => p.id === m.modifier_id);
+          if (prod) {
+            L.push(`  - ${prod.name}`);
+          }
+        });
     });
-
     L.push(line());
-    L.push(pad("TOTAL", fmt(total)));
+    L.push(pad("TOTAL", fmt(totalRec)));
     L.push("");
     L.push(
       `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
@@ -141,227 +150,194 @@ export default function OrderCreatePage() {
   };
 
   const handleAddItem = async () => {
-    const available = products.filter((p) => p.category !== "Adicionais");
-    const grouped = available.reduce((acc, item) => {
-      const cat = item.category || "Outros";
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {});
-    const categories = Object.keys(grouped);
+    const categories = Array.from(
+      new Set(products.map((p) => p.category || "Outros"))
+    );
     let selectedCategory = categories[0];
 
-    const renderHtml = () => `
-    <style>
-      .swal2-popup {
-        width: 80vw !important;
-        height: 80vh !important;
-        max-width: none !important;
-        max-height: none !important;
-        border-radius: 8px !important;
-        padding: 0 !important;
-      }
-      .swal2-html-container {
-        position: relative !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-      }
-      .category-tabs {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0 12px;
-        background: #1A1A1A;
-        border-bottom: 2px solid #FDAE26;
-        overflow-x: auto;
-        white-space: nowrap;
-        z-index: 10000;
-      }
-      .category-tab {
-        flex: none;
-        padding: 6px 12px;
-        border: 1px solid #FDAE26;
-        background: #1A1A1A;
-        color: #FDAE26;
-        cursor: pointer;
-        white-space: nowrap;
-        border-radius: 4px;
-        font-size: 0.85rem;
-      }
-      .category-tab.active {
-        background: #FDAE26;
-        color: #1A1A1A;
-      }
-      .item-list {
-        position: fixed;
-        top: 48px;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 12px;
-        background: #fff;
-        overflow-y: auto;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      .item-card {
-        flex: 1 0 calc(30% - 10px);
-        max-width: calc(30% - 10px);
-        height: 80px;
-        border: 1px solid #FDAE26;
-        border-radius: 4px;
-        padding: 6px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        cursor: pointer;
-      }
-      .item-name {
-        font-size: 0.8rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .item-price {
-        font-size: 0.7rem;
-        color: #E65100;
-      }
-    </style>
-    <div class="category-tabs">
-      ${categories
-        .map(
-          (cat) =>
-            `<div class="category-tab ${
-              cat === selectedCategory ? "active" : ""
-            }" data-cat="${cat}">${cat}</div>`
-        )
-        .join("")}
-    </div>
-    <div class="item-list" id="swal-item-list"></div>
-  `;
-
-    const attachEvents = () => {
-      const tabs = document.querySelectorAll(".category-tab");
-      tabs.forEach((tab) =>
-        tab.addEventListener("click", () => {
-          selectedCategory = tab.dataset.cat;
-          tabs.forEach((t) => t.classList.remove("active"));
-          tab.classList.add("active");
-          renderItems();
-        })
+    const getItemsHtml = (category) => {
+      const items = products.filter(
+        (p) => (p.category || "Outros") === category
       );
-
-      function renderItems() {
-        const container = document.getElementById("swal-item-list");
-        container.innerHTML = grouped[selectedCategory]
-          .map(
-            (p) => `
-            <div class="item-card" data-id="${p.id}">
-              <div class="item-name">${p.name}</div>
-              <div class="item-price">R$${Number(p.price)
-                .toFixed(2)
-                .replace(".", ",")}</div>
-            </div>`
-          )
-          .join("");
-        container.querySelectorAll(".item-card").forEach((card) =>
-          card.addEventListener("click", () => {
-            const id = +card.dataset.id;
-            const prod = products.find((x) => x.id === id);
-            if (prod) {
-              setOrderLines((l) => [
-                ...l,
-                { product: prod, quantity: 1, additions: [], removals: [] },
-              ]);
-            }
-            Swal.close();
-          })
-        );
-      }
-
-      renderItems();
+      if (items.length === 0)
+        return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
+      return items
+        .map(
+          (p) => `
+            <div class="order-modal__item">
+              <div class="order-modal__item-name">${p.name}</div>
+              <div class="order-modal__item-actions">
+                <span class="order-modal__item-price">R$ ${Number(p.price)
+                  .toFixed(2)
+                  .replace(".", ",")}</span>
+                <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
+              </div>
+            </div>
+          `
+        )
+        .join("");
     };
 
-    Swal.fire({
-      html: renderHtml(),
+    const getHtml = (currentCat) => `
+      <div class="order-modal__layout">
+        <div class="order-modal__category-tabs">${categories
+          .map(
+            (cat) =>
+              `<button class="order-modal__tab${
+                cat === currentCat ? " order-modal__tab--active" : ""
+              }" data-cat="${cat}">${cat}</button>`
+          )
+          .join("")}</div>
+        <div class="order-modal__item-list-scroll">
+          ${getItemsHtml(currentCat)}
+        </div>
+      </div>
+    `;
+
+    await Swal.fire({
+      html: getHtml(selectedCategory),
       showConfirmButton: false,
-      width: "auto",
-      padding: 0,
-      background: "transparent",
+      showCancelButton: true,
+      cancelButtonText: "Cancelar",
+      width: 880,
+      background: "#1a1a1a",
+      padding: "0",
+      customClass: {
+        popup: "order-modal__swal",
+        cancelButton: "order-modal__swal-btn-cancel"
+      },
       didOpen: () => {
-        attachEvents();
+        const addListeners = () => {
+          document.querySelectorAll(".order-modal__item-add").forEach((btn) =>
+            btn.addEventListener("click", (e) => {
+              const prodId = Number(e.target.getAttribute("data-id"));
+              const product = products.find((p) => p.id === prodId);
+              if (!product) return;
+              setOrderLines((lines) => [
+                ...lines,
+                { product, quantity: 1, additions: [], removals: [] },
+              ]);
+              Swal.close();
+            })
+          );
+          document.querySelectorAll(".order-modal__tab").forEach((el) =>
+            el.addEventListener("click", (e) => {
+              const newCat = e.target.getAttribute("data-cat");
+              Swal.update({
+                html: getHtml(newCat),
+              });
+              setTimeout(() => addListeners(), 50);
+            })
+          );
+        };
+        addListeners();
       },
     });
   };
 
   const handleManage = async (index, type) => {
-    const title = type === "additions" ? "Adicionais" : "Remoções";
-    const opts = products.filter((p) => p.category === "Adicionais");
-    let html = `<form id="modForm">`;
-    opts.forEach((o) => {
-      const added = orderLines[index][type].find((m) => m.id === o.id);
-      html += `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">
-          <label>
-            <input type="checkbox" value="${o.id}" name="mod" ${
-        added ? "checked" : ""
-      }/>
-            ${o.name}
-          </label>
-          ${
-            type === "additions"
-              ? `<input id="qty-${o.id}" type="number" min="1" value="${
-                  added?.quantity || 1
-                }" style="width:40px"/>`
-              : ""
-          }
-        </div>`;
-    });
-    html += `</form>`;
-    const res = await Swal.fire({
-      title,
-      html,
-      focusConfirm: false,
-      showCancelButton: true,
-      preConfirm: () => {
-        const checked = Array.from(
-          document.querySelectorAll("#modForm input[name='mod']:checked")
-        ).map((el) => +el.value);
-        return type === "additions"
-          ? checked.map((id) => ({
-              id,
-              quantity: Number(
-                document.getElementById(`qty-${id}`)?.value || 1
-              ),
-            }))
-          : checked;
-      },
-    });
-    if (res.value !== undefined) {
-      setOrderLines((lines) => {
-        const c = [...lines];
-        c[index][type] = res.value;
-        return c;
-      });
+    const additionsProducts = products.filter(
+      (p) => (p.category || "").toLowerCase() === "adicionais"
+    );
+    const orderLine = orderLines[index];
+    let selected =
+      type === "additions" ? orderLine.additions : orderLine.removals;
+
+    let itemsHtml = "";
+    if (additionsProducts.length === 0) {
+      itemsHtml = `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
+    } else if (type === "additions") {
+      itemsHtml = additionsProducts
+        .map((p) => {
+          const exists = selected.find((a) => a.id === p.id);
+          const qty = exists ? exists.quantity : 0;
+          return `
+          <div class="order-modal__item">
+            <div class="order-modal__item-name">${p.name}</div>
+            <div class="order-modal__item-actions">
+              <span class="order-modal__item-price">R$ ${Number(p.price)
+                .toFixed(2)
+                .replace(".", ",")}</span>
+              <input type="number" min="0" max="9" step="1" value="${qty}" data-id="${
+            p.id
+          }" class="order-modal__addition-qty" style="width:44px;margin-left:10px;border-radius:6px;padding:2px 5px;border:1px solid #333;background:#222;color:#fff;">
+            </div>
+          </div>
+        `;
+        })
+        .join("");
+    } else {
+      itemsHtml = additionsProducts
+        .map((p) => {
+          const checked = selected.includes(p.id) ? "checked" : "";
+          return `
+          <div class="order-modal__item">
+            <div class="order-modal__item-name">${p.name}</div>
+            <div class="order-modal__item-actions">
+              <input type="checkbox" value="${p.id}" ${checked} class="order-modal__removal-check" style="margin-left:0;">
+            </div>
+          </div>
+        `;
+        })
+        .join("");
     }
+
+    await Swal.fire({
+      title: type === "additions" ? "Adicionais" : "Remoções",
+      html: `
+      <div style="padding:0.8rem 0.6rem">
+        <div class="order-modal__item-list" style="max-height:350px;overflow-y:auto;">${itemsHtml}</div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Salvar",
+      width: 600,
+      background: "#1a1a1a",
+      customClass: {
+        popup: "order-modal__swal",
+        confirmButton: "order-modal__swal-btn",
+        cancelButton: "order-modal__swal-btn-cancel",
+      },
+      focusConfirm: false,
+      preConfirm: () => {
+        if (type === "additions") {
+          const arr = [];
+          document
+            .querySelectorAll(".order-modal__addition-qty")
+            .forEach((el) => {
+              const qty = parseInt(el.value, 10);
+              if (qty > 0) {
+                arr.push({
+                  id: Number(el.getAttribute("data-id")),
+                  quantity: qty,
+                });
+              }
+            });
+          return arr;
+        } else {
+          return Array.from(
+            document.querySelectorAll(".order-modal__removal-check:checked")
+          ).map((el) => Number(el.value));
+        }
+      },
+    }).then((res) => {
+      if (res.isConfirmed && res.value !== undefined) {
+        setOrderLines((lines) => {
+          const copy = [...lines];
+          copy[index][type] = res.value;
+          return copy;
+        });
+      }
+    });
   };
 
   const removeLine = (i) =>
     setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
   const updateLine = (i, field, v) =>
     setOrderLines((lines) => {
-      const c = [...lines];
-      c[i][field] = v;
-      return c;
+      const copy = [...lines];
+      copy[i][field] = v;
+      return copy;
     });
 
   const handleSubmit = async (e) => {
@@ -384,16 +360,20 @@ export default function OrderCreatePage() {
       const { data: created } = await axios.post(
         `${apiBaseUrl}/order`,
         payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       const { data: fetched } = await axios.get(
         `${apiBaseUrl}/order/${created.order.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       const receiptText = buildReceipt(fetched.order);
       await Swal.fire({
         title: `Recibo Pedido #${fetched.order.order_number}`,
-        html: `<pre style="font-family:monospace;white-space:pre-wrap">${receiptText}</pre>`,
+        html: `<pre>${receiptText}</pre>`,
         showCancelButton: true,
         confirmButtonText: "Imprimir",
       });
@@ -410,98 +390,94 @@ export default function OrderCreatePage() {
     }
   };
 
-  if (loading)
-    return <Spinner animation="border" className="mt-5 d-block mx-auto" />;
+  if (loading) {
+    return <Spinner animation="border" className="order-loading__spinner" />;
+  }
 
   return (
     <>
       <NavlogComponent />
-      <Container className="m-4">
-        {/* cabeçalho com logo e nome */}
-        <div className="est-header d-flex justify-content-end align-items-center mb-4">
+      <Container className="order-create__container">
+        <div className="order-create__header">
           {estLogo && (
             <img
               src={`${storageUrl}/${estLogo}`}
               alt={`${estName} logo`}
-              className="img-component me-2"
-              style={{ width: "80px", height: "80px", objectFit: "contain" }}
-              onError={(e) => (e.currentTarget.src = "/images/logo.png")}
+              className="order-create__logo"
+              onError={(e) => {
+                e.currentTarget.src = "/images/logo.png";
+              }}
             />
           )}
-          <p className="bg-dark text-white py-1 px-3 rounded m-0">
+          <p className="order-create__establishment-name">
             <strong>{estName}</strong>
           </p>
+          <Button
+            as={Link}
+            to={`/order/list/${entityId}`}
+            variant="info"
+            size="sm"
+            className="order-create__btn-orders"
+          >
+            Ver Pedidos
+          </Button>
         </div>
-
-        <Button variant="success" onClick={handleAddItem}>
+        <Button
+          variant="success"
+          onClick={handleAddItem}
+          className="order-create__btn-add-item"
+        >
           + Adicionar Item
         </Button>
-
-        {/* linhas de pedido */}
-        <div className="order-lines-container border rounded p-4 mt-3">
-          <p className="mb-3 h6">Itens do Pedido</p>
-          <Row className="order-lines">
+        <div className="order-create__total">
+          <h5>Total: {formattedTotal}</h5>
+        </div>
+        <div className="order-lines__block">
+          <p className="order-lines__title">Itens do Pedido</p>
+          <Row className="order-lines__list">
             {orderLines.map((line, i) => (
-              <Row
-                key={i}
-                className="order-line-row align-items-center border-bottom py-2"
-              >
-                {/* Nome do item + botão remover */}
-                <Col
-                  xs={12}
-                  lg={4}
-                  className="d-flex align-items-center mb-2 mb-lg-0"
-                >
-                  <span className="order-line-title flex-grow-1 text-truncate">
-                    {line.product.name} - R$ {line.product.price}
+              <Row key={i} className="order-line__row">
+                <Col xs={12} lg={4} className="order-line__product">
+                  <span className="order-line__product-name">
+                    {line.product.name} – R$ {line.product.price}
                   </span>
                   <Button
                     size="sm"
                     variant="outline-danger"
-                    className="ms-2"
+                    className="order-line__btn-remove"
                     onClick={() => removeLine(i)}
                   >
                     ×
                   </Button>
                 </Col>
-
-                {/* Quantidade */}
-                <Col
-                  xs={12}
-                  sm={6}
-                  lg={2}
-                  className="d-flex align-items-center mb-2 mb-sm-0"
-                >
+                <Col xs={12} sm={6} lg={2} className="order-line__quantity">
                   <Button
                     size="sm"
                     variant="outline-info"
+                    className="order-line__btn-minus"
                     onClick={() =>
                       updateLine(i, "quantity", Math.max(1, line.quantity - 1))
                     }
                   >
                     −
                   </Button>
-                  <span className="mx-2 fw-bold">{line.quantity}</span>
+                  <span className="order-line__quantity-value">
+                    {line.quantity}
+                  </span>
                   <Button
                     size="sm"
                     variant="outline-info"
+                    className="order-line__btn-plus"
                     onClick={() => updateLine(i, "quantity", line.quantity + 1)}
                   >
                     +
                   </Button>
                 </Col>
-
-                {/* Adicionais / Remoções */}
-                <Col
-                  xs={12}
-                  sm={6}
-                  lg={3}
-                  className="d-flex gap-2 mb-2 mb-sm-0"
-                >
+                <Col xs={12} sm={6} lg={3} className="order-line__modifiers">
                   <Button
                     size="sm"
                     variant="outline-primary"
-                    className="flex-grow-1"
+                    className="order-line__btn-addition"
                     onClick={() => handleManage(i, "additions")}
                   >
                     Adicionais
@@ -509,82 +485,86 @@ export default function OrderCreatePage() {
                   <Button
                     size="sm"
                     variant="outline-secondary"
-                    className="flex-grow-1"
+                    className="order-line__btn-removal"
                     onClick={() => handleManage(i, "removals")}
                   >
                     Remoções
                   </Button>
                 </Col>
-
-                {/* Badges */}
-                <Col
-                  xs={12}
-                  lg={3}
-                  className="order-modifiers d-flex flex-wrap gap-1"
-                >
-                  {line.additions.map((a) => (
-                    <Badge
-                      key={`add-${a.id}`}
-                      bg="success"
-                      className="order-mod-badge "
-                    >
-                      + {a.quantity} {products.find((p) => p.id === a.id)?.name}{" "}
-                      - R$ {products.find((p) => p.id === a.id)?.price}
-                    </Badge>
-                  ))}
-                  {line.removals.map((rid) => (
-                    <Badge
-                      key={`rem-${rid}`}
-                      bg="danger"
-                      className="order-mod-badge"
-                    >
-                      − {products.find((p) => p.id === rid)?.name}
-                    </Badge>
-                  ))}
-                </Col>
+                <div className="order-line__badges">
+                  {line.additions.map((a) => {
+                    const addProduct = products.find((p) => p.id === a.id);
+                    return (
+                      <Badge
+                        key={`add-${a.id}`}
+                        bg="success"
+                        className="order-line__badge-addition"
+                      >
+                        + {a.quantity} {addProduct?.name} – R$ {addProduct?.price}
+                      </Badge>
+                    );
+                  })}
+                  {line.removals.map((rid) => {
+                    const remProduct = products.find((p) => p.id === rid);
+                    return (
+                      <Badge
+                        key={`rem-${rid}`}
+                        bg="danger"
+                        className="order-line__badge-removal"
+                      >
+                        − {remProduct?.name}
+                      </Badge>
+                    );
+                  })}
+                </div>
               </Row>
             ))}
           </Row>
         </div>
-
-        {/* formulário de dados e envio */}
-        <Form onSubmit={handleSubmit} className="mt-4">
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Group controlId="customer">
-                <Form.Label>Cliente</Form.Label>
+        {/* FORMULÁRIO SIMÉTRICO */}
+        <Form onSubmit={handleSubmit} className="order-create__form">
+          <Row className="order-create__form-row">
+            <Col md={4}>
+              <Form.Group controlId="customer" className="order-create__form-group">
+                <Form.Label className="order-create__label">Cliente</Form.Label>
                 <Form.Control
                   required
                   value={form.customer_name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, customer_name: e.target.value }))
+                  onChange={e =>
+                    setForm(f => ({ ...f, customer_name: e.target.value }))
                   }
+                  className="order-create__input"
                 />
               </Form.Group>
             </Col>
-            <Col md={3}>
-              <Form.Group controlId="origin">
-                <Form.Label>Origem</Form.Label>
+            </Row>
+          <Row className="order-create__form-row">
+            
+            <Col md={2}>
+              <Form.Group controlId="origin" className="order-create__form-group">
+                <Form.Label className="order-create__label">Origem</Form.Label>
                 <Form.Select
                   value={form.origin}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, origin: e.target.value }))
+                  onChange={e =>
+                    setForm(f => ({ ...f, origin: e.target.value }))
                   }
+                  className="order-create__select"
                 >
-                  {Object.keys(originLabels).map((o) => (
+                  {Object.keys(originLabels).map(o => (
                     <option key={o}>{o}</option>
                   ))}
                 </Form.Select>
               </Form.Group>
             </Col>
-            <Col md={3}>
-              <Form.Group controlId="fulfillment">
-                <Form.Label>Consumo</Form.Label>
+            <Col md={2}>
+              <Form.Group controlId="fulfillment" className="order-create__form-group">
+                <Form.Label className="order-create__label">Consumo</Form.Label>
                 <Form.Select
                   value={form.fulfillment}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, fulfillment: e.target.value }))
+                  onChange={e =>
+                    setForm(f => ({ ...f, fulfillment: e.target.value }))
                   }
+                  className="order-create__select"
                 >
                   {Object.entries(fulfillmentLabels).map(([v, l]) => (
                     <option key={v} value={v}>
@@ -594,17 +574,15 @@ export default function OrderCreatePage() {
                 </Form.Select>
               </Form.Group>
             </Col>
-          </Row>
-
-          <Row className="g-3 mt-3">
-            <Col md={4}>
-              <Form.Group controlId="payment_status">
-                <Form.Label>Status Pagamento</Form.Label>
+              <Col md={2}>
+              <Form.Group controlId="payment_status" className="order-create__form-group">
+                <Form.Label className="order-create__label">Status Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_status}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, payment_status: e.target.value }))
+                  onChange={e =>
+                    setForm(f => ({ ...f, payment_status: e.target.value }))
                   }
+                  className="order-create__select"
                 >
                   <option value="pending">Pendente</option>
                   <option value="paid">Pago</option>
@@ -612,14 +590,16 @@ export default function OrderCreatePage() {
                 </Form.Select>
               </Form.Group>
             </Col>
-            <Col md={8}>
-              <Form.Group controlId="payment_method">
-                <Form.Label>Método Pagamento</Form.Label>
+            
+            <Col md={2}>
+              <Form.Group controlId="payment_method" className="order-create__form-group">
+                <Form.Label className="order-create__label">Método Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_method}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, payment_method: e.target.value }))
+                  onChange={e =>
+                    setForm(f => ({ ...f, payment_method: e.target.value }))
                   }
+                  className="order-create__select"
                 >
                   <option>Dinheiro</option>
                   <option>Pix</option>
@@ -635,26 +615,37 @@ export default function OrderCreatePage() {
               </Form.Group>
             </Col>
           </Row>
-
-          <Form.Group controlId="notes" className="mt-3">
-            <Form.Label>Observações</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={form.notes}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, notes: e.target.value }))
-              }
-            />
-          </Form.Group>
-
-          <Button type="submit" className="mt-3" disabled={submitting}>
-            {submitting ? (
-              <Spinner animation="border" size="sm" />
-            ) : (
-              "Criar Pedido"
-            )}
-          </Button>
+          <Row className="order-create__form-row">
+            <Col md={12}>
+              <Form.Group controlId="notes" className="order-create__form-group">
+                <Form.Label className="order-create__label">Observações</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={form.notes}
+                  onChange={e =>
+                    setForm(f => ({ ...f, notes: e.target.value }))
+                  }
+                  className="order-create__textarea"
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row>
+            <Col className="d-flex justify-content-center">
+              <Button
+                type="submit"
+                className="order-create__btn-submit"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <Spinner animation="border" size="sm" />
+                ) : (
+                  "Criar Pedido"
+                )}
+              </Button>
+            </Col>
+          </Row>
         </Form>
       </Container>
     </>

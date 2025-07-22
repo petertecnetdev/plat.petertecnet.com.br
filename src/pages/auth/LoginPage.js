@@ -5,6 +5,10 @@ import Swal from "sweetalert2";
 import { apiBaseUrl } from "../../config"; 
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent"; 
 
+import "./Auth.css";
+
+
+
 class LoginPage extends Component {
   constructor(props) {
     super(props);

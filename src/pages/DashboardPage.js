@@ -1,25 +1,29 @@
 import React, { useEffect, useState } from "react";
-import { Container, Row, Col, Card, Button } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Spinner,
+} from "react-bootstrap";
 import Swal from "sweetalert2";
 import { Link } from "react-router-dom";
 import NavlogComponent from "../components/NavlogComponent";
-import ProcessingIndicatorComponent from "../components/ProcessingIndicatorComponent";
 import axios from "axios";
 import { apiBaseUrl, storageUrl } from "../config";
+import "./Dashboard.css";
 
 export default function Dashboard() {
   const [establishments, setEstablishments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchEstablishments = async () => {
+    (async () => {
       try {
         const token = localStorage.getItem("token");
         const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         setEstablishments(data.establishments || []);
       } catch {
@@ -28,12 +32,10 @@ export default function Dashboard() {
           title: "Erro",
           text: "Não foi possível carregar seus estabelecimentos.",
         });
-        setEstablishments([]);
       } finally {
         setIsLoading(false);
       }
-    };
-    fetchEstablishments();
+    })();
   }, []);
 
   const handleLogoError = (e) => {
@@ -42,105 +44,88 @@ export default function Dashboard() {
   };
 
   return (
-    <>
+    <div className="dashboard-root">
       <NavlogComponent />
-      <Container fluid className="main-container">
-        <Row className="my-4 justify-content-center">
-          <Col xs={12} lg={10}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h2 className="section-title">Meus Estabelecimentos</h2>
-              <Button
-                as={Link}
-                to="/establishment/create"
-                variant="primary"
-                size="sm"
-                className="action-button"
-              >
-                Cadastrar
-              </Button>
-            </div>
+      <Container fluid className="dashboard-main">
+        <div className="dashboard-topbar">
+          <div className="dashboard-title-wrap">
+            <h2 className="dashboard-title">Dashboard Geral</h2>
+            <span className="dashboard-subtitle">Gestão central dos seus negócios</span>
+          </div>
+          <Button as={Link} to="/establishment/create" className="dashboard-btn-primary">
+            + Novo Estabelecimento
+          </Button>
+        </div>
+
+        <div className="dashboard-section">
+          <h3 className="dashboard-section-title">Meus Estabelecimentos</h3>
+          <Row className="dashboard-establishments-list">
             {isLoading ? (
-              <ProcessingIndicatorComponent
-                messages={[
-                  "Carregando seus estabelecimentos...",
-                  "Por favor, aguarde...",
-                ]}
-              />
-            ) : establishments.length > 0 ? (
-              <Row className="g-4">
-                {establishments.map((est) => (
-                  <Col key={est.id} xs={12} sm={6} md={4} lg={3}>
-                    <Card className="card-component shadow-sm h-100">
-                      <div
-                        className="card-bg"
-                        style={{
-                          backgroundImage: `url('${storageUrl}/${est.logo || "images/logo.png"}')`,
-                        }}
-                      />
-                      <Card.Body className="inner-card-body d-flex flex-column justify-content-between">
-                        <Link
-                          to={`/establishment/view/${est.slug}`}
-                          className="link-component text-decoration-none"
-                        >
-                          <div className="d-flex align-items-center mb-3">
-                            <img
-                              src={`${storageUrl}/${est.logo || "images/logo.png"}`}
-                              alt={est.name}
-                              className="img-component"
-                              onError={handleLogoError}
-                            />
-                            <span className="label-name-bg ms-3">{est.name}</span>
-                          </div>
-                        </Link>
-                        <div className="d-flex justify-content-around flex-wrap">
-                          <Button
-                            as={Link}
-                            to={`/order/create/${est.id}`}
-                            variant="success"
-                            size="sm"
-                            className="dashboard-button mb-2"
-                          >
-                            Novo Pedido
-                          </Button>
-                          <Button
-                            as={Link}
-                            to={`/order/list/${est.id}`}
-                            variant="info"
-                            size="sm"
-                            className="dashboard-button mb-2"
-                          >
-                            Ver Pedidos
-                          </Button>
-                          <Button
-                            as={Link}
-                            to={`/item/list/${est.slug}`}
-                            variant="warning"
-                            size="sm"
-                            className="dashboard-button mb-2"
-                          >
-                            Itens
-                          </Button>
-                          <Button
-                            as={Link}
-                            to={`/establishment/update/${est.id}`}
-                            variant="warning"
-                            size="sm"
-                            className="dashboard-button mb-2"
-                          >
-                            Editar
-                          </Button>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
+              <Col>
+                <div className="dashboard-loading">
+                  <Spinner animation="border" variant="warning" />
+                  <span>Carregando estabelecimentos...</span>
+                </div>
+              </Col>
+            ) : establishments.length === 0 ? (
+              <Col>
+                <div className="dashboard-empty">
+                  Nenhum estabelecimento encontrado.
+                </div>
+              </Col>
             ) : (
-              <p className="text-center">Nenhum estabelecimento encontrado.</p>
+              establishments.map((est) => (
+                <Col key={est.id} md={12}>
+                  <Card className="dashboard-establishment-card">
+                    <Card.Body>
+                      <div className="dashboard-establishment-header">
+                        <img
+                          src={`${storageUrl}/${est.logo || "logo.png"}`}
+                          alt={est.name}
+                          className="dashboard-establishment-logo"
+                          onError={handleLogoError}
+                        />
+                        <div>
+                          <div className="dashboard-establishment-name">{est.name}</div>
+                          <div className="dashboard-establishment-slug">@{est.slug}</div>
+                        </div>
+                      </div>
+                      <div className="dashboard-establishment-status">
+                        <span
+                          className={
+                            est.active
+                              ? "dashboard-status-active"
+                              : "dashboard-status-inactive"
+                          }
+                        >
+                          {est.active ? "Ativo" : "Inativo"}
+                        </span>
+                      </div>
+                      <div className="dashboard-establishment-actions">
+                        <Button as={Link} to={`/order/create/${est.id}`} size="sm" className="dashboard-establishment-btn">
+                          🛒 Pedido
+                        </Button>
+                        <Button as={Link} to={`/order/list/${est.id}`} size="sm" className="dashboard-establishment-btn">
+                          📑 Pedidos
+                        </Button>
+                        <Button as={Link} to={`/report/order/${est.id}`} size="sm" className="dashboard-establishment-btn">
+                          📊 Relatório
+                        </Button>
+                        <Button as={Link} to={`/item/list/${est.slug}`} size="sm" className="dashboard-establishment-btn">
+                          🍔 Itens
+                        </Button>
+                        <Button as={Link} to={`/establishment/update/${est.id}`} size="sm" className="dashboard-establishment-btn">
+                          ✏️ Editar
+                        </Button>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))
             )}
-          </Col>
-        </Row>
+          </Row>
+        </div>
       </Container>
-    </>
+    </div>
   );
 }

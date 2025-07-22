@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { Navbar } from "react-bootstrap";
 import { storageUrl, apiBaseUrl } from "../config";
 import axios from "axios";
+import "./NavlogComponent.css";
 
-const Navigation = () => {
+const NavlogComponent = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingMenu, setLoadingMenu] = useState(true);
@@ -28,7 +29,6 @@ const Navigation = () => {
           window.location.href = "/login";
           return;
         }
-
         const headers = { Authorization: `Bearer ${token}` };
         const response = await axios.get(`${apiBaseUrl}/auth/me`, { headers });
         const userData = response.data.user;
@@ -40,7 +40,6 @@ const Navigation = () => {
         setLoadingMenu(false);
       }
     };
-
     fetchUserData();
   }, []);
 
@@ -50,30 +49,30 @@ const Navigation = () => {
   };
 
   const handleToggleMobileMenu = () => {
-    setShowMobileMenu(!showMobileMenu);
+    setShowMobileMenu((prev) => !prev);
+    setShowAdminSubmenu(false);
   };
-
 
   const renderAdminMenu = () => (
     <>
       <button
-        onClick={() => setShowAdminSubmenu(!showAdminSubmenu)}
-        style={{ ...buttonStyle, marginTop: "15px" }}
+        className="navlog__admin-btn"
+        onClick={() => setShowAdminSubmenu((v) => !v)}
       >
         Administrativo {showAdminSubmenu ? "▲" : "▼"}
       </button>
       {showAdminSubmenu && (
-        <div style={submenuStyle}>
-          <Link to="/user/list" onClick={handleToggleMobileMenu} style={linkStyle}>
+        <div className="navlog__admin-submenu">
+          <Link to="/user/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
             Usuários
           </Link>
-          <Link to="/barber/list" onClick={handleToggleMobileMenu} style={linkStyle}>
+          <Link to="/barber/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
             Barbeiros
           </Link>
-          <Link to="/service/list" onClick={handleToggleMobileMenu} style={linkStyle}>
+          <Link to="/service/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
             Serviços
           </Link>
-          <Link to="/appointments/list" onClick={handleToggleMobileMenu} style={linkStyle}>
+          <Link to="/appointments/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
             Agendamentos
           </Link>
         </div>
@@ -81,45 +80,22 @@ const Navigation = () => {
     </>
   );
 
-  const buttonStyle = {
-    background: "none",
-    border: "none",
-    color: "#fff",
-    fontSize: "1rem",
-    textAlign: "left",
-    cursor: "pointer",
-    width: "100%",
-  };
-
-  const submenuStyle = {
-    paddingLeft: "15px",
-    marginTop: "10px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  };
-
-  const linkStyle = {
-    color: "#fff",
-    textDecoration: "none",
-  };
-
   return (
     <>
-      <Navbar expand="lg" sticky="top" bg="dark" variant="dark" className="px-3">
-        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2 ">
-          <img src="/images/logo.png" alt="Logo"  className="logo-image"/>
+      <Navbar expand={false} sticky="top" bg="dark" variant="dark" className="navlog__navbar">
+        <Navbar.Brand as={Link} to="/" className="navlog__brand">
+          <img
+            src="/images/logo.png"
+            alt="Logo Buddys Royale"
+            className="navlog__logo-image"
+            draggable={false}
+          />
         </Navbar.Brand>
-        <div className="ms-auto d-flex align-items-center gap-3">
+        <div className="navlog__menu-icon">
           <button
             onClick={handleToggleMobileMenu}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "1.8rem",
-              color: "#ffffff",
-              cursor: "pointer",
-            }}
+            className="navlog__mobile-toggle-btn"
+            aria-label="Abrir menu"
           >
             ☰
           </button>
@@ -127,80 +103,40 @@ const Navigation = () => {
       </Navbar>
 
       {showMobileMenu && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "#000",
-            zIndex: 1050,
-            padding: "20px",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <div style={{ alignSelf: "flex-end" }}>
+        <div className="navlog__mobile-menu">
+          <div className="navlog__mobile-close">
             <button
               onClick={handleToggleMobileMenu}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: "2rem",
-                color: "#fff",
-                cursor: "pointer",
-              }}
+              className="navlog__close-btn"
+              aria-label="Fechar menu"
             >
               ×
             </button>
           </div>
-          <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <div className="navlog__mobile-content">
             {loading || loadingMenu ? (
-              <p style={{ color: "#fff" }}>Carregando...</p>
+              <p className="navlog__loading">Carregando...</p>
             ) : user ? (
               <>
                 <img
                   src={user.avatar ? `${storageUrl}/${user.avatar}` : "/images/user.png"}
                   alt="Avatar"
                   onError={handleImageError}
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    objectFit: "cover",
-                    borderRadius: "50%",
-                    marginBottom: "10px",
-                  }}
+                  className="navlog__avatar"
                 />
-                <h5 style={{ color: "#fff" }}>{user.first_name}</h5>
-                <div
-                  style={{
-                    marginTop: "30px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "20px",
-                    alignItems: "center",
-                  }}
-                >
-                  <Link to="/user/update" onClick={handleToggleMobileMenu} style={linkStyle}>
+                <h5 className="navlog__user-name">{user.first_name}</h5>
+                <div className="navlog__mobile-links">
+                  <Link to="/user/update" onClick={handleToggleMobileMenu} className="navlog__link">
                     Gerenciar Conta
                   </Link>
-                 
-                  {user.profile?.name === "Administrador" && (
-                    <>
-                     
-                      {renderAdminMenu()}
-                    </>
-                  )}
-                  <Link to="/logout" onClick={handleToggleMobileMenu} style={linkStyle}>
+                  {user.profile?.name === "Administrador" && renderAdminMenu()}
+                  <Link to="/logout" onClick={handleToggleMobileMenu} className="navlog__link">
                     Sair
                   </Link>
                 </div>
               </>
             ) : (
-              <p style={{ color: "#fff" }}>Usuário não encontrado</p>
+              <p className="navlog__loading">Usuário não encontrado</p>
             )}
           </div>
         </div>
@@ -209,4 +145,4 @@ const Navigation = () => {
   );
 };
 
-export default Navigation;
+export default NavlogComponent;

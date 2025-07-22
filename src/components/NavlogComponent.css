@@ -1,0 +1,217 @@
+/* NAVBAR MODERNO/ARREDONDADO */
+.navlog__navbar {
+  background: rgba(20, 21, 28, 0.95) !important;
+  border: none;
+  border-radius: 2.2rem;
+  margin: 14px 18px 0 18px;
+  padding: 0.5rem 2.2rem !important;
+  box-shadow: 0 8px 32px #000b, 0 1.5px 0 #ffd70033;
+  z-index: 1020;
+  min-height: 70px;
+  transition: box-shadow .2s, background .3s;
+  display: flex;
+  align-items: center;
+}
+
+.navlog__brand {
+  display: flex !important;
+  align-items: center;
+  gap: 0.7rem;
+  padding-left: 0.2rem;
+  border-radius: 1.6rem;
+}
+
+.navlog__logo-image {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  object-position: center;
+  background: #1117;
+  border-radius: 50%;
+  box-shadow: 0 2px 16px #0008, 0 0 0 4px #ffd70022;
+  transition: transform .19s, box-shadow .19s;
+  padding: 2px;
+  border: 2px solid #ffd70080;
+  user-select: none;
+}
+.navlog__brand:hover .navlog__logo-image {
+  transform: scale(1.07) rotate(-2deg);
+  box-shadow: 0 4px 28px #ffd70099, 0 0 0 4px #ffd70055;
+  border-color: #ffd700;
+}
+
+.navlog__menu-icon {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.navlog__mobile-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 2.3rem;
+  color: #ffd700;
+  cursor: pointer;
+  border-radius: 1.5rem;
+  transition: color 0.18s, background .18s;
+  padding: 2px 13px 1px 13px;
+  box-shadow: 0 0px 8px #ffd70028;
+  display: block;
+}
+.navlog__mobile-toggle-btn:hover {
+  color: #ff9100;
+  background: #2223;
+}
+
+.navlog__mobile-menu {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: linear-gradient(135deg, #17181c 85%, #292b38 100%);
+  z-index: 1100;
+  padding: 36px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: navlogFadeIn .3s;
+  overflow-y: auto;
+  border-radius: 2.4rem;
+  box-shadow: 0 12px 36px #000b;
+}
+@keyframes navlogFadeIn {
+  from { opacity: 0; transform: translateY(-15px);}
+  to { opacity: 1; transform: none;}
+}
+
+.navlog__mobile-close {
+  align-self: flex-end;
+  margin-right: 32px;
+}
+.navlog__close-btn {
+  background: none;
+  border: none;
+  font-size: 2.5rem;
+  color: #ff6c00;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 1.4rem;
+  transition: color .2s, background .18s;
+}
+.navlog__close-btn:hover { color: #ffd700; background: #282a3644; }
+
+.navlog__mobile-content {
+  margin-top: 24px;
+  text-align: center;
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 2rem;
+  box-shadow: 0 1.5px 8px #ffd70022;
+  background: rgba(30, 30, 36, 0.88);
+  padding: 2rem 1.1rem 1.7rem 1.1rem;
+}
+
+.navlog__avatar {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2.5px solid #ff9100;
+  box-shadow: 0 2px 12px #0006;
+  margin-bottom: 12px;
+  background: #232323;
+}
+
+.navlog__user-name {
+  color: #ffd700;
+  font-size: 1.22rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+  letter-spacing: 1px;
+}
+
+.navlog__mobile-links {
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: center;
+  width: 100%;
+}
+
+.navlog__link {
+  color: #fff;
+  background: none;
+  text-decoration: none;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  font-weight: 500;
+  transition: color 0.2s;
+  border: none;
+  padding: 0;
+  border-radius: 1.2rem;
+}
+.navlog__link:hover {
+  color: #ff9100;
+  text-decoration: underline;
+  background: #282a3622;
+}
+
+.navlog__loading {
+  color: #ccc;
+  font-size: 1.06rem;
+  letter-spacing: 0.5px;
+  margin-top: 18px;
+}
+
+.navlog__admin-btn {
+  background: none;
+  border: none;
+  color: #ffd700;
+  font-size: 1.07rem;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  font-weight: 600;
+  margin-top: 18px;
+  border-radius: 1.1rem;
+  transition: color .2s, background .18s;
+  letter-spacing: .5px;
+  padding: 3px 9px 3px 3px;
+}
+.navlog__admin-btn:hover { color: #ff9100; background: #282a3622; }
+
+.navlog__admin-submenu {
+  padding-left: 16px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.navlog__submenu-link {
+  color: #fff;
+  background: none;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.2s, background .18s;
+  border: none;
+  padding: 0;
+  border-radius: 1rem;
+}
+.navlog__submenu-link:hover {
+  color: #ffd700;
+  text-decoration: underline;
+  background: #282a3622;
+}
+
+@media (max-width: 991px) {
+  .navlog__navbar { padding: 0.5rem 1rem !important; margin: 10px 5px 0 5px; }
+  .navlog__brand { gap: 0.3rem; }
+  .navlog__logo-image { width: 44px; height: 44px; }
+  .navlog__mobile-content { max-width: 94vw; }
+  .navlog__mobile-menu { border-radius: 0; }
+}

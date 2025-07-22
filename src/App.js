@@ -61,6 +61,9 @@ import ServiceRecordListPage from "./pages/serviceRecord/ServiceRecordListPage";
 import ServiceRecordCreatePage from "./pages/serviceRecord/ServiceRecordCreatePage";
 import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
 
+//Report
+import ReportOrderPage from "./pages/report/ReportOrderPage";
+
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
 import { apiBaseUrl } from "./config";
 
@@ -164,6 +167,8 @@ const App = () => {
         <Route  path="/menu/update/:id"  element={protectedRoute(<MenuUpdatePage />)}/>
         <Route  path="/menu/show/:id"  element={<MenuShowPage />}/>
 
+        {/* Report */}
+        <Route  path="/report/order/:entityId"  element={protectedRoute(<ReportOrderPage />)}/>
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" />} />
