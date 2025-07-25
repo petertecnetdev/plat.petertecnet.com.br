@@ -1,67 +1,72 @@
-import React, { Component } from "react";
-import axios from "axios";
-import { Button, Card, Col, Container, Row, Form } from "react-bootstrap";
-import Swal from "sweetalert2"; 
-import { apiBaseUrl } from "../../config"; 
-import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent"; 
-
-import "./Auth.css";
-
-
+import React, { Component } from 'react';
+import axios from 'axios';
+import { Button, Card, Col, Container, Row, Form } from 'react-bootstrap';
+import Swal from 'sweetalert2';
+import { apiBaseUrl } from '../../config';
+import ProcessingIndicatorComponent from '../../components/ProcessingIndicatorComponent';
+import './Auth.css';
 
 class LoginPage extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      username: "",
-      password: "",
-      loading: false,
-    };
-  }
-  
-  setToken = (token) => localStorage.setItem("token", token);
-
-  onChangeusername = (e) => {
-    this.setState({ username: e.target.value });
+  state = {
+    username: '',
+    password: '',
+    loading: false,
   };
 
-  onChangePassword = (e) => {
-    this.setState({ password: e.target.value });
+  setToken = (token) => {
+    localStorage.setItem('token', token);
   };
 
-  onSubmit = async (e) => {
-    e.preventDefault();
+  handleUsernameChange = ({ target: { value } }) => {
+    this.setState({ username: value });
+  };
+
+  handlePasswordChange = ({ target: { value } }) => {
+    this.setState({ password: value });
+  };
+
+  handleSubmit = async (event) => {
+    event.preventDefault();
     const { username, password } = this.state;
 
     this.setState({ loading: true });
 
     try {
-      const response = await axios.post(`${apiBaseUrl}/auth/login`, { username, password });
-      const token = response?.data?.token.original.access_token;
+      const { data } = await axios.post(
+        `${apiBaseUrl}/auth/login`,
+        { username, password }
+      );
+      const { access_token: token } = data;
 
       if (token) {
         this.setToken(token);
+        window.location.href = '/dashboard';
+      } else {
+        throw new Error('Token não retornado');
       }
-      window.location.href = "/dashboard";
-
     } catch (error) {
-      console.error(error.response?.data);
-      let errorMessage = "Ocorreu um erro. Por favor, tente novamente.";
+      console.error(error.response || error);
+
+      let errorMessage = 'Ocorreu um erro. Por favor, tente novamente.';
 
       if (error.response) {
         const { data } = error.response;
-        errorMessage = data.error || data.password || data.username || errorMessage;
+        if (data.errors) {
+          errorMessage = Object.values(data.errors).flat().join(' ');
+        } else if (data.error || data.message) {
+          errorMessage = data.error || data.message;
+        }
       }
 
       Swal.fire({
-        title: "Erro!",
+        title: 'Erro!',
         text: errorMessage,
-        icon: "error",
-        confirmButtonText: "Ok",
+        icon: 'error',
+        confirmButtonText: 'Ok',
         customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
+          popup: 'custom-swal',
+          title: 'custom-swal-title',
+          content: 'custom-swal-text',
         },
       });
     } finally {
@@ -75,7 +80,12 @@ class LoginPage extends Component {
     return (
       <Container fluid className="page-container">
         {loading && (
-          <ProcessingIndicatorComponent messages={["Autenticando...", "Por favor, aguarde..."]} />
+          <ProcessingIndicatorComponent
+            messages={[
+              'Autenticando...',
+              'Por favor, aguarde...',
+            ]}
+          />
         )}
 
         {!loading && (
@@ -91,34 +101,58 @@ class LoginPage extends Component {
                       className="logo-image"
                     />
                   </div>
-                  <Form onSubmit={this.onSubmit} className="form-container">
+                  <Form
+                    onSubmit={this.handleSubmit}
+                    className="form-container"
+                  >
                     <Form.Group className="form-group">
                       <Form.Control
-                        type="username"
+                        type="text"
                         placeholder="Insira o username"
-                        onChange={this.onChangeusername}
                         value={username}
+                        onChange={this.handleUsernameChange}
                         className="input-username"
-                      />
-                    </Form.Group>
-                    <Form.Group className="form-group">
-                      <Form.Control
-                        type="password"
-                        placeholder="Insira a Senha"
-                        onChange={this.onChangePassword}
-                        value={password}
-                        className="input-password"
+                        required
                       />
                     </Form.Group>
 
-                    <Button type="submit" disabled={loading} className="submit-btn">
-                      {loading ? "Entrando..." : "Entrar"}
+                    <Form.Group className="form-group">
+                      <Form.Control
+                        type="password"
+                        placeholder="Insira a senha"
+                        value={password}
+                        onChange={this.handlePasswordChange}
+                        className="input-password"
+                        required
+                      />
+                    </Form.Group>
+
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="submit-btn"
+                    >
+                      {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
+
                     <p className="footer-text">
-                      NÃ£o tem conta? <a href="/register" className="footer-link">Registrar-se</a>
+                      Não tem conta?{' '}
+                      <a
+                        href="/register"
+                        className="footer-link"
+                      >
+                        Registrar-se
+                      </a>
                     </p>
+
                     <p className="footer-text">
-                      Esqueceu a senha? <a href="/password-email" className="footer-link">Recuperar senha</a>
+                      Esqueceu a senha?{' '}
+                      <a
+                        href="/password-email"
+                        className="footer-link"
+                      >
+                        Recuperar senha
+                      </a>
                     </p>
                   </Form>
                 </Card.Body>
