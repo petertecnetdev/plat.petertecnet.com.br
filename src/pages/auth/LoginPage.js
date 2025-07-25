@@ -42,7 +42,7 @@ class LoginPage extends Component {
         this.setToken(token);
         window.location.href = '/dashboard';
       } else {
-        throw new Error('Token n√£o retornado');
+        throw new Error('Token n„o retornado');
       }
     } catch (error) {
       console.error(error.response || error);
@@ -136,7 +136,7 @@ class LoginPage extends Component {
                     </Button>
 
                     <p className="footer-text">
-                      N√£o tem conta?{' '}
+                      N„o tem conta?{' '}
                       <a
                         href="/register"
                         className="footer-link"
