@@ -463,7 +463,7 @@
     padding: 0.7rem 0.5rem;
   }
 }
-/* 1) SweetAlert full‑screen fixed, fundo preto */
+/* força container e popup full‑screen */
 .swal2-container.order-modal__container-fullscreen,
 .swal2-container.order-modal__container-fullscreen .swal2-popup {
   position: fixed !important;
@@ -475,10 +475,9 @@
   margin: 0 !important;
   padding: 0 !important;
   background: #000 !important;
-  box-sizing: border-box;
 }
 
-/* 2) HTML container preenche todo o popup */
+/* html‑container preenche todo o popup */
 .swal2-html-container.order-modal__content-fullscreen {
   display: flex !important;
   flex-direction: column !important;
@@ -490,35 +489,32 @@
   overflow: hidden !important;
 }
 
-/* 3) Wrapper interno full‑height */
+/* wrapper interno full‑height */
 .order-modal {
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
-/* 4) Abas fixas no topo */
+/* abas fixas no topo */
 .order-modal__tabs {
   position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  overflow-x: auto;
+  top: 0; z-index: 2;
+  display: flex; overflow-x: auto;
   background: #000;
 }
 .order-modal__tab--active {
   border-bottom: 2px solid #ff9900;
 }
 
-/* 5) Grid itens preenche resto da tela e rola */
+/* grid de itens ocupa resto e rola */
 .order-modal__items-grid {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 1rem;
-  box-sizing: border-box;
 }
 
-/* 6) Footer “Cancelar” sempre visível no final */
+/* footer “Cancelar” fixo */
 .swal2-actions {
   position: absolute !important;
   bottom: 1rem !important;
