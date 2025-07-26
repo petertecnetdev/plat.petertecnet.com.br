@@ -1,20 +1,21 @@
-import React, { Component } from 'react';
-import axios from 'axios';
-import { Button, Card, Col, Container, Row, Form } from 'react-bootstrap';
-import Swal from 'sweetalert2';
-import { apiBaseUrl } from '../../config';
-import ProcessingIndicatorComponent from '../../components/ProcessingIndicatorComponent';
-import './Auth.css';
+import React, { Component } from "react";
+import axios from "axios";
+import { Button, Card, Col, Container, Row, Form } from "react-bootstrap";
+import Swal from "sweetalert2";
+import { apiBaseUrl } from "../../config";
+import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
+import { GoogleLogin } from "@react-oauth/google";
+import "./Auth.css";
 
 class LoginPage extends Component {
   state = {
-    username: '',
-    password: '',
+    username: "",
+    password: "",
     loading: false,
   };
 
   setToken = (token) => {
-    localStorage.setItem('token', token);
+    localStorage.setItem("token", token);
   };
 
   handleUsernameChange = ({ target: { value } }) => {
@@ -23,6 +24,48 @@ class LoginPage extends Component {
 
   handlePasswordChange = ({ target: { value } }) => {
     this.setState({ password: value });
+  };
+
+  handleGoogleSuccess = async (credentialResponse) => {
+    this.setState({ loading: true });
+    try {
+      const res = await axios.post(`${apiBaseUrl}/auth/google`, {
+        token_id: credentialResponse.credential,
+      });
+      const token = res.data.access_token;
+      if (token) {
+        this.setToken(token);
+        window.location.href = "/dashboard";
+      }
+    } catch (error) {
+      Swal.fire({
+        title: "Erro!",
+        text: error.response?.data?.error || "Falha no login com Google",
+        icon: "error",
+        confirmButtonText: "Ok",
+        customClass: {
+          popup: "custom-swal",
+          title: "custom-swal-title",
+          content: "custom-swal-text",
+        },
+      });
+    } finally {
+      this.setState({ loading: false });
+    }
+  };
+
+  handleGoogleError = () => {
+    Swal.fire({
+      title: "Erro!",
+      text: "Falha no login com Google",
+      icon: "error",
+      confirmButtonText: "Ok",
+      customClass: {
+        popup: "custom-swal",
+        title: "custom-swal-title",
+        content: "custom-swal-text",
+      },
+    });
   };
 
   handleSubmit = async (event) => {
@@ -40,33 +83,33 @@ class LoginPage extends Component {
 
       if (token) {
         this.setToken(token);
-        window.location.href = '/dashboard';
+        window.location.href = "/dashboard";
       } else {
-        throw new Error('Token n„o retornado');
+        throw new Error("Token n√£o retornado");
       }
     } catch (error) {
       console.error(error.response || error);
 
-      let errorMessage = 'Ocorreu um erro. Por favor, tente novamente.';
+      let errorMessage = "Ocorreu um erro. Por favor, tente novamente.";
 
       if (error.response) {
         const { data } = error.response;
         if (data.errors) {
-          errorMessage = Object.values(data.errors).flat().join(' ');
+          errorMessage = Object.values(data.errors).flat().join(" ");
         } else if (data.error || data.message) {
           errorMessage = data.error || data.message;
         }
       }
 
       Swal.fire({
-        title: 'Erro!',
+        title: "Erro!",
         text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'Ok',
+        icon: "error",
+        confirmButtonText: "Ok",
         customClass: {
-          popup: 'custom-swal',
-          title: 'custom-swal-title',
-          content: 'custom-swal-text',
+          popup: "custom-swal",
+          title: "custom-swal-title",
+          content: "custom-swal-text",
         },
       });
     } finally {
@@ -82,8 +125,8 @@ class LoginPage extends Component {
         {loading && (
           <ProcessingIndicatorComponent
             messages={[
-              'Autenticando...',
-              'Por favor, aguarde...',
+              "Autenticando...",
+              "Por favor, aguarde...",
             ]}
           />
         )}
@@ -132,29 +175,36 @@ class LoginPage extends Component {
                       disabled={loading}
                       className="submit-btn"
                     >
-                      {loading ? 'Entrando...' : 'Entrar'}
+                      {loading ? "Entrando..." : "Entrar"}
                     </Button>
-
-                    <p className="footer-text">
-                      N„o tem conta?{' '}
-                      <a
-                        href="/register"
-                        className="footer-link"
-                      >
-                        Registrar-se
-                      </a>
-                    </p>
-
-                    <p className="footer-text">
-                      Esqueceu a senha?{' '}
-                      <a
-                        href="/password-email"
-                        className="footer-link"
-                      >
-                        Recuperar senha
-                      </a>
-                    </p>
                   </Form>
+
+                  <div className="google-login-container submit-btn">
+                    <GoogleLogin
+                      onSuccess={this.handleGoogleSuccess}
+                      onError={this.handleGoogleError}
+                    />
+                  </div>
+
+                  <p className="footer-text">
+                    N√£o tem conta?{" "}
+                    <a
+                      href="/register"
+                      className="footer-link"
+                    >
+                      Registrar-se
+                    </a>
+                  </p>
+
+                  <p className="footer-text">
+                    Esqueceu a senha?{" "}
+                    <a
+                      href="/password-email"
+                      className="footer-link"
+                    >
+                      Recuperar senha
+                    </a>
+                  </p>
                 </Card.Body>
               </Card>
             </Col>
