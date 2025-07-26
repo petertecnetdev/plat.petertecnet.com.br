@@ -22,13 +22,9 @@ export default function EstablishmentViewPage() {
     (async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const config = token
-          ? { headers: { Authorization: `Bearer ${token}` } }
-          : {};
         const { data } = await axios.get(
           `${apiBaseUrl}/establishment/view/${slug}`,
-          config
+          
         );
         setEst(data.establishment);
         const items = (data.items || []).filter(

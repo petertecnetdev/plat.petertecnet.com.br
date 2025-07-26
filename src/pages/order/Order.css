@@ -2,6 +2,7 @@
    Order.css — OrderListPage / OrderCreatePage
    ============================== */
 
+/* Containers */
 .order-list__container,
 .order-create__container {
   min-height: 100vh;
@@ -31,7 +32,6 @@
   border-radius: 50%;
   border: 2.5px solid #ffd700;
   box-shadow: 0 0 16px #18181888;
-  margin-right: 1rem;
 }
 
 .order-list__establishment-name,
@@ -44,12 +44,10 @@
   text-shadow: 0 0 8px #181818cc;
 }
 
-/* Botões */
+/* Buttons gerais */
 .order-list__btn-new,
 .order-create__btn-orders,
 .order-create__btn-add-item,
-.order-table__btn-edit,
-.order-table__btn-print,
 .order-list__btn-edit,
 .order-list__btn-print {
   background: #ff9900;
@@ -65,14 +63,13 @@
 .order-list__btn-new:hover,
 .order-create__btn-orders:hover,
 .order-create__btn-add-item:hover,
-.order-table__btn-edit:hover,
-.order-table__btn-print:hover,
 .order-list__btn-edit:hover,
 .order-list__btn-print:hover {
   background: #ffd700;
   color: #232323;
 }
 
+/* Submit Create */
 .order-create__btn-submit {
   background: #ff9900;
   color: #181818;
@@ -91,23 +88,17 @@
 }
 
 /* Filtros */
-.order-list__filters-row {
-  margin: 0 -0.5rem 0 0;
-  align-items: end;
+.order-list__filters-form {
+  margin: 0 -0.5rem;
 }
-
-.order-list__filters-label {
+.order-list__filters-form .form-label {
   color: #ff9900;
   font-size: 0.97rem;
   font-weight: 500;
   margin-bottom: 0.18rem;
   letter-spacing: 0.2px;
 }
-
-.order-list__filters-control,
-.order-create__input,
-.order-create__select,
-.order-create__textarea {
+.order-list__filters-form .form-control {
   background: #181818;
   color: #ffd700;
   border: 1.3px solid #333333;
@@ -117,7 +108,25 @@
   transition: border 0.17s;
   padding: 0.48rem 0.8rem;
 }
-.order-list__filters-control:focus,
+.order-list__filters-form .form-control:focus {
+  border-color: #ff9900;
+  box-shadow: 0 0 0 0.12rem #ff990080;
+  background: #181818;
+  color: #ffd700;
+}
+
+/* Inputs Create */
+.order-create__input,
+.order-create__select,
+.order-create__textarea {
+  background: #181818;
+  color: #ffd700;
+  border: 1.3px solid #333333;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  transition: border 0.17s;
+  padding: 0.48rem 0.8rem;
+}
 .order-create__input:focus,
 .order-create__select:focus,
 .order-create__textarea:focus {
@@ -131,123 +140,109 @@
   min-height: 72px;
   max-height: 180px;
   resize: vertical;
-  font-size: 1rem;
-  color: #ffd700;
-  background: #181818;
   padding: 0.69rem 1rem;
 }
-
 .order-create__label {
   color: #ff9900;
   font-size: 1rem;
   font-weight: 500;
 }
 
-/* Tabela */
-.order-table__responsive {
-  width: 100%;
-  overflow-x: auto;
-  margin-bottom: 2rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 24px 0 #0c0c0c80;
-  background: #232323;
-}
-
-.order-table__table {
-  width: 100%;
+/* Tabela escura personalizada */
+.order-table {
+  padding: 20px;
   margin: 0;
   background: transparent;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-family: "Roboto", "Montserrat", Arial, sans-serif;
 }
 
-.order-table__head tr {
-  background: #ff9900;
+.order-table thead tr {
+  background-color: #111 !important;
 }
 
-.order-table__th {
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #181818;
-  background: #ff9900;
-  border: none;
-  padding: 0.85rem 0.55rem;
-  text-align: center;
+.order-table th {
+  color: #ffd700 !important;
+  border-bottom: 2px solid #333;
+  padding: 1rem 0.75rem;
   text-transform: uppercase;
+  font-size: 0.9rem;
 }
 
-.order-table__row {
-  background: #232323;
-  transition: background 0.17s;
-  border-bottom: 1.5px solid #2b2b2b;
-}
-
-.order-table__row:hover {
-  background: #181818;
-}
-
-.order-table__td {
-  font-size: 1rem;
-  color: #fff;
-  padding: 0.70rem 0.55rem;
-  text-align: center;
+.order-table td {
+  color: #eee !important;
+  padding: 0.8rem 0.75rem;
   vertical-align: middle;
-  border: none;
+  border-top: 1px solid #222;
 }
 
-.order-table__badge-total {
-  background: #ffd700 !important;
-  color: #181818 !important;
-  font-size: 1rem;
-  font-weight: bold;
-  border-radius: 0.34rem;
-  padding: 0.37em 0.95em;
-  box-shadow: 0 0 8px 1px #ffd70040;
+.order-table tbody tr:nth-child(odd) {
+  background-color: #000;
 }
 
-.order-table__btn-edit,
-.order-table__btn-print {
+.order-table tbody tr:nth-child(even) {
+  background-color: #111;
+}
+
+.order-table tbody tr:hover {
+  background-color: #222 !important;
+}
+
+/* Ajuste nos botões */
+.order-table .btn-outline-warning {
+  color: #ffd700;
+  border-color: #ffd700;
+}
+.order-table .btn-outline-warning:hover {
+  background: #ffd700;
+  color: #181818;
+}
+
+.order-table .btn-outline-secondary {
+  color: #ccc;
+  border-color: #555;
+}
+.order-table .btn-outline-secondary:hover {
+  background: #333;
+  color: #fff;
+}
+
+
+/* Botões de ação na tabela */
+.order-list__btn-edit,
+.order-list__btn-print {
   border-radius: 0.25rem;
   font-weight: 600;
   padding: 0.29rem 0.99rem;
   font-size: 1rem;
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
   box-shadow: 0 0 4px #1a1a1a30;
   border: none;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
 }
-.order-table__btn-edit {
+.order-list__btn-edit {
   background: #ff9900;
   color: #181818;
 }
-.order-table__btn-edit:hover {
+.order-list__btn-edit:hover {
   background: #ffd700;
   color: #181818;
 }
-.order-table__btn-print {
+.order-list__btn-print {
   background: #2b2b2b;
   color: #bbbbbb;
 }
-.order-table__btn-print:hover {
+.order-list__btn-print:hover {
   background: #232323;
   color: #ff9900;
 }
 
-/* Mobile Card */
-.order-list__mobile {
-  width: 100%;
-}
-.order-list__card {
+/* Mobile Card List */
+.order-list__mobile > .card {
   background: #181818;
   color: #fff;
   border-radius: 0.5rem;
   border: none;
   box-shadow: 0 4px 8px #0000002b;
 }
-.order-list__card-header {
+.order-list__mobile .card-header {
   background: #1a1a1a;
   color: #ff9900;
   font-size: 1.1rem;
@@ -255,27 +250,25 @@
   letter-spacing: 1px;
   border-bottom: 1px solid #333333;
   padding: 0.93rem 1.3rem;
-  border-radius: 0.5rem 0.5rem 0 0;
 }
-.order-list__card-body {
+.order-list__mobile .card-body {
   padding: 1rem 1.4rem 0.6rem 1.4rem;
 }
-.order-list__card-footer {
+.order-list__mobile .card-footer {
   background: #232323;
   border-top: 1px solid #292929;
   border-radius: 0 0 0.5rem 0.5rem;
   padding: 0.66rem 1.3rem;
 }
 
-/* Linhas e badges do pedido */
+/* Itens do pedido (Create) */
 .order-lines__block {
   background: #181818;
   border-radius: 0.4rem;
   padding: 1.1rem 1rem 1.3rem 1rem;
-  margin: 1.5rem 0 2rem 0;
+  margin: 1.5rem 0 2rem;
   box-shadow: 0 3px 16px #0c0c0c80;
 }
-
 .order-lines__title {
   color: #ff9900;
   font-size: 1.13rem;
@@ -283,32 +276,48 @@
   margin-bottom: 1rem;
 }
 
+/* Linha do pedido com aparência escura arredondada */
 .order-line__row {
-  background: #232323;
-  border-radius: 0.33rem;
-  margin-bottom: 0.5rem;
-  padding: 0.6rem 0.2rem;
-  box-shadow: 0 1px 5px #18181825;
-  align-items: center;
+  background: #1e1e1e;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
 }
 
+/* Nome e preço */
 .order-line__product {
-  font-size: 1.05rem;
-  color: #ffd700;
+  flex: 1;
+  font-size: 1.1rem;
   font-weight: 600;
+  color: #ffd700;
 }
-
 .order-line__product-name {
   margin-right: 0.5rem;
 }
 
+/* Botão remover linha */
+.order-line__btn-remove {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 1.2rem;
+  margin: 0 0.5rem;
+  cursor: pointer;
+}
+.order-line__btn-remove:hover {
+  color: #ff9900;
+}
+
+/* Controles quantidade / adicionais / remoções */
 .order-line__quantity,
 .order-line__modifiers {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  flex-shrink: 0;
 }
 
 .order-line__quantity-value {
@@ -318,30 +327,28 @@
   margin: 0 0.7rem;
 }
 
-.order-line__btn-remove,
 .order-line__btn-minus,
 .order-line__btn-plus,
 .order-line__btn-addition,
 .order-line__btn-removal {
-  background: #232323;
-  color: #ff9900;
-  border: 1px solid #333333;
-  border-radius: 0.23rem;
-  font-size: 1.02rem;
-  padding: 0.32rem 0.8rem;
-  margin-right: 0.35rem;
-  transition: background 0.14s, color 0.14s, border 0.14s;
+  background: #2b2b2b;
+  border: none;
+  color: #ffd700;
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.8rem;
+  margin: 0 0.3rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
-.order-line__btn-remove:hover,
 .order-line__btn-minus:hover,
 .order-line__btn-plus:hover,
 .order-line__btn-addition:hover,
 .order-line__btn-removal:hover {
-  background: #ff9900;
+  background: #ffd700;
   color: #181818;
-  border: 1px solid #ff9900;
 }
 
+/* Badges de adição / remoção */
 .order-line__badge-addition {
   background: #ffd700;
   color: #181818;
@@ -354,19 +361,19 @@
 .order-line__badge-removal {
   background: #b81e1e;
   color: #fff;
+  margin-right: 0.28rem;
   border-radius: 0.21rem;
   font-weight: 600;
   font-size: 0.97rem;
-  margin-right: 0.28rem;
 }
 
+/* Formulário Create */
 .order-create__form {
   background: #1a1a1a;
   border-radius: 0.5rem;
-  padding: 1.5rem 1.2rem 1.1rem 1.2rem;
+  padding: 1.5rem 1.2rem 1.1rem;
   box-shadow: 0 2px 8px #00000042;
-  margin-bottom: 2rem;
-  margin-top: 1.2rem;
+  margin: 1.2rem 0 2rem;
 }
 .order-create__form-row {
   margin-bottom: 1.2rem;
@@ -375,11 +382,16 @@
   margin-bottom: 1rem;
 }
 
+/* Observações e total */
+.order-create__textarea {
+  min-height: 100px;
+  resize: vertical;
+}
 .order-create__total {
   font-size: 1.34rem;
   font-weight: 600;
   color: #ffd700;
-  margin: 2rem 0 0.5rem 0;
+  margin: 2rem 0 0.5rem;
   text-align: center;
 }
 
@@ -389,10 +401,9 @@
   color: #ff9900 !important;
   width: 2.7rem !important;
   height: 2.7rem !important;
-  margin: 2rem auto 1rem auto;
+  margin: 2rem auto 1rem;
   display: block;
 }
-
 .order-list__loading,
 .order-create__loading {
   font-size: 1.13rem;
@@ -406,8 +417,8 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-  .order-table__th,
-  .order-table__td {
+  .order-list__table-responsive th,
+  .order-list__table-responsive td {
     font-size: 0.95rem;
     padding: 0.50rem 0.25rem;
   }
@@ -423,33 +434,96 @@
   .order-create__logo {
     width: 46px;
     height: 46px;
-    margin-right: 0.5rem;
   }
-  .order-table__responsive {
+  .order-list__table-responsive {
     border-radius: 0.27rem;
     box-shadow: none;
     margin-bottom: 0.7rem;
   }
-  .order-table__th,
-  .order-table__td {
+  .order-list__table-responsive th,
+  .order-list__table-responsive td {
     font-size: 0.89rem;
     padding: 0.36rem 0.13rem;
   }
-  .order-list__card-header {
+  .order-list__mobile .card-header {
     font-size: 1.01rem;
     padding: 0.7rem 0.8rem;
   }
-  .order-list__card-body {
-    padding: 0.6rem 0.8rem 0.5rem 0.8rem;
+  .order-list__mobile .card-body {
+    padding: 0.6rem 0.8rem 0.5rem;
   }
-  .order-list__card-footer {
+  .order-list__mobile .card-footer {
     padding: 0.5rem 0.8rem;
   }
   .order-lines__block {
-    padding: 0.5rem 0.3rem 0.7rem 0.3rem;
-    margin: 0.9rem 0 1.2rem 0;
+    padding: 0.5rem 0.3rem 0.7rem;
+    margin: 0.9rem 0 1.2rem;
   }
   .order-create__form {
-    padding: 0.7rem 0.5rem 0.7rem 0.5rem;
+    padding: 0.7rem 0.5rem;
   }
+}
+/* 1) SweetAlert full‑screen fixed, fundo preto */
+.swal2-container.order-modal__container-fullscreen,
+.swal2-container.order-modal__container-fullscreen .swal2-popup {
+  position: fixed !important;
+  top: 0; left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+  box-sizing: border-box;
+}
+
+/* 2) HTML container preenche todo o popup */
+.swal2-html-container.order-modal__content-fullscreen {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+/* 3) Wrapper interno full‑height */
+.order-modal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 4) Abas fixas no topo */
+.order-modal__tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  overflow-x: auto;
+  background: #000;
+}
+.order-modal__tab--active {
+  border-bottom: 2px solid #ff9900;
+}
+
+/* 5) Grid itens preenche resto da tela e rola */
+.order-modal__items-grid {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* 6) Footer “Cancelar” sempre visível no final */
+.swal2-actions {
+  position: absolute !important;
+  bottom: 1rem !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  background: transparent !important;
 }

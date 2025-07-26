@@ -1,3 +1,4 @@
+// src/pages/auth/LoginPage.jsx
 import React, { Component } from "react";
 import axios from "axios";
 import { Button, Card, Col, Container, Row, Form } from "react-bootstrap";
@@ -5,33 +6,21 @@ import Swal from "sweetalert2";
 import { apiBaseUrl } from "../../config";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import { GoogleLogin } from "@react-oauth/google";
+import { FcGoogle } from "react-icons/fc";
 import "./Auth.css";
 
-class LoginPage extends Component {
-  state = {
-    username: "",
-    password: "",
-    loading: false,
-  };
+export default class LoginPage extends Component {
+  state = { username: "", password: "", loading: false };
 
-  setToken = (token) => {
-    localStorage.setItem("token", token);
-  };
+  setToken = (token) => localStorage.setItem("token", token);
 
-  handleUsernameChange = ({ target: { value } }) => {
-    this.setState({ username: value });
-  };
+  handleUsernameChange = ({ target: { value } }) => this.setState({ username: value });
+  handlePasswordChange = ({ target: { value } }) => this.setState({ password: value });
 
-  handlePasswordChange = ({ target: { value } }) => {
-    this.setState({ password: value });
-  };
-
-  handleGoogleSuccess = async (credentialResponse) => {
+  handleGoogleSuccess = async ({ credential }) => {
     this.setState({ loading: true });
     try {
-      const res = await axios.post(`${apiBaseUrl}/auth/google`, {
-        token_id: credentialResponse.credential,
-      });
+      const res = await axios.post(`${apiBaseUrl}/auth/google`, { token_id: credential });
       const token = res.data.access_token;
       if (token) {
         this.setToken(token);
@@ -68,42 +57,27 @@ class LoginPage extends Component {
     });
   };
 
-  handleSubmit = async (event) => {
-    event.preventDefault();
-    const { username, password } = this.state;
-
+  handleSubmit = async (e) => {
+    e.preventDefault();
     this.setState({ loading: true });
-
     try {
-      const { data } = await axios.post(
-        `${apiBaseUrl}/auth/login`,
-        { username, password }
-      );
-      const { access_token: token } = data;
-
+      const { data } = await axios.post(`${apiBaseUrl}/auth/login`, {
+        username: this.state.username,
+        password: this.state.password,
+      });
+      const token = data.access_token;
       if (token) {
         this.setToken(token);
         window.location.href = "/dashboard";
-      } else {
-        throw new Error("Token não retornado");
       }
     } catch (error) {
-      console.error(error.response || error);
-
-      let errorMessage = "Ocorreu um erro. Por favor, tente novamente.";
-
+      let msg = "Ocorreu um erro. Tente novamente.";
       if (error.response) {
-        const { data } = error.response;
-        if (data.errors) {
-          errorMessage = Object.values(data.errors).flat().join(" ");
-        } else if (data.error || data.message) {
-          errorMessage = data.error || data.message;
-        }
+        msg = error.response.data.error || error.response.data.message || msg;
       }
-
       Swal.fire({
         title: "Erro!",
-        text: errorMessage,
+        text: msg,
         icon: "error",
         confirmButtonText: "Ok",
         customClass: {
@@ -119,18 +93,13 @@ class LoginPage extends Component {
 
   render() {
     const { loading, username, password } = this.state;
-
     return (
       <Container fluid className="page-container">
         {loading && (
           <ProcessingIndicatorComponent
-            messages={[
-              "Autenticando...",
-              "Por favor, aguarde...",
-            ]}
+            messages={["Autenticando...", "Por favor, aguarde..."]}
           />
         )}
-
         {!loading && (
           <Row className="page-row">
             <Col md={12} className="page-col">
@@ -138,70 +107,53 @@ class LoginPage extends Component {
                 <p className="page-header text-uppercase">Plat</p>
                 <Card.Body className="card-body">
                   <div className="logo-container">
-                    <img
-                      src="/images/logo.png"
-                      alt="Logo"
-                      className="logo-image"
-                    />
+                    <img src="/images/logo.png" alt="Logo" className="logo-image" />
                   </div>
-                  <Form
-                    onSubmit={this.handleSubmit}
-                    className="form-container"
-                  >
-                    <Form.Group className="form-group">
-                      <Form.Control
-                        type="text"
-                        placeholder="Insira o username"
-                        value={username}
-                        onChange={this.handleUsernameChange}
-                        className="input-username"
-                        required
-                      />
-                    </Form.Group>
-
-                    <Form.Group className="form-group">
-                      <Form.Control
-                        type="password"
-                        placeholder="Insira a senha"
-                        value={password}
-                        onChange={this.handlePasswordChange}
-                        className="input-password"
-                        required
-                      />
-                    </Form.Group>
-
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="submit-btn"
-                    >
-                      {loading ? "Entrando..." : "Entrar"}
+                  <Form onSubmit={this.handleSubmit} className="form-container">
+                    <Form.Control
+                      type="text"
+                      placeholder="E-mail ou usuário"
+                      value={username}
+                      onChange={this.handleUsernameChange}
+                      className="input-username"
+                      required
+                    />
+                    <Form.Control
+                      type="password"
+                      placeholder="Senha"
+                      value={password}
+                      onChange={this.handlePasswordChange}
+                      className="input-password"
+                      required
+                    />
+                    <Button type="submit" disabled={loading} className="submit-btn">
+                      Entrar
                     </Button>
                   </Form>
-
-                  <div className="google-login-container submit-btn">
+                  <div className="google-login-container m-4">
                     <GoogleLogin
                       onSuccess={this.handleGoogleSuccess}
                       onError={this.handleGoogleError}
+                      render={(props) => (
+                        <Button
+                          onClick={props.onClick}
+                          disabled={props.disabled}
+                          className="btn-google "
+                        >
+                          <FcGoogle size={24} /> Iniciar com Google
+                        </Button>
+                      )}
                     />
                   </div>
-
                   <p className="footer-text">
                     Não tem conta?{" "}
-                    <a
-                      href="/register"
-                      className="footer-link"
-                    >
+                    <a href="/register" className="footer-link">
                       Registrar-se
                     </a>
                   </p>
-
                   <p className="footer-text">
                     Esqueceu a senha?{" "}
-                    <a
-                      href="/password-email"
-                      className="footer-link"
-                    >
+                    <a href="/password-email" className="footer-link">
                       Recuperar senha
                     </a>
                   </p>
@@ -214,5 +166,3 @@ class LoginPage extends Component {
     );
   }
 }
-
-export default LoginPage;

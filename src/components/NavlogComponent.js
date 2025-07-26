@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Navbar } from "react-bootstrap";
 import { storageUrl, apiBaseUrl } from "../config";
 import axios from "axios";
 import "./NavlogComponent.css";
 
-const NavlogComponent = () => {
+export default function NavlogComponent() {
+  const location = useLocation();
+  const isPublicView = location.pathname.startsWith("/establishment/view");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingMenu, setLoadingMenu] = useState(true);
@@ -22,26 +24,28 @@ const NavlogComponent = () => {
   }, []);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    if (isPublicView) {
+      setLoading(false);
+      setLoadingMenu(false);
+      return;
+    }
+    (async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) {
-          window.location.href = "/login";
           return;
         }
         const headers = { Authorization: `Bearer ${token}` };
         const response = await axios.get(`${apiBaseUrl}/auth/me`, { headers });
-        const userData = response.data.user;
-        setUser(userData);
+        setUser(response.data.user);
       } catch {
-        window.location.href = "/login";
+        localStorage.removeItem("token");
       } finally {
         setLoading(false);
         setLoadingMenu(false);
       }
-    };
-    fetchUserData();
-  }, []);
+    })();
+  }, [isPublicView]);
 
   const handleImageError = (e) => {
     e.target.onerror = null;
@@ -55,10 +59,7 @@ const NavlogComponent = () => {
 
   const renderAdminMenu = () => (
     <>
-      <button
-        className="navlog__admin-btn"
-        onClick={() => setShowAdminSubmenu((v) => !v)}
-      >
+      <button className="navlog__admin-btn" onClick={() => setShowAdminSubmenu((v) => !v)}>
         Administrativo {showAdminSubmenu ? "▲" : "▼"}
       </button>
       {showAdminSubmenu && (
@@ -92,11 +93,7 @@ const NavlogComponent = () => {
           />
         </Navbar.Brand>
         <div className="navlog__menu-icon">
-          <button
-            onClick={handleToggleMobileMenu}
-            className="navlog__mobile-toggle-btn"
-            aria-label="Abrir menu"
-          >
+          <button onClick={handleToggleMobileMenu} className="navlog__mobile-toggle-btn" aria-label="Abrir menu">
             ☰
           </button>
         </div>
@@ -105,11 +102,7 @@ const NavlogComponent = () => {
       {showMobileMenu && (
         <div className="navlog__mobile-menu">
           <div className="navlog__mobile-close">
-            <button
-              onClick={handleToggleMobileMenu}
-              className="navlog__close-btn"
-              aria-label="Fechar menu"
-            >
+            <button onClick={handleToggleMobileMenu} className="navlog__close-btn" aria-label="Fechar menu">
               ×
             </button>
           </div>
@@ -135,7 +128,7 @@ const NavlogComponent = () => {
                   </Link>
                 </div>
               </>
-            ) : (
+            ) : isPublicView ? null : (
               <p className="navlog__loading">Usuário não encontrado</p>
             )}
           </div>
@@ -143,6 +136,4 @@ const NavlogComponent = () => {
       )}
     </>
   );
-};
-
-export default NavlogComponent;
+}

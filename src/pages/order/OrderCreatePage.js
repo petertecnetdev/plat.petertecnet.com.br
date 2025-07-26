@@ -149,91 +149,96 @@ export default function OrderCreatePage() {
     return L.join("\n");
   };
 
-  const handleAddItem = async () => {
-    const categories = Array.from(
-      new Set(products.map((p) => p.category || "Outros"))
+  // src/pages/order/OrderCreatePage.js
+
+const handleAddItem = async () => {
+  const categories = Array.from(
+    new Set(products.map((p) => p.category || "Outros"))
+  );
+  let selectedCategory = categories[0];
+
+  const getItemsHtml = (category) => {
+    const items = products.filter(
+      (p) => (p.category || "Outros") === category
     );
-    let selectedCategory = categories[0];
-
-    const getItemsHtml = (category) => {
-      const items = products.filter(
-        (p) => (p.category || "Outros") === category
-      );
-      if (items.length === 0)
-        return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
-      return items
-        .map(
-          (p) => `
-            <div class="order-modal__item">
-              <div class="order-modal__item-name">${p.name}</div>
-              <div class="order-modal__item-actions">
-                <span class="order-modal__item-price">R$ ${Number(p.price)
-                  .toFixed(2)
-                  .replace(".", ",")}</span>
-                <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
-              </div>
+    if (items.length === 0)
+      return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
+    return items
+      .map(
+        (p) => `
+          <div class="order-modal__item">
+            <div class="order-modal__item-name">${p.name}</div>
+            <div class="order-modal__item-actions">
+              <span class="order-modal__item-price">R$ ${Number(p.price)
+                .toFixed(2)
+                .replace(".", ",")}</span>
+              <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
             </div>
-          `
-        )
-        .join("");
-    };
-
-    const getHtml = (currentCat) => `
-      <div class="order-modal__layout">
-        <div class="order-modal__category-tabs">${categories
-          .map(
-            (cat) =>
-              `<button class="order-modal__tab${
-                cat === currentCat ? " order-modal__tab--active" : ""
-              }" data-cat="${cat}">${cat}</button>`
-          )
-          .join("")}</div>
-        <div class="order-modal__item-list-scroll">
-          ${getItemsHtml(currentCat)}
-        </div>
-      </div>
-    `;
-
-    await Swal.fire({
-      html: getHtml(selectedCategory),
-      showConfirmButton: false,
-      showCancelButton: true,
-      cancelButtonText: "Cancelar",
-      width: 880,
-      background: "#1a1a1a",
-      padding: "0",
-      customClass: {
-        popup: "order-modal__swal",
-        cancelButton: "order-modal__swal-btn-cancel"
-      },
-      didOpen: () => {
-        const addListeners = () => {
-          document.querySelectorAll(".order-modal__item-add").forEach((btn) =>
-            btn.addEventListener("click", (e) => {
-              const prodId = Number(e.target.getAttribute("data-id"));
-              const product = products.find((p) => p.id === prodId);
-              if (!product) return;
-              setOrderLines((lines) => [
-                ...lines,
-                { product, quantity: 1, additions: [], removals: [] },
-              ]);
-              Swal.close();
-            })
-          );
-          document.querySelectorAll(".order-modal__tab").forEach((el) =>
-            el.addEventListener("click", (e) => {
-              const newCat = e.target.getAttribute("data-cat");
-              Swal.update({
-                html: getHtml(newCat),
-              });
-              setTimeout(() => addListeners(), 50);
-            })
-          );
-        };
-        addListeners();
-      },
-    });
+          </div>
+        `
+      )
+      .join("");
   };
+
+  const getHtml = (currentCat) => `
+    <div class="order-modal__layout">
+      <div class="order-modal__category-tabs">${categories
+        .map(
+          (cat) =>
+            `<button class="order-modal__tab${
+              cat === currentCat ? " order-modal__tab--active" : ""
+            }" data-cat="${cat}">${cat}</button>`
+        )
+        .join("")}</div>
+      <div class="order-modal__item-list-scroll">
+        ${getItemsHtml(currentCat)}
+      </div>
+    </div>
+  `;
+
+await Swal.fire({
+  html: getHtml(selectedCategory),
+  showConfirmButton: false,
+  showCancelButton: true,
+  cancelButtonText: 'Cancelar',
+  width: '100vw',
+  heightAuto: false,
+  background: '#1a1a1a',
+  padding: '0',
+  customClass: {
+    container: 'order-modal__container-fullscreen',
+    popup: 'order-modal__swal-fullscreen',
+    content: 'order-modal__content-fullscreen',
+    cancelButton: 'order-modal__swal-btn-cancel'
+  },
+  didOpen: () => {
+    const addListeners = () => {
+      document.querySelectorAll('.order-modal__item-add').forEach(btn =>
+        btn.addEventListener('click', e => {
+          const prodId = Number(e.target.getAttribute('data-id'));
+          const product = products.find(p => p.id === prodId);
+          if (!product) return;
+          setOrderLines(lines => [
+            ...lines,
+            { product, quantity: 1, additions: [], removals: [] },
+          ]);
+          Swal.close();
+        })
+      );
+      document.querySelectorAll('.order-modal__tab').forEach(el =>
+        el.addEventListener('click', e => {
+          const newCat = e.target.getAttribute('data-cat');
+          Swal.update({ html: getHtml(newCat) });
+          setTimeout(addListeners, 50);
+        })
+      );
+    };
+    addListeners();
+  },
+});
+
+
+};
 
   const handleManage = async (index, type) => {
     const additionsProducts = products.filter(

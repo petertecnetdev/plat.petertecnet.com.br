@@ -23,6 +23,7 @@ export default function OrderListPage() {
   const today = new Date().toLocaleDateString("en-CA", {
     timeZone: "America/Sao_Paulo",
   });
+
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [estName, setEstName] = useState("");
@@ -33,6 +34,10 @@ export default function OrderListPage() {
     endDate: today,
     startTime: "00:00",
     endTime: "23:59",
+    origin: "",
+    fulfillment: "",
+    payment_method: "",
+    payment_status: "",
     customer: "",
     item: "",
   });
@@ -43,11 +48,13 @@ export default function OrderListPage() {
     Telefone: "Telefone",
     App: "Aplicativo",
   };
+
   const fulfillmentLabels = {
     "dine-in": "Local",
     "take-away": "Levar",
     delivery: "Delivery",
   };
+
   const paymentStatusLabels = {
     pending: "Pendente",
     paid: "Pago",
@@ -57,14 +64,31 @@ export default function OrderListPage() {
     partially_refunded: "Parcialmente Reembolsado",
   };
 
+  const paymentMethodLabels = {
+    Dinheiro: "Dinheiro",
+    Pix: "Pix",
+    Crédito: "Crédito",
+    Débito: "Débito",
+    Fiado: "Fiado",
+    Cortesia: "Cortesia",
+    "Transferência bancária": "Transferência bancária",
+    "Vale-refeição": "Vale-refeição",
+    Cheque: "Cheque",
+    PayPal: "PayPal",
+  };
+
   useEffect(() => {
-    (async () => {
+    async function loadData() {
       setLoading(true);
       const token = localStorage.getItem("token");
       try {
         const [resOrders, resEst, resProducts] = await Promise.all([
           axios.get(`${apiBaseUrl}/order/listbyentity`, {
-            params: { app_id: 3, entity_name: "establishment", entity_id: entityId },
+            params: {
+              app_id: 3,
+              entity_name: "establishment",
+              entity_id: entityId,
+            },
             headers: { Authorization: `Bearer ${token}` },
           }),
           axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
@@ -79,157 +103,14 @@ export default function OrderListPage() {
         setEstName(resEst.data.establishment.name.toUpperCase());
         setEstLogo(resEst.data.establishment.logo || "");
         setProducts(resProducts.data);
-      } catch (err) {
-        Swal.fire(
-          "Erro",
-          err.response?.data?.error || "Não foi possível carregar dados.",
-          "error"
-        );
+      } catch {
+        Swal.fire("Erro", "Não foi possível carregar dados.", "error");
       } finally {
         setLoading(false);
       }
-    })();
-  }, [entityId]);
-
- const buildReceipt = (order) => {
-  const header = estName;
-  const WIDTH = Math.max(32, header.length);
-  const bar = "█".repeat(WIDTH);
-  const line = () => "-".repeat(WIDTH);
-  const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-  const padLine = (left, right) => {
-    const dots = ".".repeat(Math.max(WIDTH - left.length - right.length, 0));
-    return `${left}${dots}${right}`;
-  };
-  const center = (text) =>
-    text.padStart(Math.floor((WIDTH + text.length) / 2)).padEnd(WIDTH);
-  const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
-  const origLabel = originLabels[order.origin] || order.origin;
-  const pedidoNum =
-    order.order_number && String(order.order_number).padStart(6, "0");
-  const L = [];
-  
-  if (pedidoNum) L.push((`PEDIDO #${pedidoNum}`));
-  L.push("");
-  L.push("");
-  L.push(bar);
-
-  L.push(center(`${header}`));
-  L.push(bar);
-  L.push("");
-  L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
-  L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
-  L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
-  L.push(line());
-  L.push(center("ITENS DO PEDIDO"));
-  L.push(line());
-  let total = 0;
-  order.items.forEach((it) => {
-    const qty = it.quantity;
-    const name = it.item.name;
-    const sub = Number(it.subtotal);
-    total += sub;
-    L.push(padLine(`${qty}x ${name}`, fmt(sub)));
-    it.modifiers
-      .filter((m) => m.type === "addition")
-      .forEach((m) => {
-        const prod = products.find((p) => p.id === m.modifier_id);
-        const unit = prod ? Number(prod.price) : 0;
-        const count = m.quantity || 1;
-        const subAdd = unit * count;
-        total += subAdd;
-        L.push(
-          padLine(`  + ${prod?.name || m.modifier.name}`, fmt(subAdd))
-        );
-      });
-    it.modifiers
-      .filter((m) => m.type === "removal")
-      .forEach((m) => {
-        L.push(`  - ${m.modifier.name}`);
-      });
-  });
-  L.push(line());
-  L.push(padLine("TOTAL", fmt(total)));
-  if (order.notes && order.notes.trim()) {
-    L.push("");
-    L.push(center("OBSERVAÇÕES"));
-    L.push(line());
-    order.notes.split("\n").forEach(obs =>
-      L.push(obs.length > WIDTH ? obs.match(new RegExp(`.{1,${WIDTH}}`, "g")).join("\n") : obs)
-    );
-    L.push(line());
-  }
-  L.push("");
-  L.push(
-    `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })}`
-  );
-  L.push("");
-  L.push("");
-  L.push("");
-  return L.join("\n");
-};
-
-
-  const handleReprint = async (orderId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const { data } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const receiptText = buildReceipt(data.order);
-      Swal.fire({
-        title: `Nota Pedido #${data.order.order_number}`,
-        html: `
-          <style>
-            .swal2-html-container {
-              font-family: monospace;
-              white-space: pre;
-              text-align: left;
-            }
-          </style>
-          <pre>${receiptText}</pre>
-        `,
-        showCancelButton: true,
-        confirmButtonText: "Imprimir",
-        cancelButtonText: "Fechar",
-        width: 600,
-        background: "#181818",
-      }).then((res) => {
-        if (res.isConfirmed) {
-          const w = window.open("", "_blank", "fullscreen=yes");
-          w.document.write(`
-<html><head><title>Nota Pedido</title>
-<style>
-  @page { size: 80mm auto; margin: 0; }
-  body {
-    margin: 0;
-    padding: 0;
-    width: 80mm;
-    font-family: monospace;
-    font-size: 16px;
-    line-height: 2.4;
-  }
-  pre { white-space: pre-wrap; word-wrap: break-word; }
-</style>
-</head><body><pre>${receiptText}</pre></body></html>`);
-          w.document.close();
-          w.focus();
-          w.print();
-          w.close();
-        }
-      });
-    } catch {
-      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
     }
-  };
+    loadData();
+  }, [entityId]);
 
   const computeTotal = (order) => {
     let sum = 0;
@@ -239,9 +120,7 @@ export default function OrderListPage() {
         .filter((m) => m.type === "addition")
         .forEach((m) => {
           const prod = products.find((p) => p.id === m.modifier_id);
-          const unit = prod ? Number(prod.price) : 0;
-          const count = m.quantity || 1;
-          sum += unit * count;
+          sum += (prod ? Number(prod.price) : 0) * (m.quantity || 1);
         });
     });
     return sum;
@@ -251,24 +130,39 @@ export default function OrderListPage() {
     () =>
       orders.filter((o) => {
         const dt = new Date(o.order_datetime);
-        const year = dt.getFullYear();
-        const month = String(dt.getMonth() + 1).padStart(2, "0");
-        const day = String(dt.getDate()).padStart(2, "0");
-        const date = `${year}-${month}-${day}`;
-        const time = dt.toTimeString().slice(0, 5);
+
+        // por:
+        const date = dt.toLocaleDateString("en-CA", {
+          timeZone: "America/Sao_Paulo",
+        }); // YYYY‑MM‑DD no horário de SP
+        const time = dt.toLocaleTimeString("pt-BR", {
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "America/Sao_Paulo",
+        }); // HH:MM local
+
         return (
           date >= filters.startDate &&
           date <= filters.endDate &&
           time >= filters.startTime &&
           time <= filters.endTime &&
-          (o.customer_name || "")
+          (filters.origin ? o.origin === filters.origin : true) &&
+          (filters.fulfillment
+            ? o.fulfillment === filters.fulfillment
+            : true) &&
+          (filters.payment_method
+            ? o.payment_method === filters.payment_method
+            : true) &&
+          (filters.payment_status
+            ? o.payment_status === filters.payment_status
+            : true) &&
+          o.customer_name
             .toLowerCase()
             .includes(filters.customer.toLowerCase()) &&
           (filters.item
             ? o.items.some((i) =>
-                i.item.name
-                  .toLowerCase()
-                  .includes(filters.item.toLowerCase())
+                i.item.name.toLowerCase().includes(filters.item.toLowerCase())
               )
             : true)
         );
@@ -276,10 +170,141 @@ export default function OrderListPage() {
     [orders, filters]
   );
 
+  const summary = useMemo(() => {
+    const totalOrders = filteredOrders.length;
+    let totalValue = 0;
+    const methods = Object.fromEntries(
+      Object.keys(paymentMethodLabels).map((pm) => [pm, { count: 0, total: 0 }])
+    );
+    methods.Outros = { count: 0, total: 0 };
+
+    filteredOrders.forEach((o) => {
+      const val = computeTotal(o);
+      totalValue += val;
+      const pm = o.payment_method || "Outros";
+      if (methods[pm]) {
+        methods[pm].count++;
+        methods[pm].total += val;
+      } else {
+        methods.Outros.count++;
+        methods.Outros.total += val;
+      }
+    });
+    return { totalOrders, totalValue, methods };
+  }, [filteredOrders]);
+
+  const buildReceipt = (order) => {
+    const header = estName;
+    const WIDTH = Math.max(32, header.length);
+    const bar = "█".repeat(WIDTH);
+    const line = () => "-".repeat(WIDTH);
+    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
+    const pad = (l, r) => {
+      const dots = ".".repeat(Math.max(WIDTH - l.length - r.length, 0));
+      return `${l}${dots}${r}`;
+    };
+    const center = (text) =>
+      text.padStart(Math.floor((WIDTH + text.length) / 2)).padEnd(WIDTH);
+
+    const cons = fulfillmentLabels[order.fulfillment] || order.fulfillment;
+    const orig = originLabels[order.origin] || order.origin;
+    const num = order.order_number
+      ? String(order.order_number).padStart(6, "0")
+      : null;
+    const L = [];
+
+    if (num) L.push(`PEDIDO #${num}`);
+    L.push("", bar, center(header), bar, "");
+    L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
+    L.push(`📦 Origem: ${orig.toUpperCase()}`);
+    L.push(`🍽️ Consumo: ${cons.toUpperCase()}`, line());
+    L.push(center("ITENS DO PEDIDO"), line());
+
+    let total = 0;
+    order.items.forEach((it) => {
+      const sub = Number(it.subtotal);
+      total += sub;
+      L.push(pad(`${it.quantity}x ${it.item.name}`, fmt(sub)));
+
+      it.modifiers
+        .filter((m) => m.type === "addition")
+        .forEach((m) => {
+          const prod = products.find((p) => p.id === m.modifier_id);
+          const addSub = (prod ? Number(prod.price) : 0) * (m.quantity || 1);
+          total += addSub;
+          L.push(pad(`  + ${prod?.name}`, fmt(addSub)));
+        });
+
+      it.modifiers
+        .filter((m) => m.type === "removal")
+        .forEach((m) => L.push(`  - ${m.modifier.name}`));
+    });
+
+    L.push(line(), pad("TOTAL", fmt(total)));
+    if (order.notes?.trim()) {
+      L.push("", center("OBSERVAÇÕES"), line());
+      order.notes.split("\n").forEach((ln) => {
+        if (ln.length > WIDTH) {
+          ln.match(new RegExp(`.{1,${WIDTH}}`, "g")).forEach((c) => L.push(c));
+        } else {
+          L.push(ln);
+        }
+      });
+      L.push(line());
+    }
+    L.push(
+      "",
+      `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })}`,
+      "",
+      "",
+      ""
+    );
+    return L.join("\n");
+  };
+
+  const handleReprint = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${apiBaseUrl}/order/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const txt = buildReceipt(data.order);
+      Swal.fire({
+        title: `Nota Pedido #${data.order.order_number}`,
+        html: `<style>.swal2-html-container{font-family:monospace;white-space:pre;text-align:left;}</style><pre>${txt}</pre>`,
+        showCancelButton: true,
+        confirmButtonText: "Imprimir",
+        cancelButtonText: "Fechar",
+        width: 600,
+        background: "#181818",
+      }).then((res) => {
+        if (res.isConfirmed) {
+          const w = window.open("", "_blank", "fullscreen=yes");
+          w.document.write(
+            `<html><head><title>Nota Pedido</title><style>@page{size:80mm;margin:0;}body{margin:0;width:80mm;font-family:monospace;font-size:16px;line-height:2.4;}pre{white-space:pre-wrap;}</style></head><body><pre>${txt}</pre></body></html>`
+          );
+          w.document.close();
+          w.print();
+          w.close();
+        }
+      });
+    } catch {
+      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+    }
+  };
+
   if (loading) {
     return (
       <Container className="order-list__container order-list__loading text-center mt-5">
-        <Spinner animation="border" className="order-list__spinner" /> Carregando pedidos...
+        <Spinner animation="border" className="order-list__spinner" />
       </Container>
     );
   }
@@ -294,9 +319,7 @@ export default function OrderListPage() {
               src={`${storageUrl}/${estLogo}`}
               alt={`${estName} logo`}
               className="order-list__logo"
-              onError={(e) => {
-                e.currentTarget.src = "/images/logo.png";
-              }}
+              onError={(e) => (e.currentTarget.src = "/images/logo.png")}
             />
           )}
           <div className="order-list__establishment-name">
@@ -306,173 +329,278 @@ export default function OrderListPage() {
             as={Link}
             to={`/order/create/${entityId}`}
             variant="success"
-            className="order-list__btn-new"
             size="sm"
+            className="order-list__btn-new"
           >
             Novo Pedido
           </Button>
         </div>
-        <Row className="order-list__filters-row mb-4">
-          <Form className="order-list__filters-form">
-            <Row className="order-list__filters-row">
-              <Col md={2}>
-                <Form.Label className="order-list__filters-label">Data Início</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={filters.startDate}
-                  onChange={e =>
-                    setFilters((f) => ({ ...f, startDate: e.target.value }))
-                  }
-                  className="order-list__filters-control"
-                />
+
+        <Row className="mb-4 gx-3 gy-2 order-lines__block ">
+          <Col xs={6} md={2}>
+            <Card bg="dark" text="light" className="text-center h-100">
+              <Card.Body className="p-2">
+                <Card.Title className="fs-6">Total Pedidos</Card.Title>
+                <Card.Text className="fs-5 fw-bold">
+                  {summary.totalOrders}
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col xs={6} md={2}>
+            <Card bg="dark" text="light" className="text-center h-100">
+              <Card.Body className="p-2">
+                <Card.Title className="fs-6">Valor Total</Card.Title>
+                <Card.Text className="fs-5 fw-bold">
+                  R${summary.totalValue.toFixed(2).replace(".", ",")}
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+          {Object.entries(summary.methods)
+            .filter(([, m]) => m.count > 0)
+            .map(([pm, m]) => (
+              <Col key={pm} xs={6} md={2}>
+                <Card bg="dark" text="light" className="text-center h-100">
+                  <Card.Body className="p-2">
+                    <Card.Title className="fs-6">{pm}</Card.Title>
+                    <Card.Text className="fs-5 fw-bold">
+                      {m.count} | R${m.total.toFixed(2).replace(".", ",")}
+                    </Card.Text>
+                  </Card.Body>
+                </Card>
               </Col>
-              <Col md={2}>
-                <Form.Label className="order-list__filters-label">Data Final</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={filters.endDate}
-                  onChange={e =>
-                    setFilters((f) => ({ ...f, endDate: e.target.value }))
-                  }
-                  className="order-list__filters-control"
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="order-list__filters-label">Hora Início</Form.Label>
-                <Form.Control
-                  type="time"
-                  value={filters.startTime}
-                  onChange={e =>
-                    setFilters((f) => ({ ...f, startTime: e.target.value }))
-                  }
-                  className="order-list__filters-control"
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="order-list__filters-label">Hora Final</Form.Label>
-                <Form.Control
-                  type="time"
-                  value={filters.endTime}
-                  onChange={e =>
-                    setFilters((f) => ({ ...f, endTime: e.target.value }))
-                  }
-                  className="order-list__filters-control"
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="order-list__filters-label">Cliente</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Nome do cliente"
-                  value={filters.customer}
-                  onChange={e =>
-                    setFilters((f) => ({ ...f, customer: e.target.value }))
-                  }
-                  className="order-list__filters-control"
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label className="order-list__filters-label">Item</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Nome do item"
-                  value={filters.item}
-                  onChange={e =>
-                    setFilters((f) => ({ ...f, item: e.target.value }))
-                  }
-                  className="order-list__filters-control"
-                />
-              </Col>
-            </Row>
-          </Form>
+            ))}
         </Row>
-        {/* TABELA DESKTOP */}
-        <div className="order-table__responsive d-none d-md-block">
-          <Table striped bordered hover responsive className="order-table__table">
-            <thead className="order-table__head">
+
+        <Card className="mb-4 order-lines__block">
+          <Card.Header className="order-lines__title">
+            <strong>Filtros</strong>
+          </Card.Header>
+          <Card.Body className="order-list__filters-form p-3">
+            <Form>
+              <Row className="gy-2">
+                <Col md={2}>
+                  <Form.Label>Data Início</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, startDate: e.target.value }))
+                    }
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Data Final</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, endDate: e.target.value }))
+                    }
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Hora Início</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={filters.startTime}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, startTime: e.target.value }))
+                    }
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Hora Final</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={filters.endTime}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, endTime: e.target.value }))
+                    }
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Origem</Form.Label>
+                  <Form.Select
+                    value={filters.origin}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, origin: e.target.value }))
+                    }
+                  >
+                    <option value="">Todas</option>
+                    <option value="Balcão">Balcão</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Telefone">Telefone</option>
+                    <option value="App">Aplicativo</option>
+                  </Form.Select>
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Consumo</Form.Label>
+                  <Form.Select
+                    value={filters.fulfillment}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, fulfillment: e.target.value }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    <option value="dine-in">Local</option>
+                    <option value="take-away">Levar</option>
+                    <option value="delivery">Delivery</option>
+                  </Form.Select>
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Cliente</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Nome do cliente"
+                    value={filters.customer}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, customer: e.target.value }))
+                    }
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Item</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Nome do item"
+                    value={filters.item}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, item: e.target.value }))
+                    }
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Pagamento</Form.Label>
+                  <Form.Select
+                    value={filters.payment_method}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        payment_method: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {Object.keys(paymentMethodLabels).map((pm) => (
+                      <option key={pm} value={pm}>
+                        {paymentMethodLabels[pm]}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={2}>
+                  <Form.Label>Status Pgto</Form.Label>
+                  <Form.Select
+                    value={filters.payment_status}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        payment_status: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {Object.keys(paymentStatusLabels).map((ps) => (
+                      <option key={ps} value={ps}>
+                        {paymentStatusLabels[ps]}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Col>
+              </Row>
+            </Form>
+          </Card.Body>
+        </Card>
+        <div className="order-list__table-responsive d-none d-md-block">
+          <Table
+            striped
+            hover
+            variant="dark"
+            responsive
+            className="order-table"
+          >
+            <thead>
               <tr>
-                <th className="order-table__th">#</th>
-                <th className="order-table__th">Data/Hora</th>
-                <th className="order-table__th">Cliente</th>
-                <th className="order-table__th">Origem</th>
-                <th className="order-table__th">Consumo</th>
-                <th className="order-table__th">Status Pgto</th>
-                <th className="order-table__th">Total</th>
-                <th className="order-table__th">Ações</th>
+                <th>#</th>
+                <th>Data / Hora</th>
+                <th>Cliente</th>
+                <th>Origem</th>
+                <th>Consumo</th>
+                <th>Pagamento</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredOrders.map((o) => (
-                <tr key={o.id} className="order-table__row align-middle">
-                  <td className="order-table__td">{o.order_number}</td>
-                  <td className="order-table__td">
+                <tr key={o.id}>
+                  <td>{o.order_number}</td>
+                  <td>
                     {new Date(o.order_datetime).toLocaleString("pt-BR", {
                       hour12: false,
                     })}
                   </td>
-                  <td className="order-table__td">{o.customer_name}</td>
-                  <td className="order-table__td">{originLabels[o.origin]}</td>
-                  <td className="order-table__td">{fulfillmentLabels[o.fulfillment]}</td>
-                  <td className="order-table__td">{paymentStatusLabels[o.payment_status]}</td>
-                  <td className="order-table__td">
-                    <Badge bg="info" className="order-table__badge-total">
+                  <td>{o.customer_name}</td>
+                  <td>{originLabels[o.origin]}</td>
+                  <td>{fulfillmentLabels[o.fulfillment]}</td>
+                  <td>{paymentMethodLabels[o.payment_method]}</td>
+                  <td>{paymentStatusLabels[o.payment_status]}</td>
+                  <td>
+                    <Badge bg="warning" text="dark">
                       R${computeTotal(o).toFixed(2).replace(".", ",")}
                     </Badge>
                   </td>
-                  <td className="order-table__td">
-                    <div className="d-flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="warning"
-                        as={Link}
-                        to={`/order/edit/${entityId}/${o.id}`}
-                        className="order-table__btn-edit"
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleReprint(o.id)}
-                        className="order-table__btn-print"
-                      >
-                        Imprimir Nota
-                      </Button>
-                    </div>
+                  <td className="d-flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline-warning"
+                      as={Link}
+                      to={`/order/edit/${entityId}/${o.id}`}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline-secondary"
+                      onClick={() => handleReprint(o.id)}
+                    >
+                      Imprimir
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </Table>
         </div>
-        {/* MOBILE CARDS */}
+
         <div className="order-list__mobile d-block d-md-none">
           {filteredOrders.map((o) => (
-            <Card key={o.id} className="order-list__card mb-3 shadow-sm">
-              <Card.Header className="order-list__card-header">
+            <Card key={o.id} className="mb-3 shadow-sm">
+              <Card.Header>
                 Pedido #{o.order_number} —{" "}
                 {new Date(o.order_datetime).toLocaleString("pt-BR", {
                   hour12: false,
                 })}
               </Card.Header>
-              <Card.Body className="order-list__card-body">
-                <div className="order-list__card-row">Cliente: {o.customer_name}</div>
-                <div className="order-list__card-row">Origem: {originLabels[o.origin]}</div>
-                <div className="order-list__card-row">Consumo: {fulfillmentLabels[o.fulfillment]}</div>
-                <div className="order-list__card-row">
-                  Status Pgto: {paymentStatusLabels[o.payment_status]}
-                </div>
-                <div className="order-list__card-row">
+              <Card.Body>
+                <div>Cliente: {o.customer_name}</div>
+                <div>Origem: {originLabels[o.origin]}</div>
+                <div>Consumo: {fulfillmentLabels[o.fulfillment]}</div>
+                <div>Pagamento: {paymentMethodLabels[o.payment_method]}</div>
+                <div>Status Pgto: {paymentStatusLabels[o.payment_status]}</div>
+                <div>
                   Total: <b>R${computeTotal(o).toFixed(2).replace(".", ",")}</b>
                 </div>
               </Card.Body>
-              <Card.Footer className="order-list__card-footer d-flex justify-content-between">
+              <Card.Footer className="d-flex justify-content-between">
                 <Button
                   as={Link}
                   to={`/order/create/${entityId}`}
                   size="sm"
                   variant="success"
-                  className="order-list__btn-new"
                 >
                   Novo Pedido
                 </Button>
@@ -482,7 +610,6 @@ export default function OrderListPage() {
                     variant="warning"
                     as={Link}
                     to={`/order/edit/${entityId}/${o.id}`}
-                    className="order-list__btn-edit"
                   >
                     Editar
                   </Button>
@@ -490,7 +617,6 @@ export default function OrderListPage() {
                     size="sm"
                     variant="secondary"
                     onClick={() => handleReprint(o.id)}
-                    className="order-list__btn-print"
                   >
                     Imprimir Nota
                   </Button>
