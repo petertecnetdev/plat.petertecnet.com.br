@@ -372,147 +372,171 @@ export default function OrderListPage() {
               </Col>
             ))}
         </Row>
+<Card className="mb-4 order-lines__block">
+  <Card.Header className="order-lines__title">
+    <strong>Filtros</strong>
+  </Card.Header>
+  <Card.Body className="order-list__filters-form p-3">
+    <Form>
+      <Row className="gy-2">
+        <Col md={2}>
+          <Form.Group controlId="startDate" className="order-create__form-group">
+            <Form.Label>Data Início</Form.Label>
+            <Form.Control
+              type="date"
+              value={filters.startDate}
+              onChange={e =>
+                setFilters(f => ({ ...f, startDate: e.target.value }))
+              }
+              className="order-create__input"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="endDate" className="order-create__form-group">
+            <Form.Label>Data Final</Form.Label>
+            <Form.Control
+              type="date"
+              value={filters.endDate}
+              onChange={e =>
+                setFilters(f => ({ ...f, endDate: e.target.value }))
+              }
+              className="order-create__input"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="startTime" className="order-create__form-group">
+            <Form.Label>Hora Início</Form.Label>
+            <Form.Control
+              type="time"
+              value={filters.startTime}
+              onChange={e =>
+                setFilters(f => ({ ...f, startTime: e.target.value }))
+              }
+              className="order-create__input"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="endTime" className="order-create__form-group">
+            <Form.Label>Hora Final</Form.Label>
+            <Form.Control
+              type="time"
+              value={filters.endTime}
+              onChange={e =>
+                setFilters(f => ({ ...f, endTime: e.target.value }))
+              }
+              className="order-create__input"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="origin" className="order-create__form-group">
+            <Form.Label>Origem</Form.Label>
+            <Form.Select
+              value={filters.origin}
+              onChange={e =>
+                setFilters(f => ({ ...f, origin: e.target.value }))
+              }
+              className="order-create__select"
+            >
+              <option value="">Todas</option>
+              <option value="Balcão">Balcão</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Telefone">Telefone</option>
+              <option value="App">Aplicativo</option>
+            </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="fulfillment" className="order-create__form-group">
+            <Form.Label>Consumo</Form.Label>
+            <Form.Select
+              value={filters.fulfillment}
+              onChange={e =>
+                setFilters(f => ({ ...f, fulfillment: e.target.value }))
+              }
+              className="order-create__select"
+            >
+              <option value="">Todos</option>
+              <option value="dine-in">Local</option>
+              <option value="take-away">Levar</option>
+              <option value="delivery">Delivery</option>
+            </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="customer" className="order-create__form-group">
+            <Form.Label>Cliente</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Nome do cliente"
+              value={filters.customer}
+              onChange={e =>
+                setFilters(f => ({ ...f, customer: e.target.value }))
+              }
+              className="order-create__input"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="item" className="order-create__form-group">
+            <Form.Label>Item</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Nome do item"
+              value={filters.item}
+              onChange={e =>
+                setFilters(f => ({ ...f, item: e.target.value }))
+              }
+              className="order-create__input"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="payment_method" className="order-create__form-group">
+            <Form.Label>Pagamento</Form.Label>
+            <Form.Select
+              value={filters.payment_method}
+              onChange={e =>
+                setFilters(f => ({ ...f, payment_method: e.target.value }))
+              }
+              className="order-create__select"
+            >
+              <option value="">Todos</option>
+              {Object.keys(paymentMethodLabels).map(pm => (
+                <option key={pm} value={pm}>
+                  {paymentMethodLabels[pm]}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col md={2}>
+          <Form.Group controlId="payment_status" className="order-create__form-group">
+            <Form.Label>Status Pgto</Form.Label>
+            <Form.Select
+              value={filters.payment_status}
+              onChange={e =>
+                setFilters(f => ({ ...f, payment_status: e.target.value }))
+              }
+              className="order-create__select"
+            >
+              <option value="">Todos</option>
+              {Object.keys(paymentStatusLabels).map(ps => (
+                <option key={ps} value={ps}>
+                  {paymentStatusLabels[ps]}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </Col>
+      </Row>
+    </Form>
+  </Card.Body>
+</Card>
 
-        <Card className="mb-4 order-lines__block">
-          <Card.Header className="order-lines__title">
-            <strong>Filtros</strong>
-          </Card.Header>
-          <Card.Body className="order-list__filters-form p-3">
-            <Form>
-              <Row className="gy-2">
-                <Col md={2}>
-                  <Form.Label>Data Início</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, startDate: e.target.value }))
-                    }
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Data Final</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, endDate: e.target.value }))
-                    }
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Hora Início</Form.Label>
-                  <Form.Control
-                    type="time"
-                    value={filters.startTime}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, startTime: e.target.value }))
-                    }
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Hora Final</Form.Label>
-                  <Form.Control
-                    type="time"
-                    value={filters.endTime}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, endTime: e.target.value }))
-                    }
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Origem</Form.Label>
-                  <Form.Select
-                    value={filters.origin}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, origin: e.target.value }))
-                    }
-                  >
-                    <option value="">Todas</option>
-                    <option value="Balcão">Balcão</option>
-                    <option value="WhatsApp">WhatsApp</option>
-                    <option value="Telefone">Telefone</option>
-                    <option value="App">Aplicativo</option>
-                  </Form.Select>
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Consumo</Form.Label>
-                  <Form.Select
-                    value={filters.fulfillment}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, fulfillment: e.target.value }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    <option value="dine-in">Local</option>
-                    <option value="take-away">Levar</option>
-                    <option value="delivery">Delivery</option>
-                  </Form.Select>
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Cliente</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Nome do cliente"
-                    value={filters.customer}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, customer: e.target.value }))
-                    }
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Item</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Nome do item"
-                    value={filters.item}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, item: e.target.value }))
-                    }
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Pagamento</Form.Label>
-                  <Form.Select
-                    value={filters.payment_method}
-                    onChange={(e) =>
-                      setFilters((f) => ({
-                        ...f,
-                        payment_method: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    {Object.keys(paymentMethodLabels).map((pm) => (
-                      <option key={pm} value={pm}>
-                        {paymentMethodLabels[pm]}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Status Pgto</Form.Label>
-                  <Form.Select
-                    value={filters.payment_status}
-                    onChange={(e) =>
-                      setFilters((f) => ({
-                        ...f,
-                        payment_status: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    {Object.keys(paymentStatusLabels).map((ps) => (
-                      <option key={ps} value={ps}>
-                        {paymentStatusLabels[ps]}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-              </Row>
-            </Form>
-          </Card.Body>
-        </Card>
         <div className="order-list__table-responsive d-none d-md-block">
           <Table
             striped
