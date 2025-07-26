@@ -1,0 +1,258 @@
+/* src/pages/establishment/EstablishmentViewPage.css */
+.establishment-page {
+  flex-direction: column;
+  min-height: 100vh;
+  /* Gradient background for depth */
+  background: linear-gradient(135deg, #000000 0%, #620d0d 100%);
+  /* Subtle fade-in animation */
+  animation: fadeInBg 1s ease-in-out;
+  /* Center content and limit width */
+  align-items: center;
+  padding-bottom: 2rem;
+}
+
+@keyframes fadeInBg {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 100%; }
+}
+
+.header {
+  position: relative;
+  height: 300px;
+  background-size: cover;
+  background-position: center;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.header-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+}
+
+.logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 1rem;
+  border: 2px solid #fff;
+}
+
+.header-info h1 {
+  color: #fff;
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.header-info .subtitle {
+  color: #ddd;
+  font-size: 1rem;
+}
+
+.category-nav {
+  display: none;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 80px;
+  background: #fafafa;
+  padding: 0.5rem 1rem;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.cat-btn {
+  padding: 0.5rem 1rem;
+  background: #eee;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.cat-btn:hover {
+  background: #ddd;
+}
+
+.cat-btn.active {
+  background: #000;
+  color: #fff;
+}
+
+/* ===== MENU ITEMS ===== */
+.menu-container {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 1rem;
+}
+
+.category-section {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  padding: 0 1rem;
+}
+
+.category-title {
+  font-size: 1.25rem;
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.menu-list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1rem;
+}
+
+.menu-item-card {
+  background: #fff;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #FFA500;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  width: 80%;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.menu-item-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.menu-item-image {
+  height: 160px;
+  background: #000;
+  overflow: hidden;
+  position: relative;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.menu-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.menu-item-card:hover .menu-item-image img {
+  transform: scale(1.1);
+}
+
+.menu-item-info {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.menu-item-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #222;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 2px solid #FFA500;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.menu-item-card:hover .menu-item-title {
+  animation: typing 0.5s steps(20, end) forwards,
+             blink 0.75s step-end infinite 0.5s;
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink {
+  0%, 100% { border-right-color: transparent; }
+  50% { border-right-color: #FFA500; }
+}
+
+.menu-item-desc {
+  font-size: 0.875rem;
+  color: #555;
+  margin: 0.5rem 0;
+  flex-grow: 1;
+}
+
+.menu-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.menu-item-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.menu-item-action {
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.menu-item-action:hover {
+  background: #333;
+}
+
+.footer-button {
+  padding: 1rem;
+  text-align: center;
+  background: #fafafa;
+}
+
+.footer-button button {
+  padding: 0.75rem 1.5rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.footer-button button:hover {
+  background: #333;
+}
+
+@media (min-width: 768px) {
+  .menu-container { overflow: visible; }
+  .menu-list { flex-wrap: wrap; }
+  .menu-item-card { width: calc(25% - 1rem); }
+  .category-nav { display: flex; }
+}
