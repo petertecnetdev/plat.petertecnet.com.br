@@ -223,102 +223,105 @@ const handleAddItem = async () => {
   });
 };
 
+const handleManage = async (index, type) => {
+  const additionsProducts = products.filter(
+    (p) => (p.category || "").toLowerCase() === "adicionais"
+  );
+  const orderLine = orderLines[index];
+  let selected =
+    type === "additions" ? orderLine.additions : orderLine.removals;
 
-  const handleManage = async (index, type) => {
-    const additionsProducts = products.filter(
-      (p) => (p.category || "").toLowerCase() === "adicionais"
-    );
-    const orderLine = orderLines[index];
-    let selected =
-      type === "additions" ? orderLine.additions : orderLine.removals;
-
-    let itemsHtml = "";
-    if (additionsProducts.length === 0) {
-      itemsHtml = `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
-    } else if (type === "additions") {
-      itemsHtml = additionsProducts
-        .map((p) => {
-          const exists = selected.find((a) => a.id === p.id);
-          const qty = exists ? exists.quantity : 0;
-          return `
-          <div class="order-modal__item">
-            <div class="order-modal__item-name">${p.name}</div>
-            <div class="order-modal__item-actions">
-              <span class="order-modal__item-price">R$ ${Number(p.price)
-                .toFixed(2)
-                .replace(".", ",")}</span>
-              <input type="number" min="0" max="9" step="1" value="${qty}" data-id="${
-            p.id
-          }" class="order-modal__addition-qty" style="width:44px;margin-left:10px;border-radius:6px;padding:2px 5px;border:1px solid #333;background:#222;color:#fff;">
-            </div>
+  let itemsHtml = "";
+  if (additionsProducts.length === 0) {
+    itemsHtml = `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
+  } else if (type === "additions") {
+    itemsHtml = additionsProducts
+      .map((p) => {
+        const exists = selected.find((a) => a.id === p.id);
+        const qty = exists ? exists.quantity : 0;
+        return `
+        <div class="order-modal__item">
+          <div class="order-modal__item-name">${p.name}</div>
+          <div class="order-modal__item-actions">
+            <span class="order-modal__item-price">R$ ${Number(p.price)
+              .toFixed(2)
+              .replace(".", ",")}</span>
+            <input type="number" min="0" max="9" step="1" value="${qty}" data-id="${
+          p.id
+        }" class="order-modal__addition-qty" style="width:44px;margin-left:10px;border-radius:6px;padding:2px 5px;border:1px solid #333;background:#222;color:#fff;">
           </div>
-        `;
-        })
-        .join("");
-    } else {
-      itemsHtml = additionsProducts
-        .map((p) => {
-          const checked = selected.includes(p.id) ? "checked" : "";
-          return `
-          <div class="order-modal__item">
-            <div class="order-modal__item-name">${p.name}</div>
-            <div class="order-modal__item-actions">
-              <input type="checkbox" value="${p.id}" ${checked} class="order-modal__removal-check" style="margin-left:0;">
-            </div>
+        </div>
+      `;
+      })
+      .join("");
+  } else {
+    itemsHtml = additionsProducts
+      .map((p) => {
+        const checked = selected.includes(p.id) ? "checked" : "";
+        return `
+        <div class="order-modal__item">
+          <div class="order-modal__item-name">${p.name}</div>
+          <div class="order-modal__item-actions">
+            <input type="checkbox" value="${p.id}" ${checked} class="order-modal__removal-check" style="margin-left:0;">
           </div>
-        `;
-        })
-        .join("");
-    }
+        </div>
+      `;
+      })
+      .join("");
+  }
 
-    await Swal.fire({
-      title: type === "additions" ? "Adicionais" : "Remoções",
-      html: `
-      <div style="padding:0.8rem 0.6rem">
-        <div class="order-modal__item-list" style="max-height:350px;overflow-y:auto;">${itemsHtml}</div>
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Salvar",
-      width: 600,
-      background: "#1a1a1a",
-      customClass: {
-        popup: "order-modal__swal",
-        confirmButton: "order-modal__swal-btn",
-        cancelButton: "order-modal__swal-btn-cancel",
-      },
-      focusConfirm: false,
-      preConfirm: () => {
-        if (type === "additions") {
-          const arr = [];
-          document
-            .querySelectorAll(".order-modal__addition-qty")
-            .forEach((el) => {
-              const qty = parseInt(el.value, 10);
-              if (qty > 0) {
-                arr.push({
-                  id: Number(el.getAttribute("data-id")),
-                  quantity: qty,
-                });
-              }
-            });
-          return arr;
-        } else {
-          return Array.from(
-            document.querySelectorAll(".order-modal__removal-check:checked")
-          ).map((el) => Number(el.value));
-        }
-      },
-    }).then((res) => {
-      if (res.isConfirmed && res.value !== undefined) {
-        setOrderLines((lines) => {
-          const copy = [...lines];
-          copy[index][type] = res.value;
-          return copy;
-        });
+  await Swal.fire({
+    title: type === "additions" ? "Adicionais" : "Remoções",
+    html: `
+    <div style="padding:0.8rem 0.6rem">
+      <div class="order-modal__item-list" style="max-height:350px;overflow-y:auto;">${itemsHtml}</div>
+    </div>
+  `,
+    showCancelButton: true,
+    confirmButtonText: "Salvar",
+    width: '100vw',
+    heightAuto: false,
+    background: "#1a1a1a",
+    padding: '0',
+    customClass: {
+      container: 'order-modal__container-fullscreen',
+      popup: 'order-modal__swal-fullscreen',
+      htmlContainer: 'order-modal__content-fullscreen',
+      confirmButton: "order-modal__swal-btn",
+      cancelButton: "order-modal__swal-btn-cancel",
+    },
+    focusConfirm: false,
+    preConfirm: () => {
+      if (type === "additions") {
+        const arr = [];
+        document
+          .querySelectorAll(".order-modal__addition-qty")
+          .forEach((el) => {
+            const qty = parseInt(el.value, 10);
+            if (qty > 0) {
+              arr.push({
+                id: Number(el.getAttribute("data-id")),
+                quantity: qty,
+              });
+            }
+          });
+        return arr;
+      } else {
+        return Array.from(
+          document.querySelectorAll(".order-modal__removal-check:checked")
+        ).map((el) => Number(el.value));
       }
-    });
-  };
+    },
+  }).then((res) => {
+    if (res.isConfirmed && res.value !== undefined) {
+      setOrderLines((lines) => {
+        const copy = [...lines];
+        copy[index][type] = res.value;
+        return copy;
+      });
+    }
+  });
+};
 
   const removeLine = (i) =>
     setOrderLines((lines) => lines.filter((_, idx) => idx !== i));

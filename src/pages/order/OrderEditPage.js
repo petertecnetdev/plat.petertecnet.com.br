@@ -1,4 +1,3 @@
-// src/pages/order/OrderEditPage.js
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
@@ -178,46 +177,35 @@ export default function OrderEditPage() {
     return L.join("\n");
   };
 
+  // FULLSCREEN MODAL PADRÃO ORDERCREATE (itens)
   const handleAddItem = async () => {
-    const categories = Array.from(
-      new Set(products.map((p) => p.category || "Outros"))
-    );
+    const categories = Array.from(new Set(products.map(p => p.category || 'Outros')));
     let selectedCategory = categories[0];
 
-    const getItemsHtml = (category) => {
-      const items = products.filter(
-        (p) => (p.category || "Outros") === category
-      );
-      if (items.length === 0)
-        return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
-      return items
-        .map(
-          (p) => `
-            <div class="order-modal__item">
-              <div class="order-modal__item-name">${p.name}</div>
-              <div class="order-modal__item-actions">
-                <span class="order-modal__item-price">R$ ${Number(p.price)
-                  .toFixed(2)
-                  .replace(".", ",")}</span>
-                <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
-              </div>
-            </div>
-          `
-        )
-        .join("");
+    const getItemsHtml = category => {
+      const items = products.filter(p => (p.category || 'Outros') === category);
+      if (!items.length) return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
+      return items.map(p => `
+        <div class="order-modal__item">
+          <div class="order-modal__item-info">
+            <span class="order-modal__item-name">${p.name}</span>
+            <span class="order-modal__item-price">R$ ${Number(p.price).toFixed(2).replace('.', ',')}</span>
+          </div>
+          <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
+        </div>
+      `).join('');
     };
 
-    const getHtml = (currentCat) => `
-      <div class="order-modal__layout">
-        <div class="order-modal__category-tabs">${categories
-          .map(
-            (cat) =>
-              `<button class="order-modal__tab${
-                cat === currentCat ? " order-modal__tab--active" : ""
-              }" data-cat="${cat}">${cat}</button>`
-          )
-          .join("")}</div>
-        <div class="order-modal__item-list-scroll">
+    const getHtml = currentCat => `
+      <div class="order-modal">
+        <nav class="order-modal__tabs">
+          ${categories.map(cat => `
+            <button class="order-modal__tab${cat === currentCat ? ' order-modal__tab--active' : ''}" data-cat="${cat}">
+              ${cat}
+            </button>
+          `).join('')}
+        </nav>
+        <div class="order-modal__items-grid">
           ${getItemsHtml(currentCat)}
         </div>
       </div>
@@ -227,43 +215,42 @@ export default function OrderEditPage() {
       html: getHtml(selectedCategory),
       showConfirmButton: false,
       showCancelButton: true,
-      cancelButtonText: "Cancelar",
-      width: 880,
-      background: "#1a1a1a",
-      padding: "0",
+      cancelButtonText: 'Cancelar',
+      width: '100vw',
+      heightAuto: false,
+      background: '#000',
+      padding: '0',
       customClass: {
-        popup: "order-modal__swal",
-        cancelButton: "order-modal__swal-btn-cancel",
+        container: 'order-modal__container-fullscreen',
+        popup: 'order-modal__swal-fullscreen',
+        htmlContainer: 'order-modal__content-fullscreen',
+        cancelButton: 'order-modal__swal-btn-cancel'
       },
       didOpen: () => {
         const addListeners = () => {
-          document.querySelectorAll(".order-modal__item-add").forEach((btn) =>
-            btn.addEventListener("click", (e) => {
-              const prodId = Number(e.target.getAttribute("data-id"));
-              const product = products.find((p) => p.id === prodId);
-              if (!product) return;
-              setOrderLines((lines) => [
-                ...lines,
-                { product, quantity: 1, additions: [], removals: [] },
-              ]);
+          document.querySelectorAll('.order-modal__item-add').forEach(btn =>
+            btn.addEventListener('click', e => {
+              const id = Number(e.currentTarget.getAttribute('data-id'));
+              const prod = products.find((p) => p.id === id);
+              if (!prod) return;
+              setOrderLines(lines => [...lines, { product: prod, quantity: 1, additions: [], removals: [] }]);
               Swal.close();
             })
           );
-          document.querySelectorAll(".order-modal__tab").forEach((el) =>
-            el.addEventListener("click", (e) => {
-              const newCat = e.target.getAttribute("data-cat");
-              Swal.update({
-                html: getHtml(newCat),
-              });
-              setTimeout(() => addListeners(), 50);
+          document.querySelectorAll('.order-modal__tab').forEach(tab =>
+            tab.addEventListener('click', e => {
+              const newCat = e.currentTarget.getAttribute('data-cat');
+              Swal.update({ html: getHtml(newCat) });
+              setTimeout(addListeners, 50);
             })
           );
         };
         addListeners();
-      },
+      }
     });
   };
 
+  // FULLSCREEN MODAL PADRÃO ORDERCREATE (adicionais/removíveis)
   const handleManage = async (index, type) => {
     const additionsProducts = products.filter(
       (p) => (p.category || "").toLowerCase() === "adicionais"
@@ -320,10 +307,13 @@ export default function OrderEditPage() {
     `,
       showCancelButton: true,
       confirmButtonText: "Salvar",
-      width: 600,
+      width: '100vw',
+      heightAuto: false,
       background: "#1a1a1a",
       customClass: {
-        popup: "order-modal__swal",
+        container: 'order-modal__container-fullscreen',
+        popup: 'order-modal__swal-fullscreen',
+        htmlContainer: 'order-modal__content-fullscreen',
         confirmButton: "order-modal__swal-btn",
         cancelButton: "order-modal__swal-btn-cancel",
       },
