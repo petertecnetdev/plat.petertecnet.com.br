@@ -37,9 +37,9 @@ import MenuUpdatePage from "./pages/menu/MenuUpdatePage";
 import MenuShowPage from "./pages/menu/MenuShowPage";
 
 import EstablishmentListPage from "./pages/corp/establishment/EstablishmentListPage";
-import EstablishmentCreatePage from "./pages/corp/establishment/EstablishmentCreatePage";
+import EstablishmentCreatePage from "./pages/establishment/EstablishmentCreatePage";
 import EstablishmentViewPage from "./pages/establishment/EstablishmentViewPage";
-import EstablishmentUpdatePage from "./pages/corp/establishment/EstablishmentUpdatePage";
+import EstablishmentUpdatePage from "./pages/establishment/EstablishmentUpdatePage";
 
 import AppointmentListPage from "./pages/appointment/AppointmentListPage";
 import AppointmentCreatePage from "./pages/appointment/AppointmentCreatePage";
@@ -52,6 +52,9 @@ import ReportOrderPage from "./pages/report/ReportOrderPage";
 
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
 import { apiBaseUrl } from "./config";
+
+import './index.css';
+
 
 const App = () => {
   const [user, setUser] = useState(null);

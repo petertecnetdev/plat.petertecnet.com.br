@@ -1,4 +1,9 @@
-body{
-    
-  background: #121212;
+html, body {
+  height: 100%;
+  width: 100%;
+  background: #161616 !important; /* ou a cor escura principal do seu tema */
+  color: #fff;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }

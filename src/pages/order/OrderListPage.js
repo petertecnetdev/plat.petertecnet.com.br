@@ -76,41 +76,80 @@ export default function OrderListPage() {
     Cheque: "Cheque",
     PayPal: "PayPal",
   };
+useEffect(() => {
+  let isMounted = true;
+  const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      try {
-        const [resOrders, resEst, resProducts] = await Promise.all([
-          axios.get(`${apiBaseUrl}/order/listbyentity`, {
-            params: {
-              app_id: 3,
-              entity_name: "establishment",
-              entity_id: entityId,
-            },
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(`${apiBaseUrl}/item`, {
-            params: { entity_name: "establishment", entity_id: entityId },
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-        setOrders(resOrders.data.orders);
-        setEstName(resEst.data.establishment.name.toUpperCase());
-        setEstLogo(resEst.data.establishment.logo || "");
-        setProducts(resProducts.data);
-      } catch {
-        Swal.fire("Erro", "Não foi possível carregar dados.", "error");
-      } finally {
-        setLoading(false);
-      }
+  // Se tiver token, já seta no header default do axios
+  if (token) {
+    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  }
+
+  async function loadData() {
+    setLoading(true);
+
+    // 1️⃣ buscar pedidos
+    let fetchedOrders = [];
+    try {
+      const res = await axios.get(`${apiBaseUrl}/order/listbyentity`, {
+        params: {
+          app_id: 3,
+          entity_name: "establishment",
+          entity_id: entityId,
+        },
+      });
+      fetchedOrders = Array.isArray(res.data.orders) ? res.data.orders : [];
+    } catch {
+      fetchedOrders = [];
     }
-    loadData();
-  }, [entityId]);
+
+    // 2️⃣ buscar estabelecimento e itens em paralelo
+    const [estResult, itemsResult] = await Promise.allSettled([
+      axios.get(`${apiBaseUrl}/establishment/show/${entityId}`),
+      axios.get(`${apiBaseUrl}/item`, {
+        params: { entity_name: "establishment", entity_id: entityId },
+      }),
+    ]);
+
+    if (estResult.status === "fulfilled") {
+      const est = estResult.value.data.establishment;
+      if (isMounted) {
+        setEstName(est.name.toUpperCase());
+        setEstLogo(est.logo || "");
+      }
+    } else {
+      Swal.fire(
+        "Erro",
+        "Não foi possível carregar os dados do estabelecimento.",
+        "error"
+      );
+      if (isMounted) setLoading(false);
+      return;
+    }
+
+    if (
+      itemsResult.status === "fulfilled" &&
+      Array.isArray(itemsResult.value.data)
+    ) {
+      if (isMounted) setProducts(itemsResult.value.data);
+    } else {
+      if (isMounted) setProducts([]);
+    }
+
+    if (isMounted) {
+      setOrders(fetchedOrders);
+      setLoading(false);
+    }
+  }
+
+  loadData();
+
+  return () => {
+    isMounted = false;
+  };
+}, [entityId]);
+
+
 
   const computeTotal = (order) => {
     let sum = 0;

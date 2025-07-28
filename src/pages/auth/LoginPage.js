@@ -1,168 +1,152 @@
 // src/pages/auth/LoginPage.jsx
-import React, { Component } from "react";
-import axios from "axios";
-import { Button, Card, Col, Container, Row, Form } from "react-bootstrap";
-import Swal from "sweetalert2";
-import { apiBaseUrl } from "../../config";
-import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
+import React, { useState } from "react";
+import { Container, Row, Col, Card, Form, Button } from "react-bootstrap";
 import { GoogleLogin } from "@react-oauth/google";
-import { FcGoogle } from "react-icons/fc";
+import Swal from "sweetalert2";
+import api from "../../services/api"; // sua instância axios configurada com baseURL
+import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import "./Auth.css";
 
-export default class LoginPage extends Component {
-  state = { username: "", password: "", loading: false };
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading]   = useState(false);
 
-  setToken = (token) => localStorage.setItem("token", token);
-
-  handleUsernameChange = ({ target: { value } }) => this.setState({ username: value });
-  handlePasswordChange = ({ target: { value } }) => this.setState({ password: value });
-
-  handleGoogleSuccess = async ({ credential }) => {
-    this.setState({ loading: true });
-    try {
-      const res = await axios.post(`${apiBaseUrl}/auth/google`, { token_id: credential });
-      const token = res.data.access_token;
-      if (token) {
-        this.setToken(token);
-        window.location.href = "/dashboard";
-      }
-    } catch (error) {
-      Swal.fire({
-        title: "Erro!",
-        text: error.response?.data?.error || "Falha no login com Google",
-        icon: "error",
-        confirmButtonText: "Ok",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
-      });
-    } finally {
-      this.setState({ loading: false });
-    }
+  const setToken = (token) => {
+    localStorage.setItem("token", token);
   };
 
-  handleGoogleError = () => {
-    Swal.fire({
-      title: "Erro!",
-      text: "Falha no login com Google",
-      icon: "error",
-      confirmButtonText: "Ok",
-      customClass: {
-        popup: "custom-swal",
-        title: "custom-swal-title",
-        content: "custom-swal-text",
-      },
-    });
-  };
+  const extractToken = (payload) => (
+    payload.token?.access_token
+    ?? payload.token?.original?.access_token
+    ?? payload.access_token
+    ?? payload.token
+  );
 
-  handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    this.setState({ loading: true });
+    setLoading(true);
     try {
-      const { data } = await axios.post(`${apiBaseUrl}/auth/login`, {
-        username: this.state.username,
-        password: this.state.password,
-      });
-      const token = data.access_token;
-      if (token) {
-        this.setToken(token);
-        window.location.href = "/dashboard";
-      }
-    } catch (error) {
+      const { data } = await api.post("/auth/login", { username, password });
+      const token = extractToken(data);
+      if (!token) throw new Error("Não recebi token do servidor");
+
+      setToken(token);
+      // hard‑reload para remontar o <App /> e disparar o useEffect de /auth/me
+      window.location.href = "/dashboard";
+    } catch (err) {
       let msg = "Ocorreu um erro. Tente novamente.";
-      if (error.response) {
-        msg = error.response.data.error || error.response.data.message || msg;
+      if (err.response) {
+        msg = err.response.data.error
+           || err.response.data.message
+           || msg;
       }
       Swal.fire({
         title: "Erro!",
         text: msg,
         icon: "error",
-        confirmButtonText: "Ok",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
+        confirmButtonText: "Ok"
       });
-    } finally {
-      this.setState({ loading: false });
+      setLoading(false);
     }
   };
 
-  render() {
-    const { loading, username, password } = this.state;
-    return (
-      <Container fluid className="page-container">
-        {loading && (
-          <ProcessingIndicatorComponent
-            messages={["Autenticando...", "Por favor, aguarde..."]}
-          />
-        )}
-        {!loading && (
-          <Row className="page-row">
-            <Col md={12} className="page-col">
-              <Card className="card-container">
-                <p className="page-header text-uppercase">Plat</p>
-                <Card.Body className="card-body">
-                  <div className="logo-container">
-                    <img src="/images/logo.png" alt="Logo" className="logo-image" />
-                  </div>
-                  <Form onSubmit={this.handleSubmit} className="form-container">
+  const handleGoogleSuccess = async (resp) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post("/auth/google", {
+        token_id: resp.credential
+      });
+      const token = extractToken(data);
+      if (!token) throw new Error("Token do Google não recebido");
+
+      setToken(token);
+      window.location.href = "/dashboard";
+    } catch (err) {
+      let msg = "Falha no login com Google";
+      if (err.response) {
+        msg = err.response.data.error
+           || err.response.data.message
+           || msg;
+      }
+      Swal.fire({
+        title: "Erro!",
+        text: msg,
+        icon: "error",
+        confirmButtonText: "Ok"
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    Swal.fire({
+      title: "Erro!",
+      text: "Falha no login com Google",
+      icon: "error",
+      confirmButtonText: "Ok"
+    });
+  };
+
+  return (
+    <Container fluid className="page-container">
+      {loading && (
+        <ProcessingIndicatorComponent
+          messages={["Autenticando...", "Por favor aguarde..."]}
+        />
+      )}
+
+      {!loading && (
+        <Row className="page-row">
+          <Col md={{ span: 6, offset: 3 }} lg={{ span: 4, offset: 4 }}>
+            <Card className="card-container">
+              <Card.Body className="card-body text-center">
+                <h2 className="mb-4 text-uppercase">Plat</h2>
+                <div className="logo-container mb-4">
+                  <img src="/images/logo.png" alt="Logo" className="logo-image" />
+                </div>
+
+                <Form onSubmit={handleSubmit} className="form-container">
+                  <Form.Group controlId="loginUsername" className="mb-3">
                     <Form.Control
                       type="text"
                       placeholder="E-mail ou usuário"
                       value={username}
-                      onChange={this.handleUsernameChange}
-                      className="input-username"
+                      onChange={(e) => setUsername(e.target.value)}
                       required
                     />
+                  </Form.Group>
+                  <Form.Group controlId="loginPassword" className="mb-4">
                     <Form.Control
                       type="password"
                       placeholder="Senha"
                       value={password}
-                      onChange={this.handlePasswordChange}
-                      className="input-password"
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                     />
-                    <Button type="submit" disabled={loading} className="submit-btn">
-                      Entrar
-                    </Button>
-                  </Form>
-                  <div className="google-login-container m-4">
-                    <GoogleLogin
-                      onSuccess={this.handleGoogleSuccess}
-                      onError={this.handleGoogleError}
-                      render={(props) => (
-                        <Button
-                          onClick={props.onClick}
-                          disabled={props.disabled}
-                          className="btn-google "
-                        >
-                          <FcGoogle size={24} /> Iniciar com Google
-                        </Button>
-                      )}
-                    />
-                  </div>
-                  <p className="footer-text">
-                    Não tem conta?{" "}
-                    <a href="/register" className="footer-link">
-                      Registrar-se
-                    </a>
-                  </p>
-                  <p className="footer-text">
-                    Esqueceu a senha?{" "}
-                    <a href="/password-email" className="footer-link">
-                      Recuperar senha
-                    </a>
-                  </p>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        )}
-      </Container>
-    );
-  }
+                  </Form.Group>
+
+                  <Button variant="warning" type="submit" className="w-100 mb-3">
+                    Entrar
+                  </Button>
+                </Form>
+
+                <div className="google-login-container mb-3">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                  />
+                </div>
+
+                <div className="mt-2">
+                  <a href="/register" className="me-3">Registrar-se</a>
+                  <a href="/password-email">Recuperar senha</a>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
+    </Container>
+  );
 }

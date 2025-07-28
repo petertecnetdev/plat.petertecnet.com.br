@@ -8,6 +8,7 @@ import "./NavlogComponent.css";
 export default function NavlogComponent() {
   const location = useLocation();
   const isPublicView = location.pathname.startsWith("/establishment/view");
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingMenu, setLoadingMenu] = useState(true);
@@ -29,15 +30,22 @@ export default function NavlogComponent() {
       setLoadingMenu(false);
       return;
     }
+
     (async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setLoading(false);
+        setLoadingMenu(false);
+        return;
+      }
+
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          return;
-        }
         const headers = { Authorization: `Bearer ${token}` };
         const response = await axios.get(`${apiBaseUrl}/auth/me`, { headers });
-        setUser(response.data.user);
+        setUser({
+          ...response.data.user,
+          establishments: response.data.establishments || [],
+        });
       } catch {
         localStorage.removeItem("token");
       } finally {
@@ -59,7 +67,10 @@ export default function NavlogComponent() {
 
   const renderAdminMenu = () => (
     <>
-      <button className="navlog__admin-btn" onClick={() => setShowAdminSubmenu((v) => !v)}>
+      <button
+        className="navlog__admin-btn"
+        onClick={() => setShowAdminSubmenu((v) => !v)}
+      >
         Administrativo {showAdminSubmenu ? "▲" : "▼"}
       </button>
       {showAdminSubmenu && (
@@ -93,7 +104,11 @@ export default function NavlogComponent() {
           />
         </Navbar.Brand>
         <div className="navlog__menu-icon">
-          <button onClick={handleToggleMobileMenu} className="navlog__mobile-toggle-btn" aria-label="Abrir menu">
+          <button
+            onClick={handleToggleMobileMenu}
+            className="navlog__mobile-toggle-btn"
+            aria-label="Abrir menu"
+          >
             ☰
           </button>
         </div>
@@ -102,7 +117,11 @@ export default function NavlogComponent() {
       {showMobileMenu && (
         <div className="navlog__mobile-menu">
           <div className="navlog__mobile-close">
-            <button onClick={handleToggleMobileMenu} className="navlog__close-btn" aria-label="Fechar menu">
+            <button
+              onClick={handleToggleMobileMenu}
+              className="navlog__close-btn"
+              aria-label="Fechar menu"
+            >
               ×
             </button>
           </div>
@@ -122,7 +141,19 @@ export default function NavlogComponent() {
                   <Link to="/user/update" onClick={handleToggleMobileMenu} className="navlog__link">
                     Gerenciar Conta
                   </Link>
+
+                  {user.establishments?.length === 0 && (
+                    <Link
+                      to="/establishment/create"
+                      onClick={handleToggleMobileMenu}
+                      className="navlog__link"
+                    >
+                      Criar Estabelecimento
+                    </Link>
+                  )}
+
                   {user.profile?.name === "Administrador" && renderAdminMenu()}
+
                   <Link to="/logout" onClick={handleToggleMobileMenu} className="navlog__link">
                     Sair
                   </Link>
