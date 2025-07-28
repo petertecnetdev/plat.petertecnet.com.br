@@ -411,7 +411,7 @@ useEffect(() => {
               </Col>
             ))}
         </Row>
-<Card className="mb-4 order-lines__block">
+<Card className="mb-4 order-lines__block bg-dark">
   <Card.Header className="order-lines__title">
     <strong>Filtros</strong>
   </Card.Header>
