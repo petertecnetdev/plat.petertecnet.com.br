@@ -179,39 +179,47 @@ export default function OrderCreatePage() {
 const handleAddItem = async () => {
   const categories = Array.from(new Set(products.map((p) => p.category || "Outros")));
   let currentIndex = 0;
+  let lastDirection = null; // "left" ou "right"
 
   const getHtml = () => {
-  const isMobile = window.innerWidth <= 600;
-  const currentCat = categories[currentIndex];
-  return `
-    <div class="order-modal d-flex flex-column h-100">
-      ${
-        isMobile
-          ? `<div class="order-modal__category-title">${currentCat}</div>`
-          : `
-            <nav class="order-modal__tabs">
-              ${categories
-                .map(
-                  (cat, idx) => `
-                    <button
-                      class="order-modal__tab${idx === currentIndex ? " order-modal__tab--active" : ""}"
-                      data-cat-index="${idx}"
-                    >${cat}</button>
-                  `
-                )
-                .join("")}
-            </nav>
-          `
-      }
-      <div class="container-fluid flex-grow-1 overflow-auto p-3">
-        <div class="row order-modal__items-grid">
-          ${getItemsHtml(currentCat)}
+    const isMobile = window.innerWidth <= 600;
+    const currentCat = categories[currentIndex];
+    // Aplica classe de transição se houver direção (swipe)
+    const transitionClass =
+      lastDirection === "left"
+        ? "order-modal__slide-left"
+        : lastDirection === "right"
+        ? "order-modal__slide-right"
+        : "";
+
+    return `
+      <div class="order-modal d-flex flex-column h-100">
+        ${
+          isMobile
+            ? `<div class="order-modal__category-title">${currentCat}</div>`
+            : `
+              <nav class="order-modal__tabs">
+                ${categories
+                  .map(
+                    (cat, idx) => `
+                      <button
+                        class="order-modal__tab${idx === currentIndex ? " order-modal__tab--active" : ""}"
+                        data-cat-index="${idx}"
+                      >${cat}</button>
+                    `
+                  )
+                  .join("")}
+              </nav>
+            `
+        }
+        <div class="container-fluid flex-grow-1 overflow-auto p-3">
+          <div class="row order-modal__items-grid ${transitionClass}">
+            ${getItemsHtml(currentCat)}
+          </div>
         </div>
       </div>
-    </div>
-  `;
-};
-
+    `;
+  };
 
   await Swal.fire({
     html: getHtml(),
@@ -245,23 +253,43 @@ const handleAddItem = async () => {
             isTouching = false;
             const diff = e.changedTouches[0].clientX - startX;
             if (Math.abs(diff) < 40) return;
+            // Direita para esquerda (avança categoria)
             if (diff < 0 && currentIndex < categories.length - 1) {
+              lastDirection = "left";
               currentIndex++;
               Swal.update({ html: getHtml() });
-              setTimeout(attachListeners, 100);
-            } else if (diff > 0 && currentIndex > 0) {
+              setTimeout(attachListeners, 180);
+            }
+            // Esquerda para direita (volta categoria)
+            else if (diff > 0 && currentIndex > 0) {
+              lastDirection = "right";
               currentIndex--;
               Swal.update({ html: getHtml() });
-              setTimeout(attachListeners, 100);
+              setTimeout(attachListeners, 180);
+            }
+            // Loop: Se estiver na última e deslizar para a direita, volta ao início
+            else if (diff < 0 && currentIndex === categories.length - 1) {
+              lastDirection = "left";
+              currentIndex = 0;
+              Swal.update({ html: getHtml() });
+              setTimeout(attachListeners, 180);
+            }
+            // Loop: Se estiver na primeira e deslizar para a esquerda, vai para o fim
+            else if (diff > 0 && currentIndex === 0) {
+              lastDirection = "right";
+              currentIndex = categories.length - 1;
+              Swal.update({ html: getHtml() });
+              setTimeout(attachListeners, 180);
             }
           });
         }
         // Tabs
         document.querySelectorAll(".order-modal__tab").forEach((btn) => {
           btn.onclick = () => {
+            lastDirection = null;
             currentIndex = Number(btn.dataset.catIndex);
             Swal.update({ html: getHtml() });
-            setTimeout(attachListeners, 100);
+            setTimeout(attachListeners, 120);
           };
         });
         // Adicionar item
@@ -282,6 +310,7 @@ const handleAddItem = async () => {
     },
   });
 };
+
 
 
   const handleManage = async (index, type) => {

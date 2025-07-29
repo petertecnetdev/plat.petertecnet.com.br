@@ -800,3 +800,36 @@
   z-index: 20;
   /* ... resto das regras ... */
 }
+/* Título da categoria no mobile */
+.order-modal__category-title {
+  width: 100%;
+  text-align: center;
+  font-size: 1.22rem;
+  font-weight: 700;
+  color: #ffd700;
+  background: #111;
+  padding: 1.1rem 0 0.8rem 0;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #242424;
+  box-shadow: 0 3px 16px #0c0c0c90;
+}
+
+/* Animação suave de swipe */
+.order-modal__items-grid {
+  transition: transform 0.23s cubic-bezier(.77,.02,.62,1.06), opacity 0.18s;
+  will-change: transform, opacity;
+}
+.order-modal__slide-left {
+  animation: slideLeft 0.23s;
+}
+.order-modal__slide-right {
+  animation: slideRight 0.23s;
+}
+@keyframes slideLeft {
+  0% { transform: translateX(45vw); opacity: 0.3;}
+  100% { transform: translateX(0); opacity: 1;}
+}
+@keyframes slideRight {
+  0% { transform: translateX(-45vw); opacity: 0.3;}
+  100% { transform: translateX(0); opacity: 1;}
+}
