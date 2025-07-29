@@ -1,0 +1,120 @@
+/* src/pages/item/Item.css */
+
+.item-root {
+  background-color: #121212;
+  color: #f0f0f0;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.item-create-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  background: rgba(18, 18, 18, 0.85);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.item-create-page h3 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #D4AF37;
+  margin-bottom: 16px;
+}
+
+.image-preview-container {
+  position: relative;
+}
+
+.image-preview-container .border,
+.image-preview-container img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px dashed #333;
+  background-color: #1f1f1f;
+  transition: border-color 0.3s ease;
+}
+
+.image-preview-container .border:hover,
+.image-preview-container img:hover {
+  border-color: #D4AF37;
+}
+
+.image-preview-container img {
+  border: 3px solid #D4AF37;
+}
+
+label[for="imageInput"] {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  color: #FFC107;
+  font-weight: 500;
+}
+
+.form-group .form-control,
+.form-group .form-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background-color: #1f1f1f;
+  color: #f0f0f0;
+}
+
+.form-group .form-control:focus,
+.form-group .form-select:focus {
+  outline: none;
+  border-color: #D4AF37;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.5);
+}
+
+button,
+.btn {
+  background-color: #FF6D00;
+  color: #121212;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+button:hover,
+.btn:hover {
+  background-color: #FF8A00;
+}
+
+button:disabled,
+.btn:disabled {
+  background-color: #555;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .image-preview-container .border,
+  .image-preview-container img {
+    width: 120px;
+    height: 120px;
+  }
+  .item-create-page h3 {
+    font-size: 1.75rem;
+  }
+}

@@ -99,9 +99,9 @@ export default function OrderCreatePage() {
     const origLabel = originLabels[order.origin] || order.origin;
     const L = [];
     L.push("");
-    L.push("█".repeat(WIDTH));
+    L.push("─".repeat(WIDTH));
     L.push(center(estName));
-    L.push("█".repeat(WIDTH));
+    L.push("─".repeat(WIDTH));
     L.push("");
     L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
     L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
@@ -149,97 +149,158 @@ export default function OrderCreatePage() {
     return L.join("\n");
   };
 
-  // src/pages/order/OrderCreatePage.js
+  const getItemsHtml = (category) => {
+    const items = products.filter((p) => (p.category || "Outros") === category);
+    if (!items.length) {
+      return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
+    }
+    return items
+      .map(
+        (p) => `
+   <div class="col-12 col-sm-6 col-md-3 mb-3">
 
-const handleAddItem = async () => {
-  const categories = Array.from(new Set(products.map(p => p.category || 'Outros')));
-  let selectedCategory = categories[0];
-
-  const getItemsHtml = category => {
-    const items = products.filter(p => (p.category || 'Outros') === category);
-    if (!items.length) return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
-    return items.map(p => `
       <div class="order-modal__item">
+       
         <div class="order-modal__item-info">
           <span class="order-modal__item-name">${p.name}</span>
-          <span class="order-modal__item-price">R$ ${Number(p.price).toFixed(2).replace('.', ',')}</span>
+          <span class="order-modal__item-price">
+            R$ ${Number(p.price).toFixed(2).replace(".", ",")}
+          </span>
         </div>
-        <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
+        <button class="order-modal__item-add" data-id="${p.id}">
+          Adicionar
+        </button>
       </div>
-    `).join('');
+    </div>
+  `
+      )
+      .join("");
   };
+const handleAddItem = async () => {
+  const categories = Array.from(new Set(products.map((p) => p.category || "Outros")));
+  let currentIndex = 0;
 
-  const getHtml = currentCat => `
-    <div class="order-modal">
-      <nav class="order-modal__tabs">
-        ${categories.map(cat => `
-          <button class="order-modal__tab${cat === currentCat ? ' order-modal__tab--active' : ''}" data-cat="${cat}">
-            ${cat}
-          </button>
-        `).join('')}
-      </nav>
-      <div class="order-modal__items-grid">
-        ${getItemsHtml(currentCat)}
+  const getHtml = () => {
+  const isMobile = window.innerWidth <= 600;
+  const currentCat = categories[currentIndex];
+  return `
+    <div class="order-modal d-flex flex-column h-100">
+      ${
+        isMobile
+          ? `<div class="order-modal__category-title">${currentCat}</div>`
+          : `
+            <nav class="order-modal__tabs">
+              ${categories
+                .map(
+                  (cat, idx) => `
+                    <button
+                      class="order-modal__tab${idx === currentIndex ? " order-modal__tab--active" : ""}"
+                      data-cat-index="${idx}"
+                    >${cat}</button>
+                  `
+                )
+                .join("")}
+            </nav>
+          `
+      }
+      <div class="container-fluid flex-grow-1 overflow-auto p-3">
+        <div class="row order-modal__items-grid">
+          ${getItemsHtml(currentCat)}
+        </div>
       </div>
     </div>
   `;
+};
+
 
   await Swal.fire({
-    html: getHtml(selectedCategory),
+    html: getHtml(),
     showConfirmButton: false,
     showCancelButton: true,
-    cancelButtonText: 'Cancelar',
-    width: '100vw',
+    cancelButtonText: "Cancelar",
+    width: "100vw",
     heightAuto: false,
-    background: '#000',
-    padding: '0',
+    background: "#000",
+    padding: "0",
     customClass: {
-      container: 'order-modal__container-fullscreen',
-      popup: 'order-modal__swal-fullscreen',
-      htmlContainer: 'order-modal__content-fullscreen',
-      cancelButton: 'order-modal__swal-btn-cancel'
+      container: "order-modal__container-fullscreen",
+      popup: "order-modal__swal-fullscreen",
+      htmlContainer: "order-modal__content-fullscreen",
+      cancelButton: "order-modal__swal-btn-cancel",
     },
     didOpen: () => {
-      const addListeners = () => {
-        document.querySelectorAll('.order-modal__item-add').forEach(btn =>
-          btn.addEventListener('click', e => {
-            const id = Number(e.currentTarget.getAttribute('data-id'));
-            const prod = products.find(p => p.id === id);
+      let startX = 0;
+      let isTouching = false;
+
+      const attachListeners = () => {
+        // Swipe lateral
+        const grid = document.querySelector(".order-modal__items-grid");
+        if (grid) {
+          grid.addEventListener("touchstart", (e) => {
+            isTouching = true;
+            startX = e.touches[0].clientX;
+          });
+          grid.addEventListener("touchend", (e) => {
+            if (!isTouching) return;
+            isTouching = false;
+            const diff = e.changedTouches[0].clientX - startX;
+            if (Math.abs(diff) < 40) return;
+            if (diff < 0 && currentIndex < categories.length - 1) {
+              currentIndex++;
+              Swal.update({ html: getHtml() });
+              setTimeout(attachListeners, 100);
+            } else if (diff > 0 && currentIndex > 0) {
+              currentIndex--;
+              Swal.update({ html: getHtml() });
+              setTimeout(attachListeners, 100);
+            }
+          });
+        }
+        // Tabs
+        document.querySelectorAll(".order-modal__tab").forEach((btn) => {
+          btn.onclick = () => {
+            currentIndex = Number(btn.dataset.catIndex);
+            Swal.update({ html: getHtml() });
+            setTimeout(attachListeners, 100);
+          };
+        });
+        // Adicionar item
+        document.querySelectorAll(".order-modal__item-add").forEach((btn) => {
+          btn.onclick = (e) => {
+            const id = Number(e.currentTarget.dataset.id);
+            const prod = products.find((p) => p.id === id);
             if (!prod) return;
-            setOrderLines(lines => [...lines, { product: prod, quantity: 1, additions: [], removals: [] }]);
+            setOrderLines((lines) => [
+              ...lines,
+              { product: prod, quantity: 1, additions: [], removals: [] },
+            ]);
             Swal.close();
-          })
-        );
-        document.querySelectorAll('.order-modal__tab').forEach(tab =>
-          tab.addEventListener('click', e => {
-            const newCat = e.currentTarget.getAttribute('data-cat');
-            Swal.update({ html: getHtml(newCat) });
-            setTimeout(addListeners, 50);
-          })
-        );
+          };
+        });
       };
-      addListeners();
-    }
+      attachListeners();
+    },
   });
 };
 
-const handleManage = async (index, type) => {
-  const additionsProducts = products.filter(
-    (p) => (p.category || "").toLowerCase() === "adicionais"
-  );
-  const orderLine = orderLines[index];
-  let selected =
-    type === "additions" ? orderLine.additions : orderLine.removals;
 
-  let itemsHtml = "";
-  if (additionsProducts.length === 0) {
-    itemsHtml = `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
-  } else if (type === "additions") {
-    itemsHtml = additionsProducts
-      .map((p) => {
-        const exists = selected.find((a) => a.id === p.id);
-        const qty = exists ? exists.quantity : 0;
-        return `
+  const handleManage = async (index, type) => {
+    const additionsProducts = products.filter(
+      (p) => (p.category || "").toLowerCase() === "adicionais"
+    );
+    const orderLine = orderLines[index];
+    let selected =
+      type === "additions" ? orderLine.additions : orderLine.removals;
+
+    let itemsHtml = "";
+    if (!additionsProducts.length) {
+      itemsHtml = `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
+    } else if (type === "additions") {
+      itemsHtml = additionsProducts
+        .map((p) => {
+          const exists = selected.find((a) => a.id === p.id);
+          const qty = exists ? exists.quantity : 0;
+          return `
         <div class="order-modal__item">
           <div class="order-modal__item-name">${p.name}</div>
           <div class="order-modal__item-actions">
@@ -247,81 +308,75 @@ const handleManage = async (index, type) => {
               .toFixed(2)
               .replace(".", ",")}</span>
             <input type="number" min="0" max="9" step="1" value="${qty}" data-id="${
-          p.id
-        }" class="order-modal__addition-qty" style="width:44px;margin-left:10px;border-radius:6px;padding:2px 5px;border:1px solid #333;background:#222;color:#fff;">
+            p.id
+          }" class="order-modal__addition-qty" />
           </div>
         </div>
       `;
-      })
-      .join("");
-  } else {
-    itemsHtml = additionsProducts
-      .map((p) => {
-        const checked = selected.includes(p.id) ? "checked" : "";
-        return `
+        })
+        .join("");
+    } else {
+      itemsHtml = additionsProducts
+        .map((p) => {
+          const checked = selected.includes(p.id) ? "checked" : "";
+          return `
         <div class="order-modal__item">
           <div class="order-modal__item-name">${p.name}</div>
           <div class="order-modal__item-actions">
-            <input type="checkbox" value="${p.id}" ${checked} class="order-modal__removal-check" style="margin-left:0;">
+            <input type="checkbox" value="${p.id}" ${checked} class="order-modal__removal-check" />
           </div>
         </div>
       `;
-      })
-      .join("");
-  }
+        })
+        .join("");
+    }
 
-  await Swal.fire({
-    title: type === "additions" ? "Adicionais" : "Remoções",
-    html: `
-    <div style="padding:0.8rem 0.6rem">
-      <div class="order-modal__item-list" style="max-height:350px;overflow-y:auto;">${itemsHtml}</div>
-    </div>
-  `,
-    showCancelButton: true,
-    confirmButtonText: "Salvar",
-    width: '100vw',
-    heightAuto: false,
-    background: "#1a1a1a",
-    padding: '0',
-    customClass: {
-      container: 'order-modal__container-fullscreen',
-      popup: 'order-modal__swal-fullscreen',
-      htmlContainer: 'order-modal__content-fullscreen',
-      confirmButton: "order-modal__swal-btn",
-      cancelButton: "order-modal__swal-btn-cancel",
-    },
-    focusConfirm: false,
-    preConfirm: () => {
-      if (type === "additions") {
-        const arr = [];
-        document
-          .querySelectorAll(".order-modal__addition-qty")
-          .forEach((el) => {
-            const qty = parseInt(el.value, 10);
-            if (qty > 0) {
-              arr.push({
-                id: Number(el.getAttribute("data-id")),
-                quantity: qty,
-              });
-            }
-          });
-        return arr;
-      } else {
+    await Swal.fire({
+      title: type === "additions" ? "Adicionais" : "Remoções",
+      html: `
+      <div style="padding:0.8rem 0.6rem">
+        <div class="order-modal__item-list" style="max-height:350px;overflow-y:auto;">${itemsHtml}</div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Salvar",
+      width: "100vw",
+      heightAuto: false,
+      background: "#1a1a1a",
+      padding: "0",
+      customClass: {
+        container: "order-modal__container-fullscreen",
+        popup: "order-modal__swal-fullscreen",
+        htmlContainer: "order-modal__content-fullscreen",
+        confirmButton: "order-modal__swal-btn",
+        cancelButton: "order-modal__swal-btn-cancel",
+      },
+      focusConfirm: false,
+      preConfirm: () => {
+        if (type === "additions") {
+          const arr = [];
+          document
+            .querySelectorAll(".order-modal__addition-qty")
+            .forEach((el) => {
+              const q = parseInt(el.value, 10);
+              if (q > 0) arr.push({ id: Number(el.dataset.id), quantity: q });
+            });
+          return arr;
+        }
         return Array.from(
           document.querySelectorAll(".order-modal__removal-check:checked")
         ).map((el) => Number(el.value));
+      },
+    }).then((res) => {
+      if (res.isConfirmed && res.value !== undefined) {
+        setOrderLines((lines) => {
+          const copy = [...lines];
+          copy[index][type] = res.value;
+          return copy;
+        });
       }
-    },
-  }).then((res) => {
-    if (res.isConfirmed && res.value !== undefined) {
-      setOrderLines((lines) => {
-        const copy = [...lines];
-        copy[index][type] = res.value;
-        return copy;
-      });
-    }
-  });
-};
+    });
+  };
 
   const removeLine = (i) =>
     setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
@@ -352,15 +407,11 @@ const handleManage = async (index, type) => {
       const { data: created } = await axios.post(
         `${apiBaseUrl}/order`,
         payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const { data: fetched } = await axios.get(
         `${apiBaseUrl}/order/${created.order.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const receiptText = buildReceipt(fetched.order);
       await Swal.fire({
@@ -382,13 +433,12 @@ const handleManage = async (index, type) => {
     }
   };
 
-  if (loading) {
+  if (loading)
     return <Spinner animation="border" className="order-loading__spinner" />;
-  }
 
   return (
     <>
-      <NavlogComponent />
+      <NavlogComponent /> 
       <Container className="order-create__container">
         <div className="order-create__header">
           {estLogo && (
@@ -396,9 +446,7 @@ const handleManage = async (index, type) => {
               src={`${storageUrl}/${estLogo}`}
               alt={`${estName} logo`}
               className="order-create__logo"
-              onError={(e) => {
-                e.currentTarget.src = "/images/logo.png";
-              }}
+              onError={(e) => (e.currentTarget.src = "/images/logo.png")}
             />
           )}
           <p className="order-create__establishment-name">
@@ -492,7 +540,8 @@ const handleManage = async (index, type) => {
                         bg="success"
                         className="order-line__badge-addition"
                       >
-                        + {a.quantity} {addProduct?.name} – R$ {addProduct?.price}
+                        + {a.quantity} {addProduct?.name} – R${" "}
+                        {addProduct?.price}
                       </Badge>
                     );
                   })}
@@ -513,48 +562,55 @@ const handleManage = async (index, type) => {
             ))}
           </Row>
         </div>
-        {/* FORMULÁRIO SIMÉTRICO */}
         <Form onSubmit={handleSubmit} className="order-create__form">
           <Row className="order-create__form-row">
             <Col md={4}>
-              <Form.Group controlId="customer" className="order-create__form-group">
+              <Form.Group
+                controlId="customer"
+                className="order-create__form-group"
+              >
                 <Form.Label className="order-create__label">Cliente</Form.Label>
                 <Form.Control
                   required
                   value={form.customer_name}
-                  onChange={e =>
-                    setForm(f => ({ ...f, customer_name: e.target.value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, customer_name: e.target.value }))
                   }
                   className="order-create__input"
                 />
               </Form.Group>
             </Col>
-            </Row>
+          </Row>
           <Row className="order-create__form-row">
-            
             <Col md={2}>
-              <Form.Group controlId="origin" className="order-create__form-group">
+              <Form.Group
+                controlId="origin"
+                className="order-create__form-group"
+              >
                 <Form.Label className="order-create__label">Origem</Form.Label>
                 <Form.Select
                   value={form.origin}
-                  onChange={e =>
-                    setForm(f => ({ ...f, origin: e.target.value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, origin: e.target.value }))
                   }
                   className="order-create__select"
                 >
-                  {Object.keys(originLabels).map(o => (
+                  {Object.keys(originLabels).map((o) => (
                     <option key={o}>{o}</option>
                   ))}
                 </Form.Select>
               </Form.Group>
             </Col>
             <Col md={2}>
-              <Form.Group controlId="fulfillment" className="order-create__form-group">
+              <Form.Group
+                controlId="fulfillment"
+                className="order-create__form-group"
+              >
                 <Form.Label className="order-create__label">Consumo</Form.Label>
                 <Form.Select
                   value={form.fulfillment}
-                  onChange={e =>
-                    setForm(f => ({ ...f, fulfillment: e.target.value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, fulfillment: e.target.value }))
                   }
                   className="order-create__select"
                 >
@@ -566,13 +622,18 @@ const handleManage = async (index, type) => {
                 </Form.Select>
               </Form.Group>
             </Col>
-              <Col md={2}>
-              <Form.Group controlId="payment_status" className="order-create__form-group">
-                <Form.Label className="order-create__label">Status Pagamento</Form.Label>
+            <Col md={2}>
+              <Form.Group
+                controlId="payment_status"
+                className="order-create__form-group"
+              >
+                <Form.Label className="order-create__label">
+                  Status Pagamento
+                </Form.Label>
                 <Form.Select
                   value={form.payment_status}
-                  onChange={e =>
-                    setForm(f => ({ ...f, payment_status: e.target.value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, payment_status: e.target.value }))
                   }
                   className="order-create__select"
                 >
@@ -582,14 +643,18 @@ const handleManage = async (index, type) => {
                 </Form.Select>
               </Form.Group>
             </Col>
-            
             <Col md={2}>
-              <Form.Group controlId="payment_method" className="order-create__form-group">
-                <Form.Label className="order-create__label">Método Pagamento</Form.Label>
+              <Form.Group
+                controlId="payment_method"
+                className="order-create__form-group"
+              >
+                <Form.Label className="order-create__label">
+                  Método Pagamento
+                </Form.Label>
                 <Form.Select
                   value={form.payment_method}
-                  onChange={e =>
-                    setForm(f => ({ ...f, payment_method: e.target.value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, payment_method: e.target.value }))
                   }
                   className="order-create__select"
                 >
@@ -609,14 +674,19 @@ const handleManage = async (index, type) => {
           </Row>
           <Row className="order-create__form-row">
             <Col md={12}>
-              <Form.Group controlId="notes" className="order-create__form-group">
-                <Form.Label className="order-create__label">Observações</Form.Label>
+              <Form.Group
+                controlId="notes"
+                className="order-create__form-group"
+              >
+                <Form.Label className="order-create__label">
+                  Observações
+                </Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={3}
                   value={form.notes}
-                  onChange={e =>
-                    setForm(f => ({ ...f, notes: e.target.value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, notes: e.target.value }))
                   }
                   className="order-create__textarea"
                 />
@@ -641,5 +711,6 @@ const handleManage = async (index, type) => {
         </Form>
       </Container>
     </>
+    
   );
 }

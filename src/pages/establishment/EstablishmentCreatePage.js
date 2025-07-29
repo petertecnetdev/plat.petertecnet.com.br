@@ -17,7 +17,7 @@ const categoryOptions = [
   { value: "doceria", label: "Doceria" },
   { value: "cafeteria", label: "Cafeteria" },
   { value: "pizzaria", label: "Pizzaria" },
-  { value: "pub", label: "Pub" },
+  { value: "pub", label: "Pub" }
 ];
 
 const segmentOptions = [
@@ -28,137 +28,114 @@ const segmentOptions = [
   { value: "eventos", label: "Eventos" },
   { value: "catering", label: "Catering" },
   { value: "aniversarios", label: "Aniversários" },
-  { value: "infantil", label: "Infantil" },
+  { value: "infantil", label: "Infantil" }
 ];
 
 export default function EstablishmentCreatePage() {
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { isSubmitting },
-  } = useForm();
-
   const navigate = useNavigate();
+  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm();
 
   const [logoPreview, setLogoPreview] = useState(null);
   const [backgroundPreview, setBackgroundPreview] = useState(null);
-  const [data, setData] = useState({});
   const [segments, setSegments] = useState([]);
+  const [files, setFiles] = useState({});
 
-const handleResizeImage = (file, setPreview, width, height, key) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    if (!file || !file.type.startsWith("image/")) {
-      Swal.fire("Formato inválido", "Selecione uma imagem válida.", "error");
-      reject();
-      return;
-    }
-    reader.onloadend = () => {
-      const img = new window.Image();
-      img.src = reader.result;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Preview visual (base64)
-        const previewDataURL = canvas.toDataURL("image/png");
-        setPreview(previewDataURL);
-
-        // File para envio (sempre PNG)
-        canvas.toBlob((blob) => {
-          const filename = file.name.replace(/\.[^/.]+$/, "") + ".png";
-          const resizedFile = new File([blob], filename, { type: "image/png" });
-          setData((prev) => ({
-            ...prev,
-            [key]: resizedFile,
-          }));
-          resolve(resizedFile);
-        }, "image/png", 0.95);
+  const handleResizeImage = (file, setPreview, width, height, key) => {
+    return new Promise((resolve, reject) => {
+      if (!file || !file.type.startsWith("image/")) {
+        Swal.fire("Formato inválido", "Selecione uma imagem válida.", "error");
+        reject();
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.src = reader.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          const previewDataURL = canvas.toDataURL("image/png");
+          setPreview(previewDataURL);
+          canvas.toBlob(blob => {
+            const filename = file.name.replace(/\.[^/.]+$/, "") + ".png";
+            const resizedFile = new File([blob], filename, { type: "image/png" });
+            setFiles(prev => ({ ...prev, [key]: resizedFile }));
+            resolve(resizedFile);
+          }, "image/png", 0.95);
+        };
+        img.onerror = () => reject();
       };
-      img.onerror = () => reject();
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
-const handleLogoChange = async (e) => {
-  const file = e.target.files[0];
-  await handleResizeImage(file, setLogoPreview, 150, 150, "logo");
-};
-const handleBackgroundChange = async (e) => {
-  const file = e.target.files[0];
-  await handleResizeImage(file, setBackgroundPreview, 1920, 600, "background");
-};
-
-
-  const handleSegmentsChange = (e) => {
-    const { value, checked } = e.target;
-    let newSegments = [...segments];
-    if (checked) {
-      newSegments.push(value);
-    } else {
-      newSegments = newSegments.filter((seg) => seg !== value);
-    }
-    setSegments(newSegments);
-    setValue("segments", newSegments);
+      reader.readAsDataURL(file);
+    });
   };
 
-const onSubmit = async (formDataInput) => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    Swal.fire("Erro", "Você precisa estar autenticado.", "error");
-    return;
-  }
-  if (!data.logo) {
-    Swal.fire("Erro", "Adicione a logo do estabelecimento.", "error");
-    return;
-  }
+  const handleLogoChange = async e => {
+    const file = e.target.files[0];
+    await handleResizeImage(file, setLogoPreview, 150, 150, "logo");
+  };
 
-  const formData = new FormData();
-  for (const key in formDataInput) {
-    if (key === "segments") {
-      segments.forEach((segment) => {
-        formData.append("segments[]", segment);
-      });
-    } else {
-      formData.append(key, formDataInput[key]);
+  const handleBackgroundChange = async e => {
+    const file = e.target.files[0];
+    await handleResizeImage(file, setBackgroundPreview, 1920, 600, "background");
+  };
+
+  const handleSegmentsChange = e => {
+    const { value, checked } = e.target;
+    const updated = checked
+      ? [...segments, value]
+      : segments.filter(s => s !== value);
+    setSegments(updated);
+    setValue("segments", updated);
+  };
+
+  const onSubmit = async dataInput => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      Swal.fire("Erro", "Você precisa estar autenticado.", "error");
+      return;
     }
-  }
-  if (data.logo) formData.append("logo", data.logo);
-  if (data.background) formData.append("background", data.background);
-
-  try {
-    const response = await axios.post(
-      `${apiBaseUrl}/establishment`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+    const formData = new FormData();
+    Object.keys(dataInput).forEach(key => {
+      if (key === "segments") {
+        segments.forEach(seg => formData.append("segments[]", seg));
+      } else {
+        formData.append(key, dataInput[key] || "");
       }
-    );
-    Swal.fire("Sucesso", response.data.message, "success");
-    navigate(`/establishment/view/${response.data.establishment.slug}`);
-  } catch (error) {
-    const message =
-      error.response?.data?.error ||
-      error.response?.data?.message ||
-      "Ocorreu um erro ao cadastrar o estabelecimento.";
-    Swal.fire("Erro", message, "error");
-  }
-};
+    });
+    if (files.logo) formData.append("logo", files.logo);
+    if (files.background) formData.append("background", files.background);
 
+    try {
+      const res = await axios.post(
+        `${apiBaseUrl}/establishment`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+      Swal.fire("Sucesso", res.data.message, "success");
+      navigate(`/establishment/view/${res.data.establishment.slug}`);
+    } catch (err) {
+      const msg = err.response?.data?.error
+        || err.response?.data?.message
+        || "Ocorreu um erro ao criar o estabelecimento.";
+      Swal.fire("Erro", msg, "error");
+    }
+  };
 
   return (
     <div className="establishment-root">
       <NavlogComponent />
       <div className="establishment-create-page">
-        <h2 className="title">Criar Estabelecimento</h2>
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <h2 className="title">Criar Estabelecimento</h2>
+        </div>
         <Form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
           <Row>
             <Col xs={12} className="text-center">
@@ -188,14 +165,14 @@ const onSubmit = async (formDataInput) => {
                   className="action-button"
                   onClick={() => document.getElementById("backgroundInput").click()}
                 >
-                  Adicionar Background
+                  Alterar Background
                 </Button>
                 <Button
                   variant="secondary"
                   className="action-button"
                   onClick={() => document.getElementById("logoInput").click()}
                 >
-                  Adicionar Logo
+                  Alterar Logo
                 </Button>
               </div>
               <Form.Control
@@ -214,7 +191,6 @@ const onSubmit = async (formDataInput) => {
               />
             </Col>
           </Row>
-
           <div className="form">
             <Row className="gy-3">
               <Col xs={12} md={6} lg={4}>
@@ -246,10 +222,8 @@ const onSubmit = async (formDataInput) => {
                   <label>Categoria*</label>
                   <select {...register("category", { required: true })} className="form-select">
                     <option value="">Selecione...</option>
-                    {categoryOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
+                    {categoryOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
@@ -326,45 +300,30 @@ const onSubmit = async (formDataInput) => {
                   <input type="url" {...register("website_url")} />
                 </div>
               </Col>
-
-             <Col xs={12} md={6} lg={6}>
-  <div className="form-group">
-    <label>Segmentos Atendidos</label>
-    <div className="segments-checkbox-grid">
-      {segmentOptions.map((option) => (
-        <div className="form-check segment-check" key={option.value}>
-          <input
-            className="form-check-input"
-            type="checkbox"
-            id={`segment-${option.value}`}
-            value={option.value}
-            checked={segments.includes(option.value)}
-            onChange={handleSegmentsChange}
-          />
-          <label
-            className="form-check-label mr-2"
-            htmlFor={`segment-${option.value}`}
-          >
-             {option.label}
-          </label>
-        </div>
-      ))}
-    </div>
-    <input
-      type="hidden"
-      {...register("segments")}
-      value={segments}
-    />
-  </div>
-</Col>
-
+              <Col md={7} >
+                <div className="form-group">
+                  <label>Segmentos Atendidos</label>
+                  <div className="segments-checkbox-grid">
+                    {segmentOptions.map(opt => (
+                      <div className="form-check segment-check" key={opt.value}>
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id={`segment-${opt.value}`}
+                          value={opt.value}
+                          checked={segments.includes(opt.value)}
+                          onChange={handleSegmentsChange}
+                        />
+                        <label className="form-check-label mr-2" htmlFor={`segment-${opt.value}`}>{opt.label}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <input type="hidden" {...register("segments")} value={segments} />
+                </div>
+              </Col>
               <Col xs={12} className="text-end">
-                <button
-                  type="submit"
-                  className="submit-btn"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Salvando..." : "Criar Estabelecimento"}
+                <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                  {isSubmitting ? <> Salvando...</> : "Criar Estabelecimento"}
                 </button>
               </Col>
             </Row>

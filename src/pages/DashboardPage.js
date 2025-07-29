@@ -166,7 +166,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard-root">
       <NavlogComponent />
-      <Container fluid className="dashboard-main">
+      <Container fluid className="dashboard-main ">
 
         <div className="dashboard-section ">
           <h3 className="dashboard-section-title"></h3>
