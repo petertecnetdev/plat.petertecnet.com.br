@@ -101,9 +101,9 @@ export default function OrderListPage() {
     App: "Aplicativo",
   };
   const fulfillmentLabels = {
-    "dine-in": "Local",
-    "take-away": "Levar",
-    delivery: "Delivery",
+    "dine-in": "LOCAL",
+    "take-away": "LEVAR",
+    delivery: "DELIVERY",
   };
   const paymentMethodLabels = {
     Dinheiro: "Dinheiro",
@@ -132,12 +132,11 @@ export default function OrderListPage() {
     if (typeof f.items_forecast === "string") {
       try {
         itemsArr = JSON.parse(f.items_forecast);
-      } catch {  // falha silenciosa
+      } catch {//algo
         }
     } else {
       itemsArr = f.items_forecast || [];
     }
-
     const datePart = f.forecast_date || "";
     const timePart = f.forecast_time
       ? normalizeTime(f.forecast_time)
@@ -263,7 +262,6 @@ export default function OrderListPage() {
     if (token) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
-
     async function load() {
       setLoading(true);
       let fetchedOrders = [];
@@ -276,16 +274,14 @@ export default function OrderListPage() {
           },
         });
         fetchedOrders = Array.isArray(res.data.orders) ? res.data.orders : [];
-      } catch {// falha silenciosa
+      } catch {//algo
         }
-
       const [estRes, itemRes] = await Promise.allSettled([
         axios.get(`${apiBaseUrl}/establishment/show/${entityId}`),
         axios.get(`${apiBaseUrl}/item`, {
           params: { entity_name: "establishment", entity_id: entityId },
         }),
       ]);
-
       if (estRes.status === "fulfilled" && mounted) {
         const est = estRes.value.data.establishment;
         setEstName(est.name.toUpperCase());
@@ -388,45 +384,48 @@ export default function OrderListPage() {
     return { totalOrders, totalValue, methods };
   }, [ordersToShow]);
 
-  // Reimprime usando o receipt vindo da API
-const handleReprint = async (id) => {
-  try {
-    const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
-    Swal.fire({
-      title: `Pedido #${data.order.order_number}`,
-      html: `
-        <style>.swal2-html-container{font-family:monospace;white-space:pre;text-align:left;}</style>
-        <pre id="receipt-content">${data.receipt}</pre>
-        <button id="btn-print-receipt" style="
-          margin-top:16px;
-          padding:6px 18px;
-          background:#D4AF37;
-          color:#181818;
-          border:none;
-          border-radius:6px;
-          font-weight:bold;
-          font-size:1rem;
-          cursor:pointer;
-        ">
-          Imprimir Nota
-        </button>
-      `,
-      width: 600,
-      background: "#181818",
-      confirmButtonText: "Fechar",
-      didOpen: () => {
-        document
-          .getElementById('btn-print-receipt')
-          .addEventListener('click', () => {
+  // Tradução do recibo ao exibir
+  const translateReceipt = (receipt) => {
+    return receipt
+      .replace(
+        /(Consumo:\s*)(take-away|dine-in|delivery)/i,
+        (_, prefix, value) =>
+          `${prefix}${fulfillmentLabels[value.trim()] || value}`
+      )
+      .replace(/Origem:\s*WHATSAPP/i, "Origem: WHATSAPP")
+      .replace(/Cliente:/i, "Cliente:");
+  };
+
+  const handleReprint = async (id) => {
+    try {
+      const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
+      const receiptTranslated = translateReceipt(data.receipt);
+      Swal.fire({
+        title: `<span style="font-size:2rem;color:#444;">Recibo Pedido #${String(data.order.order_number).padStart(3, "0")}</span>`,
+        html: `
+          <div id="receipt-modal-content">
+            <pre id="receipt-content" style="font-family:monospace; font-size:1.10rem; background:#fff; color:#222; border-radius:8px; border:1.5px dashed #bbb; padding:22px 10px; margin-bottom:22px; overflow-x:auto; text-align:left; box-shadow:0 2px 8px #0001;">${receiptTranslated}</pre>
+            <div style="display:flex;justify-content:center;gap:16px;">
+              <button id="btn-print-receipt" style="background:#7266F6;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:1.05rem;padding:12px 30px;cursor:pointer;">Imprimir</button>
+              <button id="btn-close-receipt" style="background:#50545B;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:1.05rem;padding:12px 30px;cursor:pointer;">Cancelar</button>
+            </div>
+          </div>
+        `,
+        showConfirmButton: false,
+        showCloseButton: false,
+        width: 480,
+        background: "#fff",
+        didOpen: () => {
+          document.getElementById('btn-print-receipt').onclick = () => {
             const printContents = document.getElementById('receipt-content').innerText;
-            const printWindow = window.open('', '', 'height=700,width=400');
+            const printWindow = window.open('', '', 'height=700,width=410');
             printWindow.document.write(`
               <html>
                 <head>
-                  <title>Recibo</title>
+                  <title>Recibo Pedido</title>
                   <style>
-                    body { font-family: monospace; background: #fff; color: #000; padding: 24px; }
-                    pre { font-size: 1.12rem; }
+                    body { margin:0; padding:0; background:#fff; }
+                    pre { font-family:monospace; font-size:1.15rem; color:#111; margin:0; padding:0; }
                   </style>
                 </head>
                 <body>
@@ -439,14 +438,15 @@ const handleReprint = async (id) => {
             setTimeout(() => {
               printWindow.print();
               printWindow.close();
-            }, 400);
-          });
-      },
-    });
-  } catch {
-    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-  }
-};
+            }, 300);
+          };
+          document.getElementById('btn-close-receipt').onclick = () => Swal.close();
+        },
+      });
+    } catch {
+      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+    }
+  };
 
   if (loading || (showForecast && loadingForecast)) {
     return (
@@ -561,139 +561,137 @@ const handleReprint = async (id) => {
 
         {/* ---------- TABLE DESKTOP ---------- */}
         <div className="order-list__table-responsive d-none d-md-block">
-       <Table striped hover variant="dark" responsive className="order-table">
-  <thead>
-    <tr>
-      <th>#</th>
-      <th>Data / Hora</th>
-      <th>Cliente</th>
-      <th>Origem</th>
-      <th>Consumo</th>
-      <th>Status Pagamento</th>
-      <th>Método Pagamento</th>
-      <th>Itens</th>
-      <th>Total</th>
-      <th>Ações</th>
-    </tr>
-  </thead>
-  <tbody>
-    {ordersToShow.length === 0 ? (
-      <tr>
-        <td colSpan={10} className="text-center py-5">
-          {showForecast
-            ? "Nenhuma previsão cadastrada para o dia."
-            : "Nenhum pedido encontrado para o período selecionado."}
-        </td>
-      </tr>
-    ) : (
-      ordersToShow.map((o) => (
-        <tr
-          key={o.id}
-          className={o.forecast ? "order-row-forecast" : ""}
-          style={
-            o.forecast
-              ? {
-                  background: "#22231f",
-                  borderLeft: "4px solid #fd7e14",
-                  fontWeight: 500,
-                }
-              : {}
-          }
-        >
-          <td>
-            {o.order_number}
-            {o.forecast && (
-              <span
-                style={{
-                  color: "#fd7e14",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  marginLeft: 4,
-                }}
-              >
-                🔮
-              </span>
-            )}
-          </td>
-          <td>
-            {o.forecast
-              ? `${o.forecast_date
-                  .split("-")
-                  .reverse()
-                  .join("/")} ${o.forecast_time}`
-              : new Date(o.order_datetime).toLocaleString("pt-BR", {
-                  hour12: false,
-                })}
-            {o.forecast && (
-              <span
-                style={{
-                  color: "#fd7e14",
-                  fontWeight: 500,
-                  marginLeft: 6,
-                }}
-              >
-                Previsão
-              </span>
-            )}
-          </td>
-          <td>{o.customer_name}</td>
-          <td>{originLabels[o.origin] || o.origin}</td>
-          <td>{fulfillmentLabels[o.fulfillment] || o.fulfillment}</td>
-          <td>
-            {o.payment_status === "pending"
-              ? "Pendente"
-              : o.payment_status === "paid"
-              ? "Pago"
-              : o.payment_status === "previsto"
-              ? "Previsto"
-              : o.payment_status || "-"}
-          </td>
-          <td>{paymentMethodLabels[o.payment_method] || o.payment_method}</td>
-          <td>
-            {o.items
-              .map(
-                (it) =>
-                  `${it.quantity}x ${it.item.name
-                    .replace("(Combo)", "")
-                    .trim()}`
-              )
-              .join(", ")}
-          </td>
-          <td>
-            <Badge bg="warning" text="dark">
-              R${computeTotal(o).toFixed(2).replace(".", ",")}
-            </Badge>
-          </td>
-       <td className="order-table__actions">
-  <div className="d-flex gap-2 align-items-center justify-content-end">
-    <Button
-      size="sm"
-      variant="outline-warning"
-      as={Link}
-      to={`/order/edit/${entityId}/${o.id}`}
-      disabled={o.forecast}
-    >
-      Editar
-    </Button>
-    <Button
-      size="sm"
-      variant="outline-secondary"
-      onClick={() => handleReprint(o.id)}
-      disabled={o.forecast}
-    >
-      Imprimir
-    </Button>
-  </div>
-</td>
-
-
-        </tr>
-      ))
-    )}
-  </tbody>
-</Table>
-
-
+          <Table striped hover variant="dark" responsive className="order-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Data / Hora</th>
+                <th>Cliente</th>
+                <th>Origem</th>
+                <th>Consumo</th>
+                <th>Status Pagamento</th>
+                <th>Método Pagamento</th>
+                <th>Itens</th>
+                <th>Total</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordersToShow.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="text-center py-5">
+                    {showForecast
+                      ? "Nenhuma previsão cadastrada para o dia."
+                      : "Nenhum pedido encontrado para o período selecionado."}
+                  </td>
+                </tr>
+              ) : (
+                ordersToShow.map((o) => (
+                  <tr
+                    key={o.id}
+                    className={o.forecast ? "order-row-forecast" : ""}
+                    style={
+                      o.forecast
+                        ? {
+                            background: "#22231f",
+                            borderLeft: "4px solid #fd7e14",
+                            fontWeight: 500,
+                          }
+                        : {}
+                    }
+                  >
+                    <td>
+                      {o.order_number}
+                      {o.forecast && (
+                        <span
+                          style={{
+                            color: "#fd7e14",
+                            fontWeight: 700,
+                            fontSize: 14,
+                            marginLeft: 4,
+                          }}
+                        >
+                          🔮
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {o.forecast
+                        ? `${o.forecast_date
+                            .split("-")
+                            .reverse()
+                            .join("/")} ${o.forecast_time}`
+                        : new Date(o.order_datetime).toLocaleString("pt-BR", {
+                            hour12: false,
+                          })}
+                      {o.forecast && (
+                        <span
+                          style={{
+                            color: "#fd7e14",
+                            fontWeight: 500,
+                            marginLeft: 6,
+                          }}
+                        >
+                          Previsão
+                        </span>
+                      )}
+                    </td>
+                    <td>{o.customer_name}</td>
+                    <td>{originLabels[o.origin] || o.origin}</td>
+                    <td>{fulfillmentLabels[o.fulfillment] || o.fulfillment}</td>
+                    <td>
+                      {o.payment_status === "pending"
+                        ? "Pendente"
+                        : o.payment_status === "paid"
+                        ? "Pago"
+                        : o.payment_status === "previsto"
+                        ? "Previsto"
+                        : o.payment_status || "-"}
+                    </td>
+                    <td>
+                      {paymentMethodLabels[o.payment_method] || o.payment_method}
+                    </td>
+                    <td>
+                      {o.items
+                        .map(
+                          (it) =>
+                            `${it.quantity}x ${it.item.name
+                              .replace("(Combo)", "")
+                              .trim()}`
+                        )
+                        .join(", ")}
+                    </td>
+                    <td>
+                      <Badge bg="warning" text="dark">
+                        R${computeTotal(o).toFixed(2).replace(".", ",")}
+                      </Badge>
+                    </td>
+                    <td className="order-table__actions">
+                      <div className="d-flex gap-2 align-items-center justify-content-end">
+                        <Button
+                          size="sm"
+                          variant="outline-warning"
+                          as={Link}
+                          to={`/order/edit/${entityId}/${o.id}`}
+                          disabled={o.forecast}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          onClick={() => handleReprint(o.id)}
+                          disabled={o.forecast}
+                        >
+                          Imprimir
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
         </div>
 
         {/* ---------- MOBILE ---------- */}
