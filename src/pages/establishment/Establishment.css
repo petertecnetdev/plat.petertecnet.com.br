@@ -358,3 +358,158 @@
     margin-bottom: 12px;
   }
 }
+
+/* --- Mobile-First: Ajustes para mobile < 600px --- */
+@media (max-width: 600px) {
+  .establishment-page-vitrine,
+  .establishment-root {
+    padding: 0 !important;
+    font-size: 1rem !important;
+  }
+  .estab-hero {
+    height: 170px !important;
+    min-height: 120px !important;
+    padding: 0;
+    background-size: cover !important;
+    background-position: center !important;
+  }
+  .estab-hero-inner {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 0 0.5rem !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    min-height: 110px !important;
+  }
+  .estab-logo-bubble {
+    margin: 0 0 0.6rem 0 !important;
+    padding: 6px !important;
+    border-width: 2px !important;
+  }
+  .estab-logo {
+    width: 68px !important;
+    height: 68px !important;
+    border-width: 2px !important;
+  }
+  .estab-title {
+    font-size: 1.25rem !important;
+    margin: 0.2rem 0 0.7rem 0 !important;
+    text-align: center !important;
+    line-height: 1.15 !important;
+  }
+  .estab-description {
+    font-size: 0.95rem !important;
+    margin-top: 0.5rem !important;
+    color: #ededed !important;
+    max-width: 99vw !important;
+    padding: 0 0.2rem !important;
+    text-align: left !important;
+    line-height: 1.35;
+  }
+  .estab-actions {
+    margin-top: 0.5rem !important;
+    flex-direction: column !important;
+    gap: 7px !important;
+    align-items: flex-start !important;
+  }
+  .estab-link {
+    padding: 0.41rem 0.74rem !important;
+    font-size: 0.95rem !important;
+    width: auto !important;
+  }
+  .estab-details-row {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 0 0.6rem !important;
+    margin: 1rem 0 1.2rem 0 !important;
+    font-size: 1rem !important;
+    max-width: 100vw !important;
+  }
+  .estab-details-row b {
+    font-size: 1rem !important;
+    color: #FFD700 !important;
+    display: inline-block;
+    margin-bottom: 1px;
+  }
+  .estab-cardapio-section {
+    padding: 0 0.2rem !important;
+    margin: 1.3rem 0 0.7rem 0 !important;
+    max-width: 100vw !important;
+  }
+  .estab-cardapio-title {
+    font-size: 1.22rem !important;
+    margin-bottom: 0.75rem !important;
+    text-align: left !important;
+    color: #FFD700 !important;
+  }
+  .estab-cardapio-bloco {
+    margin-bottom: 1.1rem !important;
+  }
+  .estab-cat-title {
+    font-size: 1.07rem !important;
+    margin-bottom: 0.55rem !important;
+    color: #ff9900 !important;
+  }
+  .estab-items-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.65rem !important;
+    padding: 0 !important;
+  }
+  .estab-cardapio-card {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-radius: 0.7rem !important;
+    padding: 0 !important;
+    margin-bottom: 0.3rem !important;
+    box-shadow: 0 2px 8px #00000021 !important;
+  }
+  .estab-item-img {
+    height: 108px !important;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    object-fit: cover !important;
+    width: 100% !important;
+  }
+  .estab-item-info {
+    padding: 0.65rem 0.5rem 0.6rem 0.5rem !important;
+  }
+  .estab-item-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    margin-bottom: 5px !important;
+  }
+  .estab-item-title {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    color: #FFD700 !important;
+    line-height: 1.09 !important;
+    margin-bottom: 2px !important;
+  }
+  .estab-item-desc {
+    font-size: 0.93rem !important;
+    margin-bottom: 0.45rem !important;
+    color: #fafafa !important;
+    min-height: 28px !important;
+    line-height: 1.18 !important;
+  }
+  .estab-item-bottom-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    margin-top: 3px !important;
+  }
+  .estab-item-preco {
+    font-size: 1.08rem !important;
+    color: #FFD700 !important;
+    font-weight: 700 !important;
+  }
+  .estab-item-disponivel,
+  .estab-item-indisponivel {
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+    padding: 3px 8px !important;
+    font-size: 0.93rem !important;
+  }
+}

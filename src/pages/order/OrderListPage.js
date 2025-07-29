@@ -389,20 +389,64 @@ export default function OrderListPage() {
   }, [ordersToShow]);
 
   // Reimprime usando o receipt vindo da API
-  const handleReprint = async (id) => {
-    try {
-      const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
-      Swal.fire({
-        title: `Pedido #${data.order.order_number}`,
-        html: `<style>.swal2-html-container{font-family:monospace;white-space:pre;text-align:left;}</style><pre>${data.receipt}</pre>`,
-        width: 600,
-        background: "#181818",
-        confirmButtonText: "Fechar",
-      });
-    } catch {
-      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-    }
-  };
+const handleReprint = async (id) => {
+  try {
+    const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
+    Swal.fire({
+      title: `Pedido #${data.order.order_number}`,
+      html: `
+        <style>.swal2-html-container{font-family:monospace;white-space:pre;text-align:left;}</style>
+        <pre id="receipt-content">${data.receipt}</pre>
+        <button id="btn-print-receipt" style="
+          margin-top:16px;
+          padding:6px 18px;
+          background:#D4AF37;
+          color:#181818;
+          border:none;
+          border-radius:6px;
+          font-weight:bold;
+          font-size:1rem;
+          cursor:pointer;
+        ">
+          Imprimir Nota
+        </button>
+      `,
+      width: 600,
+      background: "#181818",
+      confirmButtonText: "Fechar",
+      didOpen: () => {
+        document
+          .getElementById('btn-print-receipt')
+          .addEventListener('click', () => {
+            const printContents = document.getElementById('receipt-content').innerText;
+            const printWindow = window.open('', '', 'height=700,width=400');
+            printWindow.document.write(`
+              <html>
+                <head>
+                  <title>Recibo</title>
+                  <style>
+                    body { font-family: monospace; background: #fff; color: #000; padding: 24px; }
+                    pre { font-size: 1.12rem; }
+                  </style>
+                </head>
+                <body>
+                  <pre>${printContents}</pre>
+                </body>
+              </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+              printWindow.print();
+              printWindow.close();
+            }, 400);
+          });
+      },
+    });
+  } catch {
+    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+  }
+};
 
   if (loading || (showForecast && loadingForecast)) {
     return (
@@ -517,7 +561,7 @@ export default function OrderListPage() {
 
         {/* ---------- TABLE DESKTOP ---------- */}
         <div className="order-list__table-responsive d-none d-md-block">
-        <Table striped hover variant="dark" responsive className="order-table">
+       <Table striped hover variant="dark" responsive className="order-table">
   <thead>
     <tr>
       <th>#</th>
@@ -556,7 +600,6 @@ export default function OrderListPage() {
               : {}
           }
         >
-          {/* Número do pedido */}
           <td>
             {o.order_number}
             {o.forecast && (
@@ -572,17 +615,13 @@ export default function OrderListPage() {
               </span>
             )}
           </td>
-
-          {/* Data / Hora */}
           <td>
             {o.forecast
-              ? /* Para previsão, montamos DD/MM/YYYY HH:MM */
-                `${o.forecast_date
+              ? `${o.forecast_date
                   .split("-")
                   .reverse()
                   .join("/")} ${o.forecast_time}`
-              : /* Para pedidos reais, usamos toLocaleString */
-                new Date(o.order_datetime).toLocaleString("pt-BR", {
+              : new Date(o.order_datetime).toLocaleString("pt-BR", {
                   hour12: false,
                 })}
             {o.forecast && (
@@ -597,17 +636,9 @@ export default function OrderListPage() {
               </span>
             )}
           </td>
-
-          {/* Cliente */}
           <td>{o.customer_name}</td>
-
-          {/* Origem */}
           <td>{originLabels[o.origin] || o.origin}</td>
-
-          {/* Consumo */}
           <td>{fulfillmentLabels[o.fulfillment] || o.fulfillment}</td>
-
-          {/* Status Pagamento */}
           <td>
             {o.payment_status === "pending"
               ? "Pendente"
@@ -617,11 +648,7 @@ export default function OrderListPage() {
               ? "Previsto"
               : o.payment_status || "-"}
           </td>
-
-          {/* Método Pagamento */}
           <td>{paymentMethodLabels[o.payment_method] || o.payment_method}</td>
-
-          {/* Itens */}
           <td>
             {o.items
               .map(
@@ -632,41 +659,40 @@ export default function OrderListPage() {
               )
               .join(", ")}
           </td>
-
-          {/* Total */}
           <td>
             <Badge bg="warning" text="dark">
               R${computeTotal(o).toFixed(2).replace(".", ",")}
             </Badge>
           </td>
+       <td className="order-table__actions">
+  <div className="d-flex gap-2 align-items-center justify-content-end">
+    <Button
+      size="sm"
+      variant="outline-warning"
+      as={Link}
+      to={`/order/edit/${entityId}/${o.id}`}
+      disabled={o.forecast}
+    >
+      Editar
+    </Button>
+    <Button
+      size="sm"
+      variant="outline-secondary"
+      onClick={() => handleReprint(o.id)}
+      disabled={o.forecast}
+    >
+      Imprimir
+    </Button>
+  </div>
+</td>
 
-          {/* Ações */}
-          <td className="d-flex gap-2">
-            {!o.forecast && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline-warning"
-                  as={Link}
-                  to={`/order/edit/${entityId}/${o.id}`}
-                >
-                  Editar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline-secondary"
-                  onClick={() => handleReprint(o.id)}
-                >
-                  Imprimir
-                </Button>
-              </>
-            )}
-          </td>
+
         </tr>
       ))
     )}
   </tbody>
 </Table>
+
 
         </div>
 
