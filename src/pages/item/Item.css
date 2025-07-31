@@ -52,31 +52,60 @@ label[for="imageInput"] {
   cursor: pointer;
 }
 
-.form-group label {
+/* === LABELS E CONTROLES MELHORADOS === */
+.form-group label,
+.form-label,
+.form-check-label {
   display: block;
   margin-bottom: 4px;
-  font-size: 0.9rem;
-  color: #FFC107;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #f5f5f5;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .form-group .form-control,
-.form-group .form-select {
+.form-group .form-select,
+textarea {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #333;
   border-radius: 4px;
   background-color: #1f1f1f;
-  color: #f0f0f0;
+  color: #e8e8ee;
+  font-size: 0.95rem;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+.form-group .form-control::placeholder {
+  color: #9ca0b0;
+  opacity: 1;
 }
 
 .form-group .form-control:focus,
-.form-group .form-select:focus {
+.form-group .form-select:focus,
+textarea:focus {
   outline: none;
   border-color: #D4AF37;
-  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.5);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+  background: #292a38;
+  color: #fff;
 }
 
+/* erros de validação */
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: #ff6e6e;
+}
+
+.invalid-feedback {
+  color: #ff6e6e;
+  font-size: 0.85rem;
+  margin-top: 3px;
+}
+
+/* Botões */
 button,
 .btn {
   background-color: #FF6D00;
@@ -100,6 +129,18 @@ button:disabled,
   cursor: not-allowed;
 }
 
+/* foco acessível em labels clicáveis */
+label:focus-visible {
+  outline: 2px dashed #D4AF37;
+  outline-offset: 2px;
+}
+
+/* espaçamento extra para colunas */
+.row.g-3 > [class*="col-"] {
+  position: relative;
+}
+
+/* spinner */
 .spinner-center {
   display: flex;
   justify-content: center;
