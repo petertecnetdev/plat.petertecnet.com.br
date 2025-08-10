@@ -50,19 +50,43 @@ export default function ItemListPage() {
   }, [slug]);
 
   const handleExportPDF = async () => {
-    if (!pdfRef.current) return;
-    try {
-      const canvas = await html2canvas(pdfRef.current);
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "pt", "a4");
-      const w = pdf.internal.pageSize.getWidth();
-      const h = (canvas.height * w) / canvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, w, h);
-      pdf.save(`${establishment.name}_menu.pdf`);
-    } catch {
-      Swal.fire("Erro", "Não foi possível gerar o PDF.", "error");
-    }
-  };
+  if (!pdfRef.current) return;
+  try {
+    const el = pdfRef.current;
+    const dpr = Math.max(2, window.devicePixelRatio || 1);
+
+    const canvas = await html2canvas(el, {
+      scale: dpr,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      width: el.scrollWidth,
+      height: el.scrollHeight,
+      logging: false,
+    });
+
+    const imgData = canvas.toDataURL("image/png", 1.0);
+
+    const widthMm = 80; // largura padrão de bobina térmica (iFood/99Food)
+    const heightMm = (canvas.height / canvas.width) * widthMm;
+
+    const pdf = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: [widthMm, Math.max(heightMm, 100)],
+    });
+
+    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+
+    const safeName = `${(establishment?.name || "menu")}_menu`
+      .replace(/[\\/:*?"<>|]+/g, "_")
+      .trim();
+
+    pdf.save(`${safeName}.pdf`);
+  } catch (e) {
+    Swal.fire("Erro", "Não foi possível gerar o PDF.", "error");
+  }
+};
+
 
   if (loading) {
     return (

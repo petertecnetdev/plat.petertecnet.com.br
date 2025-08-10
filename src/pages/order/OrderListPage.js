@@ -385,68 +385,148 @@ export default function OrderListPage() {
   }, [ordersToShow]);
 
   // Tradução do recibo ao exibir
-  const translateReceipt = (receipt) => {
-    return receipt
-      .replace(
-        /(Consumo:\s*)(take-away|dine-in|delivery)/i,
-        (_, prefix, value) =>
-          `${prefix}${fulfillmentLabels[value.trim()] || value}`
-      )
-      .replace(/Origem:\s*WHATSAPP/i, "Origem: WHATSAPP")
-      .replace(/Cliente:/i, "Cliente:");
+ 
+const handleReprint = async (id) => {
+  const PAPER_MM = 80;
+  const CONTENT_MM = 70;
+  const FONT_PT = 18;
+  const BIG_PT = 28;
+
+  const mapFulfillment = { "dine-in": "LOCAL", "take-away": "LEVAR", delivery: "DELIVERY" };
+  const mapOrigin = { Balcão: "Balcão", WhatsApp: "WhatsApp", Telefone: "Telefone", App: "Aplicativo" };
+  const money = (n) => "R$ " + Number(n || 0).toFixed(2).replace(".", ",");
+
+  // normaliza e traduz status (inclui "pedding")
+  const mapPaymentStatus = (raw) => {
+    const s = String(raw || "").toLowerCase().trim();
+    if (["pending", "pedding"].includes(s)) return "Pendente";
+    if (s === "paid") return "Pago";
+    if (s === "previsto") return "Previsto";
+    if (s === "canceled" || s === "cancelled") return "Cancelado";
+    if (s === "refunded") return "Estornado";
+    if (s === "failed") return "Falhou";
+    if (s === "partial") return "Parcial";
+    return raw || "-"; // fallback: mostra como veio
   };
 
-  const handleReprint = async (id) => {
-    try {
-      const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
-      const receiptTranslated = translateReceipt(data.receipt);
-      Swal.fire({
-        title: `<span style="font-size:2rem;color:#444;">Recibo Pedido #${String(data.order.order_number).padStart(3, "0")}</span>`,
-        html: `
-          <div id="receipt-modal-content">
-            <pre id="receipt-content" style="font-family:monospace; font-size:1.10rem; background:#fff; color:#222; border-radius:8px; border:1.5px dashed #bbb; padding:22px 10px; margin-bottom:22px; overflow-x:auto; text-align:left; box-shadow:0 2px 8px #0001;">${receiptTranslated}</pre>
-            <div style="display:flex;justify-content:center;gap:16px;">
-              <button id="btn-print-receipt" style="background:#7266F6;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:1.05rem;padding:12px 30px;cursor:pointer;">Imprimir</button>
-              <button id="btn-close-receipt" style="background:#50545B;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:1.05rem;padding:12px 30px;cursor:pointer;">Cancelar</button>
-            </div>
-          </div>
-        `,
-        showConfirmButton: false,
-        showCloseButton: false,
-        width: 480,
-        background: "#fff",
-        didOpen: () => {
-          document.getElementById('btn-print-receipt').onclick = () => {
-            const printContents = document.getElementById('receipt-content').innerText;
-            const printWindow = window.open('', '', 'height=700,width=410');
-            printWindow.document.write(`
-              <html>
-                <head>
-                  <title>Recibo Pedido</title>
-                  <style>
-                    body { margin:0; padding:0; background:#fff; }
-                    pre { font-family:monospace; font-size:1.15rem; color:#111; margin:0; padding:0; }
-                  </style>
-                </head>
-                <body>
-                  <pre>${printContents}</pre>
-                </body>
-              </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => {
-              printWindow.print();
-              printWindow.close();
-            }, 300);
-          };
-          document.getElementById('btn-close-receipt').onclick = () => Swal.close();
-        },
+  try {
+    const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
+    const o = data.order || {};
+    const items = Array.isArray(o.items) ? o.items : [];
+
+    const numero = String(o.order_number || "").padStart(4, "0");
+    const dataHora = o.order_datetime
+      ? new Date(o.order_datetime).toLocaleString("pt-BR", { hour12: false })
+      : "";
+    const cliente = o.customer_name || "-";
+    const origem = mapOrigin[o.origin] || o.origin || "-";
+    const consumo = mapFulfillment[o.fulfillment] || o.fulfillment || "-";
+    const metodo = o.payment_method || "-";
+    const statusPag = mapPaymentStatus(o.payment_status);
+    const obs = o.notes || "";
+    const access = o.access_code || "";
+    const estab = (estName || o.establishment_name || "").toString(); // usa o nome carregado no componente
+
+    const fallbackTotal = (() => {
+      let t = 0;
+      items.forEach((it) => {
+        const qty = Number(it.quantity || 1);
+        const add = (Array.isArray(it.modifiers) ? it.modifiers : [])
+          .filter((m) => m.type === "addition")
+          .reduce((acc, m) => acc + Number(m.price || 0) * Number(m.quantity || 1), 0);
+        const unit = Number(it.item?.price ?? it.price ?? 0) + add;
+        const sub = Number(it.subtotal ?? unit * qty);
+        t += sub;
       });
-    } catch {
-      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-    }
-  };
+      return t;
+    })();
+    const total = Number(o.total_price ?? 0) > 0 ? Number(o.total_price) : fallbackTotal;
+
+    const itemRows = items.map((it) => {
+      const qty = Number(it.quantity || 1);
+      const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+      const add = (Array.isArray(it.modifiers) ? it.modifiers : [])
+        .filter((m) => m.type === "addition")
+        .reduce((acc, m) => acc + Number(m.price || 0) * Number(m.quantity || 1), 0);
+      const unit = Number(it.item?.price ?? it.price ?? 0) + add;
+      const sub = Number(it.subtotal ?? unit * qty);
+      return `
+        <div class="row item">
+          <div class="l">x${qty} ${name}</div>
+          <div class="r">${money(sub)}</div>
+        </div>
+      `;
+    }).join("");
+
+    const w = window.open("", "", "width=520,height=800");
+    w.document.write(`
+      <html>
+        <head>
+          <meta charset="utf-8"/>
+          <meta name="viewport" content="width=device-width, initial-scale=1"/>
+          <title>Recibo</title>
+          <style>
+            @page { size: ${PAPER_MM}mm auto; margin: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; background: #fff; width: ${PAPER_MM}mm; }
+            .wrap { width: ${CONTENT_MM}mm; margin: 0 auto; padding: 8px 0 10px; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#000; }
+            .center { text-align: center; }
+            .sep { border-top: 1px dashed #000; margin: 8px 0; }
+            .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+            .l { flex: 1 1 auto; word-break: break-word; }
+            .r { flex: 0 0 auto; white-space: nowrap; text-align: right; }
+            .bigcode { font-weight: 800; font-size: ${BIG_PT}px; letter-spacing: 1px; padding: 6px 8px; background: #e5e5e5; border-radius: 4px; }
+            .label { font-weight: 600; }
+            .item { padding: 2px 0; }
+            .total { font-weight: 800; }
+            .small { font-size: ${FONT_PT - 2}px; }
+            .base { font-size: ${FONT_PT}px; line-height: 1.35; }
+            @media print { html, body { width:${PAPER_MM}mm } .wrap { width:${CONTENT_MM}mm } }
+          </style>
+        </head>
+        <body>
+          <div class="wrap base">
+            ${estab ? `<div class="center small">${estab}</div>` : ""}
+            <div class="center small">EXPEDIÇÃO</div>
+            <div class="center" style="margin:6px 0 8px;"><span class="bigcode">${numero}</span></div>
+
+            ${access ? `<div class="row"><div class="l"><span class="label">Código</span></div><div class="r">${access}</div></div>` : ""}
+
+            <div class="sep"></div>
+            <div class="row"><div class="l"><span class="label">Data</span></div><div class="r">${dataHora}</div></div>
+            <div class="row"><div class="l"><span class="label">Cliente</span></div><div class="r">${cliente}</div></div>
+            <div class="row"><div class="l"><span class="label">Origem</span></div><div class="r">${origem}</div></div>
+            <div class="row"><div class="l"><span class="label">Consumo</span></div><div class="r">${consumo}</div></div>
+
+            <div class="sep"></div>
+            <div class="center"><span class="label">ITENS DO PEDIDO (${items.length})</span></div>
+            ${itemRows}
+
+            <div class="sep"></div>
+            <div class="row"><div class="l"><span class="label">Pagamento</span></div><div class="r">${metodo}</div></div>
+            <div class="row"><div class="l"><span class="label">Status</span></div><div class="r">${statusPag}</div></div>
+
+            ${obs ? `<div class="sep"></div><div><span class="label">Obs.:</span> ${obs}</div>` : ""}
+
+            <div class="sep"></div>
+            <div class="row total"><div class="l">Total</div><div class="r">${money(total)}</div></div>
+          </div>
+          <script>
+            window.onload = function () {
+              setTimeout(function(){ window.print(); }, 120);
+              setTimeout(function(){ window.close(); }, 420);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    w.document.close();
+    w.focus();
+  } catch {
+    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+  }
+};
+
 
   if (loading || (showForecast && loadingForecast)) {
     return (
