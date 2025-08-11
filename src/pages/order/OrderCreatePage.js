@@ -606,79 +606,87 @@ export default function OrderCreatePage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    const payload = {
-      app_id: 3,
-      entity_name: "establishment",
-      entity_id: +entityId,
-      items: orderLines.map((l) => ({
-        item_id: l.product.id,
-        quantity: l.quantity,
-        additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
-        removals: l.removals,
-      })),
-      ...form,
-    };
-    try {
-      const token = localStorage.getItem("token");
-      const { data: created } = await axios.post(`${apiBaseUrl}/order`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const { data: fetched } = await axios.get(`${apiBaseUrl}/order/${created.order.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const receiptText = buildReceiptText(fetched.order);
-      await Swal.fire({
-        title: `Recibo Pedido #${fetched.order.order_number}`,
-        html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
-        showCancelButton: true,
-        cancelButtonText: "Fechar",
-        showDenyButton: true,
-        confirmButtonText: "Imprimir",
-        denyButtonText: "Copiar",
-        width: "800px",
-        background: "#0b0b0b",
-        color: "#fff",
-        customClass: {
-          popup: "order-modal__swal-centered",
-          confirmButton: "order-modal__swal-btn",
-          denyButton: "order-modal__swal-btn-secondary",
-          cancelButton: "order-modal__swal-btn-cancel",
-        },
-      }).then((result) => {
-        if (result.isConfirmed) {
-          const html = buildTicketHtml(fetched.order);
-          const w = window.open("", "", "width=520,height=800");
-          w.document.write(html);
-          w.document.close();
-          w.focus();
-        } else if (result.isDenied) {
-          navigator.clipboard.writeText(receiptText).then(() => {
-            Swal.fire({
-              icon: "success",
-              title: "Copiado!",
-              text: "O recibo foi copiado para a área de transferência.",
-              confirmButtonText: "OK",
-              background: "#0b0b0b",
-              color: "#fff",
-              customClass: { confirmButton: "order-modal__swal-btn" },
-            });
-          });
-        }
-      });
-      navigate(`/order/list/${entityId}`);
-    } catch (err) {
-      if (err?.response?.status === 422) {
-        const msgs = Object.values(err.response.data.errors || {}).flat();
-        Swal.fire("Erro de Validação", msgs.join("\n"), "warning");
-      } else {
-        Swal.fire("Erro", "Não foi possível criar pedido.", "error");
-      }
-    } finally {
-      setSubmitting(false);
-    }
+  e.preventDefault();
+  setSubmitting(true);
+  const payload = {
+    app_id: 3,
+    entity_name: "establishment",
+    entity_id: +entityId,
+    items: orderLines.map((l) => ({
+      item_id: l.product.id,
+      quantity: l.quantity,
+      additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
+      removals: l.removals,
+    })),
+    ...form,
   };
+
+  try {
+    const token = localStorage.getItem("token");
+    const { data: created } = await axios.post(`${apiBaseUrl}/order`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const { data: fetched } = await axios.get(`${apiBaseUrl}/order/${created.order.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Remove #1, #2... do texto do recibo
+    const receiptTextRaw = buildReceiptText(fetched.order);
+    const receiptText = receiptTextRaw.replace(/#\d+\s*[·-]?\s*/g, "");
+
+    await Swal.fire({
+      title: `Recibo Pedido #${fetched.order.order_number}`,
+      html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
+      showCancelButton: true,
+      cancelButtonText: "Fechar",
+      showDenyButton: true,
+      confirmButtonText: "Imprimir",
+      denyButtonText: "Copiar",
+      width: "800px",
+      background: "#0b0b0b",
+      color: "#fff",
+      customClass: {
+        popup: "order-modal__swal-centered",
+        confirmButton: "order-modal__swal-btn",
+        denyButton: "order-modal__swal-btn-secondary",
+        cancelButton: "order-modal__swal-btn-cancel",
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Remove #1, #2... também na impressão
+        const htmlRaw = buildTicketHtml(fetched.order);
+        const html = htmlRaw.replace(/#\d+\s*[·-]?\s*/g, "");
+        const w = window.open("", "", "width=520,height=800");
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+      } else if (result.isDenied) {
+        navigator.clipboard.writeText(receiptText).then(() => {
+          Swal.fire({
+            icon: "success",
+            title: "Copiado!",
+            text: "O recibo foi copiado para a área de transferência.",
+            confirmButtonText: "OK",
+            background: "#0b0b0b",
+            color: "#fff",
+            customClass: { confirmButton: "order-modal__swal-btn" },
+          });
+        });
+      }
+    });
+
+    navigate(`/order/list/${entityId}`);
+  } catch (err) {
+    if (err?.response?.status === 422) {
+      const msgs = Object.values(err.response.data.errors || {}).flat();
+      Swal.fire("Erro de Validação", msgs.join("\n"), "warning");
+    } else {
+      Swal.fire("Erro", "Não foi possível criar pedido.", "error");
+    }
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   if (loading) return <Spinner animation="border" className="order-loading__spinner" />;
 

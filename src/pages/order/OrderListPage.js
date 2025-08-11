@@ -535,67 +535,69 @@ export default function OrderListPage() {
 
   // ===== SweetAlert Reprint (Imprimir + Copiar) =====
   const handleReprint = async (id) => {
-    try {
-      const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
-      const o = data.order || {};
+  try {
+    const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
+    const o = data.order || {};
 
-      const receiptText = buildReceiptText(o, estName, originLabels, fulfillmentLabels);
+    const receiptTextRaw = buildReceiptText(o, estName, originLabels, fulfillmentLabels);
+    const receiptText = receiptTextRaw.replace(/#\d+\s*[·-]?\s*/g, "");
 
-      await Swal.fire({
-        title: `Recibo Pedido #${o.order_number}`,
-        html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
-        showCancelButton: true,
-        cancelButtonText: "Fechar",
-        showDenyButton: true,
-        confirmButtonText: "Imprimir",
-        denyButtonText: "Copiar",
-        width: "800px",
-        background: "#0b0b0b",
-        color: "#fff",
-        customClass: {
-          popup: "order-modal__swal-centered",
-          confirmButton: "order-modal__swal-btn",
-          denyButton: "order-modal__swal-btn-secondary",
-          cancelButton: "order-modal__swal-btn-cancel",
-        },
-      }).then((result) => {
-        if (result.isConfirmed) {
-          const html = buildTicketHtml(o, estName);
-          const w = window.open("", "", "width=520,height=800");
-          w.document.write(html);
-          w.document.close();
-          w.focus();
-        } else if (result.isDenied) {
-          navigator.clipboard
-            .writeText(receiptText)
-            .then(() => {
-              Swal.fire({
-                icon: "success",
-                title: "Copiado!",
-                text: "O recibo foi copiado para a área de transferência.",
-                confirmButtonText: "OK",
-                background: "#0b0b0b",
-                color: "#fff",
-                customClass: { confirmButton: "order-modal__swal-btn" },
-              });
-            })
-            .catch(() => {
-              Swal.fire({
-                icon: "error",
-                title: "Falha ao copiar",
-                text: "Não foi possível copiar o recibo.",
-                confirmButtonText: "OK",
-                background: "#0b0b0b",
-                color: "#fff",
-                customClass: { confirmButton: "order-modal__swal-btn" },
-              });
+    await Swal.fire({
+      title: `Recibo Pedido #${o.order_number}`,
+      html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
+      showCancelButton: true,
+      cancelButtonText: "Fechar",
+      showDenyButton: true,
+      confirmButtonText: "Imprimir",
+      denyButtonText: "Copiar",
+      width: "800px",
+      background: "#0b0b0b",
+      color: "#fff",
+      customClass: {
+        popup: "order-modal__swal-centered",
+        confirmButton: "order-modal__swal-btn",
+        denyButton: "order-modal__swal-btn-secondary",
+        cancelButton: "order-modal__swal-btn-cancel",
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const htmlRaw = buildTicketHtml(o, estName);
+        const html = htmlRaw.replace(/#\d+\s*·\s*/g, "");
+        const w = window.open("", "", "width=520,height=800");
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+      } else if (result.isDenied) {
+        navigator.clipboard
+          .writeText(receiptText)
+          .then(() => {
+            Swal.fire({
+              icon: "success",
+              title: "Copiado!",
+              text: "O recibo foi copiado para a área de transferência.",
+              confirmButtonText: "OK",
+              background: "#0b0b0b",
+              color: "#fff",
+              customClass: { confirmButton: "order-modal__swal-btn" },
             });
-        }
-      });
-    } catch (e) {
-      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-    }
-  };
+          })
+          .catch(() => {
+            Swal.fire({
+              icon: "error",
+              title: "Falha ao copiar",
+              text: "Não foi possível copiar o recibo.",
+              confirmButtonText: "OK",
+              background: "#0b0b0b",
+              color: "#fff",
+              customClass: { confirmButton: "order-modal__swal-btn" },
+            });
+          });
+      }
+    });
+  } catch (e) {
+    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+  }
+};
 
   // ===== Filtros / lista =====
   const filteredOrders = useMemo(() => {
