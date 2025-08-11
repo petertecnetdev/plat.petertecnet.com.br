@@ -1,14 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  Button,
-  Spinner,
-  Badge,
-} from "react-bootstrap";
+import { Container, Row, Col, Form, Button, Spinner, Badge } from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
@@ -64,9 +56,8 @@ export default function OrderEditPage() {
         ]);
         setProducts(resItems.data);
         const est = resEst.data.establishment;
-        setEstName(est.name.toUpperCase());
+        setEstName((est.name || "").toUpperCase());
         setEstLogo(est.logo || "");
-
         const o = resOrder.data.order;
         setForm({
           customer_name: o.customer_name,
@@ -77,17 +68,17 @@ export default function OrderEditPage() {
           notes: o.notes || "",
         });
         setOrderLines(
-          o.items.map((it) => ({
+          (o.items || []).map((it) => ({
             product: it.item,
             quantity: it.quantity,
-            additions: it.modifiers
-              .filter((m) => m.type === "addition")
+            additions: (it.modifiers || [])
+              .filter((m) => String(m.type || "").toLowerCase().trim() === "addition")
               .map((m) => ({
                 id: m.modifier_id ?? m.modifier?.id ?? m.modifierId,
                 quantity: m.quantity || 1,
               })),
-            removals: it.modifiers
-              .filter((m) => m.type === "removal")
+            removals: (it.modifiers || [])
+              .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
               .map((m) => m.modifier_id ?? m.modifier?.id ?? m.modifierId),
           }))
         );
@@ -113,251 +104,611 @@ export default function OrderEditPage() {
 
   const formattedTotal = `R$${total.toFixed(2).replace(".", ",")}`;
 
-  const buildReceipt = (order) => {
-    const WIDTH = 32;
-    const center = (text) =>
-      text.padStart(Math.floor((WIDTH + text.length) / 2)).padEnd(WIDTH);
-    const line = (char = "-") => char.repeat(WIDTH);
-    const fmt = (v) => `R$${Number(v).toFixed(2).replace(".", ",")}`;
-    const pad = (l, r) => {
-      const dots = ".".repeat(Math.max(WIDTH - (l.length + r.length), 0));
-      return `${l}${dots}${r}`;
-    };
-    const consLabel = fulfillmentLabels[order.fulfillment] || order.fulfillment;
-    const origLabel = originLabels[order.origin] || order.origin;
-    const L = [];
-    L.push("");
-    L.push("█".repeat(WIDTH));
-    L.push(center(estName));
-    L.push("█".repeat(WIDTH));
-    L.push("");
-    L.push(`👤 Cliente: ${(order.customer_name || "").toUpperCase()}`);
-    L.push(`📦 Origem: ${origLabel.toUpperCase()}`);
-    L.push(`🍽️ Consumo: ${consLabel.toUpperCase()}`);
-    L.push(line());
-    L.push(center("ITENS DO PEDIDO"));
-    L.push(line());
-    let totalRec = 0;
-    order.items.forEach((it) => {
-      const unitPrice = Number(it.item.price);
-      const itemSubtotal = unitPrice * it.quantity;
-      totalRec += itemSubtotal;
-      L.push(pad(`${it.quantity}x ${it.item.name}`, fmt(itemSubtotal)));
-      it.modifiers
-        .filter((m) => m.type === "addition")
-        .forEach((m) => {
-          const prod = products.find((p) => p.id === m.modifier_id);
-          if (prod) {
-            const addUnit = Number(prod.price);
-            const addQty = m.quantity || 1;
-            const addSubtotal = addUnit * addQty;
-            totalRec += addSubtotal;
-            L.push(pad(`  + ${prod.name}`, fmt(addSubtotal)));
-          }
-        });
-      it.modifiers
-        .filter((m) => m.type === "removal")
-        .forEach((m) => {
-          const prod = products.find((p) => p.id === m.modifier_id);
-          if (prod) {
-            L.push(`  - ${prod.name}`);
-          }
-        });
-    });
-    L.push(line());
-    L.push(pad("TOTAL", fmt(totalRec)));
-    L.push("");
-    L.push(
-      `Data: ${new Date(order.order_datetime).toLocaleString("pt-BR", {
-        hour12: false,
-      })}`
-    );
-    L.push("");
-    L.push("");
-    return L.join("\n");
+  const getItemsHtml = (category) => {
+    const items = products.filter((p) => (p.category || "Outros") === category);
+    if (!items.length) {
+      return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
+    }
+    return items
+      .map(
+        (p) => `
+        <div class="col-12 col-sm-6 col-md-3 mb-3">
+          <div class="order-modal__item">
+            <div class="order-modal__item-info">
+              <span class="order-modal__item-name">${p.name}</span>
+              <span class="order-modal__item-price">R$ ${Number(p.price).toFixed(2).replace(".", ",")}</span>
+            </div>
+            <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
+          </div>
+        </div>
+      `
+      )
+      .join("");
   };
 
-  // FULLSCREEN MODAL PADRÃO ORDERCREATE (itens)
   const handleAddItem = async () => {
-    const categories = Array.from(new Set(products.map(p => p.category || 'Outros')));
-    let selectedCategory = categories[0];
+    const categories = Array.from(new Set(products.map((p) => p.category || "Outros")));
+    let currentIndex = 0;
+    let lastDirection = null;
 
-    const getItemsHtml = category => {
-      const items = products.filter(p => (p.category || 'Outros') === category);
-      if (!items.length) return '<div class="order-modal__empty">Nenhum item nesta categoria.</div>';
-      return items.map(p => `
-        <div class="order-modal__item">
-          <div class="order-modal__item-info">
-            <span class="order-modal__item-name">${p.name}</span>
-            <span class="order-modal__item-price">R$ ${Number(p.price).toFixed(2).replace('.', ',')}</span>
+    const getHtml = () => {
+      const isMobile = window.innerWidth <= 600;
+      const currentCat = categories[currentIndex];
+      const transitionClass =
+        lastDirection === "left"
+          ? "order-modal__slide-left"
+          : lastDirection === "right"
+          ? "order-modal__slide-right"
+          : "";
+      return `
+        <div class="order-modal d-flex flex-column h-100">
+          ${
+            isMobile
+              ? `<div class="order-modal__category-title">${currentCat}</div>`
+              : `
+                <nav class="order-modal__tabs">
+                  ${categories
+                    .map(
+                      (cat, idx) => `
+                        <button
+                          class="order-modal__tab${idx === currentIndex ? " order-modal__tab--active" : ""}"
+                          data-cat-index="${idx}"
+                        >${cat}</button>
+                      `
+                    )
+                    .join("")}
+                </nav>
+              `
+          }
+          <div class="container-fluid flex-grow-1 overflow-auto p-3">
+            <div class="row order-modal__items-grid ${transitionClass}">
+              ${getItemsHtml(currentCat)}
+            </div>
           </div>
-          <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
         </div>
-      `).join('');
+      `;
     };
-
-    const getHtml = currentCat => `
-      <div class="order-modal">
-        <nav class="order-modal__tabs">
-          ${categories.map(cat => `
-            <button class="order-modal__tab${cat === currentCat ? ' order-modal__tab--active' : ''}" data-cat="${cat}">
-              ${cat}
-            </button>
-          `).join('')}
-        </nav>
-        <div class="order-modal__items-grid">
-          ${getItemsHtml(currentCat)}
-        </div>
-      </div>
-    `;
 
     await Swal.fire({
-      html: getHtml(selectedCategory),
+      html: getHtml(),
       showConfirmButton: false,
       showCancelButton: true,
-      cancelButtonText: 'Cancelar',
-      width: '100vw',
+      cancelButtonText: "Cancelar",
+      width: "100vw",
       heightAuto: false,
-      background: '#000',
-      padding: '0',
+      background: "#000",
+      padding: "0",
       customClass: {
-        container: 'order-modal__container-fullscreen',
-        popup: 'order-modal__swal-fullscreen',
-        htmlContainer: 'order-modal__content-fullscreen',
-        cancelButton: 'order-modal__swal-btn-cancel'
+        container: "order-modal__container-fullscreen",
+        popup: "order-modal__swal-fullscreen",
+        htmlContainer: "order-modal__content-fullscreen",
+        cancelButton: "order-modal__swal-btn-cancel",
       },
       didOpen: () => {
-        const addListeners = () => {
-          document.querySelectorAll('.order-modal__item-add').forEach(btn =>
-            btn.addEventListener('click', e => {
-              const id = Number(e.currentTarget.getAttribute('data-id'));
-              const prod = products.find((p) => p.id === id);
-              if (!prod) return;
-              setOrderLines(lines => [...lines, { product: prod, quantity: 1, additions: [], removals: [] }]);
-              Swal.close();
-            })
-          );
-          document.querySelectorAll('.order-modal__tab').forEach(tab =>
-            tab.addEventListener('click', e => {
-              const newCat = e.currentTarget.getAttribute('data-cat');
-              Swal.update({ html: getHtml(newCat) });
-              setTimeout(addListeners, 50);
-            })
-          );
-        };
-        addListeners();
-      }
+        let startX = 0;
+        let isTouching = false;
+        const root = Swal.getHtmlContainer();
+
+        root.addEventListener("touchstart", (e) => {
+          const grid = root.querySelector(".order-modal__items-grid");
+          if (!grid || !grid.contains(e.target)) return;
+          isTouching = true;
+          startX = e.touches[0].clientX;
+        });
+
+        root.addEventListener("touchend", (e) => {
+          if (!isTouching) return;
+          isTouching = false;
+          const diff = e.changedTouches[0].clientX - startX;
+          if (Math.abs(diff) < 40) return;
+          if (diff < 0 && currentIndex < categories.length - 1) {
+            lastDirection = "left";
+            currentIndex += 1;
+          } else if (diff > 0 && currentIndex > 0) {
+            lastDirection = "right";
+            currentIndex -= 1;
+          } else if (diff < 0 && currentIndex === categories.length - 1) {
+            lastDirection = "left";
+            currentIndex = 0;
+          } else if (diff > 0 && currentIndex === 0) {
+            lastDirection = "right";
+            currentIndex = categories.length - 1;
+          }
+          Swal.update({ html: getHtml() });
+        });
+
+        root.addEventListener("click", (e) => {
+          const tab = e.target.closest(".order-modal__tab");
+          if (tab) {
+            lastDirection = null;
+            currentIndex = Number(tab.dataset.catIndex);
+            Swal.update({ html: getHtml() });
+            return;
+          }
+          const addBtn = e.target.closest(".order-modal__item-add");
+          if (addBtn) {
+            const id = Number(addBtn.dataset.id);
+            const prod = products.find((p) => p.id === id);
+            if (!prod) return;
+            setOrderLines((lines) => [
+              ...lines,
+              { product: prod, quantity: 1, additions: [], removals: [] },
+            ]);
+            Swal.close();
+          }
+        });
+      },
     });
   };
 
-  // FULLSCREEN MODAL PADRÃO ORDERCREATE (adicionais/removíveis)
   const handleManage = async (index, type) => {
     const additionsProducts = products.filter(
       (p) => (p.category || "").toLowerCase() === "adicionais"
     );
     const orderLine = orderLines[index];
-    let selected =
-      type === "additions" ? orderLine.additions : orderLine.removals;
+    const selectedAdds = new Map(
+      (type === "additions" ? orderLine.additions : []).map((a) => [a.id, a.quantity])
+    );
+    const selectedRems = new Set(type === "removals" ? orderLine.removals : []);
 
-    let itemsHtml = "";
-    if (additionsProducts.length === 0) {
-      itemsHtml = `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
-    } else if (type === "additions") {
-      itemsHtml = additionsProducts
-        .map((p) => {
-          const exists = selected.find((a) => a.id === p.id);
-          const qty = exists ? exists.quantity : 0;
-          return `
-          <div class="order-modal__item">
-            <div class="order-modal__item-name">${p.name}</div>
-            <div class="order-modal__item-actions">
-              <span class="order-modal__item-price">R$ ${Number(p.price)
-                .toFixed(2)
-                .replace(".", ",")}</span>
-              <input type="number" min="0" max="9" step="1" value="${qty}" data-id="${
-            p.id
-          }" class="order-modal__addition-qty" style="width:44px;margin-left:10px;border-radius:6px;padding:2px 5px;border:1px solid #333;background:#222;color:#fff;">
-            </div>
+    const buildAdditionsGrid = () => {
+      if (!additionsProducts.length)
+        return '<div class="order-modal__empty">Nenhum adicional cadastrado.</div>';
+      return `
+        <div class="container-fluid flex-grow-1 overflow-auto p-3">
+          <div class="row order-modal__items-grid">
+            ${additionsProducts
+              .map((p) => {
+                const qty = selectedAdds.get(p.id) || 0;
+                return `
+                  <div class="col-12 col-sm-6 col-md-3 mb-3">
+                    <div class="order-modal__item">
+                      <div class="order-modal__item-info">
+                        <span class="order-modal__item-name">${p.name}</span>
+                        <span class="order-modal__item-price">R$ ${Number(p.price)
+                          .toFixed(2)
+                          .replace(".", ",")}</span>
+                      </div>
+                      <div class="order-modal__qty">
+                        <button class="order-modal__qty-btn" data-act="dec" data-id="${p.id}">−</button>
+                        <span class="order-modal__qty-val" data-id="${p.id}">${qty}</span>
+                        <button class="order-modal__qty-btn" data-act="inc" data-id="${p.id}">+</button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              })
+              .join("")}
           </div>
-        `;
-        })
-        .join("");
-    } else {
-      itemsHtml = additionsProducts
-        .map((p) => {
-          const checked = selected.includes(p.id) ? "checked" : "";
-          return `
-          <div class="order-modal__item">
-            <div class="order-modal__item-name">${p.name}</div>
-            <div class="order-modal__item-actions">
-              <input type="checkbox" value="${p.id}" ${checked} class="order-modal__removal-check" style="margin-left:0;">
-            </div>
+        </div>
+        <div class="order-modal__footer">
+          <button class="order-modal__swal-btn-cancel" data-close="1">Cancelar</button>
+          <button class="order-modal__swal-btn" data-save="1">Salvar</button>
+        </div>
+      `;
+    };
+
+    const buildRemovalsGrid = () => {
+      if (!additionsProducts.length)
+        return '<div class="order-modal__empty">Nenhum item removível cadastrado.</div>';
+      return `
+        <div class="container-fluid flex-grow-1 overflow-auto p-3">
+          <div class="row order-modal__items-grid">
+            ${additionsProducts
+              .map((p) => {
+                const on = selectedRems.has(p.id);
+                return `
+                  <div class="col-12 col-sm-6 col-md-3 mb-3">
+                    <div class="order-modal__item">
+                      <div class="order-modal__item-info">
+                        <span class="order-modal__item-name">${p.name}</span>
+                        <span class="order-modal__item-price">&nbsp;</span>
+                      </div>
+                      <button class="order-modal__toggle${on ? " is-on" : ""}" data-id="${p.id}">
+                        ${on ? "Remover ✓" : "Remover"}
+                      </button>
+                    </div>
+                  </div>
+                `;
+              })
+              .join("")}
           </div>
-        `;
-        })
-        .join("");
-    }
+        </div>
+        <div class="order-modal__footer">
+          <button class="order-modal__swal-btn-cancel" data-close="1">Cancelar</button>
+          <button class="order-modal__swal-btn" data-save="1">Salvar</button>
+        </div>
+      `;
+    };
+
+    const modalHtml = `
+      <div class="order-modal d-flex flex-column h-100">
+        <div class="order-modal__category-title">${type === "additions" ? "Adicionais" : "Remoções"}</div>
+        ${type === "additions" ? buildAdditionsGrid() : buildRemovalsGrid()}
+      </div>
+      <style>
+        .order-modal__qty{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px}
+        .order-modal__qty-btn{background:#111;border:1px solid #333;color:#fff;border-radius:8px;width:36px;height:32px}
+        .order-modal__qty-val{min-width:24px;text-align:center;font-weight:700}
+        .order-modal__toggle{background:#111;border:1px solid #333;color:#fff;border-radius:10px;padding:8px 10px}
+        .order-modal__toggle.is-on{border-color:#0f0}
+        .order-modal__footer{display:flex;justify-content:space-between;gap:12px;padding:10px;border-top:1px solid #222;background:#000}
+      </style>
+    `;
 
     await Swal.fire({
-      title: type === "additions" ? "Adicionais" : "Remoções",
-      html: `
-      <div style="padding:0.8rem 0.6rem">
-        <div class="order-modal__item-list" style="max-height:350px;overflow-y:auto;">${itemsHtml}</div>
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Salvar",
-      width: '100vw',
+      html: modalHtml,
+      showConfirmButton: false,
+      showCancelButton: false,
+      width: "100vw",
       heightAuto: false,
-      background: "#1a1a1a",
+      background: "#000",
+      padding: "0",
       customClass: {
-        container: 'order-modal__container-fullscreen',
-        popup: 'order-modal__swal-fullscreen',
-        htmlContainer: 'order-modal__content-fullscreen',
-        confirmButton: "order-modal__swal-btn",
-        cancelButton: "order-modal__swal-btn-cancel",
+        container: "order-modal__container-fullscreen",
+        popup: "order-modal__swal-fullscreen",
+        htmlContainer: "order-modal__content-fullscreen",
       },
-      focusConfirm: false,
-      preConfirm: () => {
-        if (type === "additions") {
-          const arr = [];
-          document
-            .querySelectorAll(".order-modal__addition-qty")
-            .forEach((el) => {
-              const qty = parseInt(el.value, 10);
-              if (qty > 0) {
-                arr.push({
-                  id: Number(el.getAttribute("data-id")),
-                  quantity: qty,
-                });
-              }
-            });
-          return arr;
-        } else {
-          return Array.from(
-            document.querySelectorAll(".order-modal__removal-check:checked")
-          ).map((el) => Number(el.value));
-        }
-      },
-    }).then((res) => {
-      if (res.isConfirmed && res.value !== undefined) {
-        setOrderLines((lines) => {
-          const copy = [...lines];
-          copy[index][type] = res.value;
-          return copy;
+      didOpen: () => {
+        const root = Swal.getHtmlContainer();
+        root.addEventListener("click", (e) => {
+          const btnQty = e.target.closest(".order-modal__qty-btn");
+          if (btnQty) {
+            const id = Number(btnQty.dataset.id);
+            const act = btnQty.dataset.act;
+            const curr = selectedAdds.get(id) || 0;
+            const next = Math.max(0, curr + (act === "inc" ? 1 : -1));
+            if (next === 0) selectedAdds.delete(id);
+            else selectedAdds.set(id, next);
+            const valEl = root.querySelector(`.order-modal__qty-val[data-id="${id}"]`);
+            if (valEl) valEl.textContent = String(next);
+            return;
+          }
+          const toggle = e.target.closest(".order-modal__toggle");
+          if (toggle) {
+            const id = Number(toggle.dataset.id);
+            if (selectedRems.has(id)) selectedRems.delete(id);
+            else selectedRems.add(id);
+            toggle.classList.toggle("is-on");
+            toggle.textContent = toggle.classList.contains("is-on") ? "Remover ✓" : "Remover";
+            return;
+          }
+          if (e.target.matches('[data-close="1"]')) {
+            Swal.close();
+            return;
+          }
+          if (e.target.matches('[data-save="1"]')) {
+            if (type === "additions") {
+              const arr = Array.from(selectedAdds.entries()).map(([id, quantity]) => ({ id, quantity }));
+              setOrderLines((lines) => {
+                const copy = [...lines];
+                copy[index].additions = arr;
+                return copy;
+              });
+            } else {
+              const arr = Array.from(selectedRems.values());
+              setOrderLines((lines) => {
+                const copy = [...lines];
+                copy[index].removals = arr;
+                return copy;
+              });
+            }
+            Swal.close();
+          }
         });
-      }
+      },
     });
   };
 
-  const removeLine = (i) =>
-    setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
+  const removeLine = (i) => setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
   const updateLine = (i, field, v) =>
     setOrderLines((lines) => {
       const copy = [...lines];
       copy[i][field] = v;
       return copy;
     });
+
+  const money = (n) => `R$ ${Number(n || 0).toFixed(2).replace(".", ",")}`;
+  const ADD_TYPES = new Set(["addition", "combo", "extra", "adicional", "upgrade"]);
+  const findProductById = (id) => products.find((p) => p.id === id);
+  const getModifierDisplayName = (m) => {
+    const byId = findProductById(m.modifier_id);
+    const viaItem = m.item?.name;
+    const raw = m.name;
+    return String(raw || viaItem || byId?.name || "Adicional").trim();
+  };
+  const getModifierUnitPrice = (m) => {
+    const direct = Number(m.price ?? 0);
+    if (!Number.isNaN(direct) && direct > 0) return direct;
+    const viaItem = Number(m.item?.price ?? 0);
+    if (!Number.isNaN(viaItem) && viaItem > 0) return viaItem;
+    const byId = findProductById(m.modifier_id);
+    if (byId) return Number(byId.price || 0);
+    return 0;
+  };
+  const calcItemLine = (it) => {
+    const qty = Number(it.quantity || 1);
+    const baseUnit = Number(it.item?.price ?? it.price ?? 0);
+    const modifiers = Array.isArray(it.modifiers) ? it.modifiers : [];
+    const additions = modifiers.filter((m) =>
+      ADD_TYPES.has(String(m.type || "").toLowerCase().trim())
+    );
+    const addPerUnit = additions.reduce((acc, m) => {
+      const unit = getModifierUnitPrice(m);
+      const qpu = Number(m.quantity || 1);
+      return acc + unit * qpu;
+    }, 0);
+    const lineSubtotal = qty * (baseUnit + addPerUnit);
+    return { qty, additions, lineSubtotal };
+  };
+  const mapPaymentStatus = (raw) => {
+    const s = String(raw || "").toLowerCase().trim();
+    if (["pending", "pedding"].includes(s)) return "Pendente";
+    if (s === "paid") return "Pago";
+    if (s === "previsto") return "Previsto";
+    if (s === "canceled" || s === "cancelled") return "Cancelado";
+    if (s === "refunded") return "Estornado";
+    if (s === "failed") return "Falhou";
+    if (s === "partial") return "Parcial";
+    return raw || "-";
+  };
+
+  const handlePrint = async (order) => {
+    const PAPER_MM = 80;
+    const CONTENT_MM = 70;
+    const FONT_PT = 18;
+    const BIG_PT = 28;
+    const mapFulfillment = { "dine-in": "LOCAL", "take-away": "LEVAR", delivery: "DELIVERY" };
+    const mapOrigin = { Balcão: "Balcão", WhatsApp: "WhatsApp", Telefone: "Telefone", App: "Aplicativo" };
+    const numero = String(order.order_number || "").padStart(4, "0");
+    const dataHora = order.order_datetime
+      ? new Date(order.order_datetime).toLocaleString("pt-BR", { hour12: false })
+      : new Date().toLocaleString("pt-BR", { hour12: false });
+    const cliente = order.customer_name || "-";
+    const origem = mapOrigin[order.origin] || order.origin || "-";
+    const consumo = mapFulfillment[order.fulfillment] || order.fulfillment || "-";
+    const metodo = order.payment_method || "-";
+    const statusPag = mapPaymentStatus(order.payment_status);
+    const obs = order.notes || "";
+    const access = order.access_code || "";
+    const estab = estName || order.establishment_name || "";
+    const items = Array.isArray(order.items) ? order.items : [];
+
+    const itemRows = items
+      .map((it, idx) => {
+        const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+        const { qty, additions, lineSubtotal } = calcItemLine(it);
+        const addRows = additions
+          .map((m) => {
+            const mName = getModifierDisplayName(m);
+            const unit = getModifierUnitPrice(m);
+            const qpu = Number(m.quantity || 1);
+            const totalAdd = unit * qpu * qty;
+            return `
+              <div class="row leader add">
+                <div class="l">+ ${mName} x${qpu} (cada)</div>
+                <div class="r">${money(totalAdd)}</div>
+              </div>
+            `;
+          })
+          .join("");
+        const removalRows = (Array.isArray(it.modifiers) ? it.modifiers : [])
+          .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
+          .map((m) => {
+            const mName = getModifierDisplayName(m);
+            return `
+              <div class="row sub note">
+                <div class="l">- sem ${mName}</div>
+                <div class="r"></div>
+              </div>
+            `;
+          })
+          .join("");
+        return `
+          <div class="row leader item">
+            <div class="l">#${idx + 1} · x${qty} ${name}</div>
+            <div class="r">${money(lineSubtotal)}</div>
+          </div>
+          ${addRows}
+          ${removalRows}
+        `;
+      })
+      .join("");
+
+    const grandTotal = items.reduce((acc, it) => acc + calcItemLine(it).lineSubtotal, 0);
+
+    const w = window.open("", "", "width=520,height=800");
+    w.document.write(`
+      <html>
+        <head>
+          <meta charset="utf-8"/>
+          <meta name="viewport" content="width=device-width, initial-scale=1"/>
+          <title>Recibo</title>
+          <style>
+            @page { size: ${PAPER_MM}mm auto; margin: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; background: #fff; width: ${PAPER_MM}mm; }
+            .wrap { width: ${CONTENT_MM}mm; margin: 0 auto; padding: 8px 0 10px; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#000; }
+            .center { text-align: center; }
+            .sep { border-top: 1px dashed #000; margin: 8px 0; }
+            .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+            .leader .l { display: flex; align-items: baseline; gap: 6px; }
+            .leader .l::after { content: ""; flex: 1 1 auto; border-bottom: 1px dotted #000; margin: 0 6px; transform: translateY(-2px); }
+            .l { flex: 1 1 auto; word-break: break-word; }
+            .r { flex: 0 0 auto; white-space: nowrap; text-align: right; }
+            .bigcode { font-weight: 800; font-size: ${BIG_PT}px; letter-spacing: 1px; padding: 6px 8px; background: #e5e5e5; border-radius: 4px; }
+            .label { font-weight: 600; }
+            .item { padding: 2px 0; }
+            .add { padding: 1px 0 2px 12px; }
+            .sub { padding: 0 0 2px 12px; }
+            .note .l { font-style: italic; opacity: 0.9; }
+            .total { font-weight: 800; }
+            .small { font-size: ${FONT_PT - 2}px; }
+            .base { font-size: ${FONT_PT}px; line-height: 1.35; }
+            @media print { html, body { width:${PAPER_MM}mm } .wrap { width:${CONTENT_MM}mm } }
+          </style>
+        </head>
+        <body>
+          <div class="wrap base">
+            ${estab ? `<div class="center small">${estab}</div>` : ""}
+            <div class="center small">EXPEDIÇÃO</div>
+            <div class="center" style="margin:6px 0 8px;"><span class="bigcode">${numero}</span></div>
+            ${access ? `<div class="row"><div class="l"><span class="label">Código</span></div><div class="r">${access}</div></div>` : ""}
+            <div class="sep"></div>
+            <div class="row"><div class="l"><span class="label">Data</span></div><div class="r">${dataHora}</div></div>
+            <div class="row"><div class="l"><span class="label">Cliente</span></div><div class="r">${cliente}</div></div>
+            <div class="row"><div class="l"><span class="label">Origem</span></div><div class="r">${origem}</div></div>
+            <div class="row"><div class="l"><span class="label">Consumo</span></div><div class="r">${consumo}</div></div>
+            <div class="sep"></div>
+            <div class="center"><span class="label">ITENS DO PEDIDO (${items.length})</span></div>
+            ${itemRows}
+            <div class="sep"></div>
+            <div class="row"><div class="l"><span class="label">Pagamento</span></div><div class="r">${metodo}</div></div>
+            <div class="row"><div class="l"><span class="label">Status</span></div><div class="r">${statusPag}</div></div>
+            ${obs ? `<div class="sep"></div><div><span class="label">Obs.:</span> ${obs}</div>` : ""}
+            <div class="sep"></div>
+            <div class="row total leader"><div class="l">Total</div><div class="r">${money(grandTotal)}</div></div>
+          </div>
+          <script>
+            window.onload = function () {
+              setTimeout(function(){ window.print(); }, 120);
+              setTimeout(function(){ window.close(); }, 420);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    w.document.close();
+    w.focus();
+  };
+
+  const buildTextReceipt = (order) => {
+    const WIDTH = 36;
+    const center = (t) => t.padStart(Math.floor((WIDTH + t.length) / 2)).padEnd(WIDTH);
+    const line = (c = "-") => c.repeat(WIDTH);
+    const fmt = (n) => `R$ ${Number(n || 0).toFixed(2).replace(".", ",")}`;
+
+    const dt = order.order_datetime ? new Date(order.order_datetime) : new Date();
+    const consLabel = (fulfillmentLabels[order.fulfillment] || order.fulfillment || "").toString().toUpperCase();
+    const origLabel = (originLabels[order.origin] || order.origin || "").toString().toUpperCase();
+
+    const L = [];
+    L.push(center(estName || order.establishment_name || ""));
+    L.push(center("EXPEDIÇÃO"));
+    L.push(center(String(order.order_number || "").padStart(4, "0")));
+    L.push(line());
+    L.push(`Data: ${dt.toLocaleString("pt-BR", { hour12: false })}`);
+    L.push(`Cliente: ${order.customer_name || "-"}`);
+    L.push(`Origem: ${origLabel}`);
+    L.push(`Consumo: ${consLabel}`);
+    L.push(line());
+    L.push(center("ITENS DO PEDIDO"));
+
+    let grand = 0;
+
+    (order.items || []).forEach((it, idx) => {
+      const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+      const { qty, additions, lineSubtotal } = calcItemLine(it);
+      grand += lineSubtotal;
+      L.push(line("."));
+      L.push(`#${idx + 1}  x${qty} ${name}`);
+      L.push(`Subtotal${".".repeat(Math.max(1, WIDTH - 8 - fmt(lineSubtotal).length))}${fmt(lineSubtotal)}`);
+
+      additions.forEach((m) => {
+        const mName = getModifierDisplayName(m);
+        const unit = getModifierUnitPrice(m);
+        const qpu = Number(m.quantity || 1);
+        const totalAdd = unit * qpu * qty;
+        grand += 0; // já incluso no lineSubtotal (calcItemLine soma por unidade)
+        L.push(`  + ${mName} x${qpu} (cada)${".".repeat(Math.max(1, WIDTH - (6 + mName.length + 8)))}${fmt(totalAdd)}`);
+      });
+
+      (Array.isArray(it.modifiers) ? it.modifiers : [])
+        .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
+        .forEach((m) => {
+          const mName = getModifierDisplayName(m);
+          L.push(`  - sem ${mName}`);
+        });
+    });
+
+    L.push(line());
+    L.push(`TOTAL${".".repeat(Math.max(1, WIDTH - 5 - fmt(grand).length))}${fmt(grand)}`);
+    if (order.payment_method) L.push(`Pagamento: ${order.payment_method}`);
+    if (order.payment_status) L.push(`Status: ${mapPaymentStatus(order.payment_status)}`);
+    if (order.notes) {
+      L.push(line());
+      L.push(`Obs.: ${order.notes}`);
+    }
+    L.push("");
+    return L.join("\n");
+  };
+
+  const showReceiptSwal = async (order) => {
+    const text = buildTextReceipt(order);
+    await Swal.fire({
+      title: `Recibo #${order.order_number}`,
+      html: `
+        <div class="receipt-modal">
+          <pre id="receipt-text" class="receipt-pre" style="text-align:left;max-height:50vh;overflow:auto;margin:0">${text.replace(
+            /</g,
+            "&lt;"
+          )}</pre>
+          <div class="receipt-actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button type="button" class="swal2-styled" data-act="print">Imprimir</button>
+            <button type="button" class="swal2-styled" data-act="copy">Copiar</button>
+            <button type="button" class="swal2-styled swal2-cancel" data-act="close">Fechar</button>
+          </div>
+        </div>
+      `,
+      showConfirmButton: false,
+      background: "#111",
+      color: "#fff",
+      width: "700px",
+      didOpen: () => {
+        const root = Swal.getHtmlContainer();
+        root.addEventListener("click", async (e) => {
+          const btn = e.target.closest("[data-act]");
+          if (!btn) return;
+          const act = btn.getAttribute("data-act");
+          if (act === "print") {
+            await handlePrint(order);
+          } else if (act === "copy") {
+            const plain = document.getElementById("receipt-text")?.innerText || text;
+            try {
+              await navigator.clipboard.writeText(plain);
+              Swal.showValidationMessage("");
+              Swal.resetValidationMessage();
+              Swal.update({
+                footer:
+                  '<div style="color:#8f8">Texto copiado para a área de transferência.</div>',
+              });
+              setTimeout(() => {
+                const f = Swal.getFooter();
+                if (f) f.innerHTML = "";
+              }, 1600);
+            } catch {
+              const ta = document.createElement("textarea");
+              ta.value = plain;
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              document.body.removeChild(ta);
+              Swal.update({
+                footer:
+                  '<div style="color:#8f8">Texto copiado (fallback).</div>',
+              });
+              setTimeout(() => {
+                const f = Swal.getFooter();
+                if (f) f.innerHTML = "";
+              }, 1600);
+            }
+          } else if (act === "close") {
+            Swal.close();
+          }
+        });
+      },
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -376,26 +727,13 @@ export default function OrderEditPage() {
     };
     try {
       const token = localStorage.getItem("token");
-      await axios.put(
-        `${apiBaseUrl}/order/${orderId}`,
-        payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const { data: fetched } = await axios.get(
-        `${apiBaseUrl}/order/${orderId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const receiptText = buildReceipt(fetched.order);
-      await Swal.fire({
-        title: `Recibo Pedido #${fetched.order.order_number}`,
-        html: `<pre>${receiptText}</pre>`,
-        showCancelButton: true,
-        confirmButtonText: "Imprimir",
+      await axios.put(`${apiBaseUrl}/order/${orderId}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      const { data: fetched } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await showReceiptSwal(fetched.order);
       navigate(`/order/list/${entityId}`);
     } catch (err) {
       if (err.response?.status === 422) {
@@ -441,11 +779,7 @@ export default function OrderEditPage() {
             Ver Pedidos
           </Button>
         </div>
-        <Button
-          variant="success"
-          onClick={handleAddItem}
-          className="order-create__btn-add-item"
-        >
+        <Button variant="success" onClick={handleAddItem} className="order-create__btn-add-item">
           + Adicionar Item
         </Button>
         <div className="order-create__total">
@@ -474,15 +808,11 @@ export default function OrderEditPage() {
                     size="sm"
                     variant="outline-info"
                     className="order-line__btn-minus"
-                    onClick={() =>
-                      updateLine(i, "quantity", Math.max(1, line.quantity - 1))
-                    }
+                    onClick={() => updateLine(i, "quantity", Math.max(1, line.quantity - 1))}
                   >
                     −
                   </Button>
-                  <span className="order-line__quantity-value">
-                    {line.quantity}
-                  </span>
+                  <span className="order-line__quantity-value">{line.quantity}</span>
                   <Button
                     size="sm"
                     variant="outline-info"
@@ -514,11 +844,7 @@ export default function OrderEditPage() {
                   {line.additions.map((a) => {
                     const addProduct = products.find((p) => p.id === a.id);
                     return (
-                      <Badge
-                        key={`add-${a.id}`}
-                        bg="success"
-                        className="order-line__badge-addition"
-                      >
+                      <Badge key={`add-${a.id}`} bg="success" className="order-line__badge-addition">
                         + {a.quantity} {addProduct?.name} – R$ {addProduct?.price}
                       </Badge>
                     );
@@ -526,11 +852,7 @@ export default function OrderEditPage() {
                   {line.removals.map((rid) => {
                     const remProduct = products.find((p) => p.id === rid);
                     return (
-                      <Badge
-                        key={`rem-${rid}`}
-                        bg="danger"
-                        className="order-line__badge-removal"
-                      >
+                      <Badge key={`rem-${rid}`} bg="danger" className="order-line__badge-removal">
                         − {remProduct?.name}
                       </Badge>
                     );
@@ -548,9 +870,7 @@ export default function OrderEditPage() {
                 <Form.Control
                   required
                   value={form.customer_name}
-                  onChange={e =>
-                    setForm(f => ({ ...f, customer_name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
                   className="order-create__input"
                 />
               </Form.Group>
@@ -562,12 +882,10 @@ export default function OrderEditPage() {
                 <Form.Label className="order-create__label">Origem</Form.Label>
                 <Form.Select
                   value={form.origin}
-                  onChange={e =>
-                    setForm(f => ({ ...f, origin: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))}
                   className="order-create__select"
                 >
-                  {Object.keys(originLabels).map(o => (
+                  {Object.keys(originLabels).map((o) => (
                     <option key={o}>{o}</option>
                   ))}
                 </Form.Select>
@@ -578,9 +896,7 @@ export default function OrderEditPage() {
                 <Form.Label className="order-create__label">Consumo</Form.Label>
                 <Form.Select
                   value={form.fulfillment}
-                  onChange={e =>
-                    setForm(f => ({ ...f, fulfillment: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, fulfillment: e.target.value }))}
                   className="order-create__select"
                 >
                   {Object.entries(fulfillmentLabels).map(([v, l]) => (
@@ -593,12 +909,10 @@ export default function OrderEditPage() {
             </Col>
             <Col md={2}>
               <Form.Group controlId="payment_status" className="order-create__form-group">
-                <Form.Label className="order-create__label">Status Pagamento</Form.Label>
+                <Form.Label className="order-create__label">Status Pagamento</Form.Label >
                 <Form.Select
                   value={form.payment_status}
-                  onChange={e =>
-                    setForm(f => ({ ...f, payment_status: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, payment_status: e.target.value }))}
                   className="order-create__select"
                 >
                   <option value="pending">Pendente</option>
@@ -612,9 +926,7 @@ export default function OrderEditPage() {
                 <Form.Label className="order-create__label">Método Pagamento</Form.Label>
                 <Form.Select
                   value={form.payment_method}
-                  onChange={e =>
-                    setForm(f => ({ ...f, payment_method: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}
                   className="order-create__select"
                 >
                   <option>Dinheiro</option>
@@ -639,9 +951,7 @@ export default function OrderEditPage() {
                   as="textarea"
                   rows={3}
                   value={form.notes}
-                  onChange={e =>
-                    setForm(f => ({ ...f, notes: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                   className="order-create__textarea"
                 />
               </Form.Group>
@@ -649,16 +959,8 @@ export default function OrderEditPage() {
           </Row>
           <Row>
             <Col className="d-flex justify-content-center">
-              <Button
-                type="submit"
-                className="order-create__btn-submit"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <Spinner animation="border" size="sm" />
-                ) : (
-                  "Salvar Alterações"
-                )}
+              <Button type="submit" className="order-create__btn-submit" disabled={submitting}>
+                {submitting ? <Spinner animation="border" size="sm" /> : "Salvar Alterações"}
               </Button>
             </Col>
           </Row>
