@@ -635,7 +635,7 @@ export default function OrderCreatePage() {
     const receiptText = receiptTextRaw.replace(/#\d+\s*[·-]?\s*/g, "");
 
     await Swal.fire({
-      title: `Recibo Pedido #${fetched.order.order_number}`,
+      title: `Recibo Pedido #${fetched.order.id}`,
       html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
       showCancelButton: true,
       cancelButtonText: "Fechar",

@@ -898,3 +898,38 @@
 
   max-width: 160px;
 }
+
+
+/* Estilo para o bloco do número do pedido */
+.order-number {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #181818;
+  border: 2px solid #ff9900;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  margin: 1rem 0;
+  box-shadow: 0 0 12px rgba(255, 153, 0, 0.4);
+}
+
+/* Número do pedido */
+.order-number p {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #181818;
+  background: #ffd700;
+  padding: 0.3rem 1rem;
+  border-radius: 0.4rem;
+  margin: 0;
+  letter-spacing: 1px;
+  box-shadow: inset 0 0 4px #00000066;
+}
+
+/* Total do pedido */
+.order-number h5 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #ffd700;
+  margin: 0;
+}

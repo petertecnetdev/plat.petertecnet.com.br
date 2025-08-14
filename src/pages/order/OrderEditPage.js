@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Container, Row, Col, Form, Button, Spinner, Badge } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Form,
+  Button,
+  Spinner,
+  Badge,
+} from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
@@ -61,6 +69,8 @@ export default function OrderEditPage() {
         const o = resOrder.data.order;
         setForm({
           customer_name: o.customer_name,
+          id: o.id,
+          date: o.created_at,
           origin: o.origin,
           fulfillment: o.fulfillment,
           payment_status: o.payment_status,
@@ -72,13 +82,23 @@ export default function OrderEditPage() {
             product: it.item,
             quantity: it.quantity,
             additions: (it.modifiers || [])
-              .filter((m) => String(m.type || "").toLowerCase().trim() === "addition")
+              .filter(
+                (m) =>
+                  String(m.type || "")
+                    .toLowerCase()
+                    .trim() === "addition"
+              )
               .map((m) => ({
                 id: m.modifier_id ?? m.modifier?.id ?? m.modifierId,
                 quantity: m.quantity || 1,
               })),
             removals: (it.modifiers || [])
-              .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
+              .filter(
+                (m) =>
+                  String(m.type || "")
+                    .toLowerCase()
+                    .trim() === "removal"
+              )
               .map((m) => m.modifier_id ?? m.modifier?.id ?? m.modifierId),
           }))
         );
@@ -116,9 +136,13 @@ export default function OrderEditPage() {
           <div class="order-modal__item">
             <div class="order-modal__item-info">
               <span class="order-modal__item-name">${p.name}</span>
-              <span class="order-modal__item-price">R$ ${Number(p.price).toFixed(2).replace(".", ",")}</span>
+              <span class="order-modal__item-price">R$ ${Number(p.price)
+                .toFixed(2)
+                .replace(".", ",")}</span>
             </div>
-            <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
+            <button class="order-modal__item-add" data-id="${
+              p.id
+            }">Adicionar</button>
           </div>
         </div>
       `
@@ -127,7 +151,9 @@ export default function OrderEditPage() {
   };
 
   const handleAddItem = async () => {
-    const categories = Array.from(new Set(products.map((p) => p.category || "Outros")));
+    const categories = Array.from(
+      new Set(products.map((p) => p.category || "Outros"))
+    );
     let currentIndex = 0;
     let lastDirection = null;
 
@@ -151,7 +177,11 @@ export default function OrderEditPage() {
                     .map(
                       (cat, idx) => `
                         <button
-                          class="order-modal__tab${idx === currentIndex ? " order-modal__tab--active" : ""}"
+                          class="order-modal__tab${
+                            idx === currentIndex
+                              ? " order-modal__tab--active"
+                              : ""
+                          }"
                           data-cat-index="${idx}"
                         >${cat}</button>
                       `
@@ -247,7 +277,10 @@ export default function OrderEditPage() {
     );
     const orderLine = orderLines[index];
     const selectedAdds = new Map(
-      (type === "additions" ? orderLine.additions : []).map((a) => [a.id, a.quantity])
+      (type === "additions" ? orderLine.additions : []).map((a) => [
+        a.id,
+        a.quantity,
+      ])
     );
     const selectedRems = new Set(type === "removals" ? orderLine.removals : []);
 
@@ -265,14 +298,22 @@ export default function OrderEditPage() {
                     <div class="order-modal__item">
                       <div class="order-modal__item-info">
                         <span class="order-modal__item-name">${p.name}</span>
-                        <span class="order-modal__item-price">R$ ${Number(p.price)
+                        <span class="order-modal__item-price">R$ ${Number(
+                          p.price
+                        )
                           .toFixed(2)
                           .replace(".", ",")}</span>
                       </div>
                       <div class="order-modal__qty">
-                        <button class="order-modal__qty-btn" data-act="dec" data-id="${p.id}">−</button>
-                        <span class="order-modal__qty-val" data-id="${p.id}">${qty}</span>
-                        <button class="order-modal__qty-btn" data-act="inc" data-id="${p.id}">+</button>
+                        <button class="order-modal__qty-btn" data-act="dec" data-id="${
+                          p.id
+                        }">−</button>
+                        <span class="order-modal__qty-val" data-id="${
+                          p.id
+                        }">${qty}</span>
+                        <button class="order-modal__qty-btn" data-act="inc" data-id="${
+                          p.id
+                        }">+</button>
                       </div>
                     </div>
                   </div>
@@ -304,7 +345,9 @@ export default function OrderEditPage() {
                         <span class="order-modal__item-name">${p.name}</span>
                         <span class="order-modal__item-price">&nbsp;</span>
                       </div>
-                      <button class="order-modal__toggle${on ? " is-on" : ""}" data-id="${p.id}">
+                      <button class="order-modal__toggle${
+                        on ? " is-on" : ""
+                      }" data-id="${p.id}">
                         ${on ? "Remover ✓" : "Remover"}
                       </button>
                     </div>
@@ -323,7 +366,9 @@ export default function OrderEditPage() {
 
     const modalHtml = `
       <div class="order-modal d-flex flex-column h-100">
-        <div class="order-modal__category-title">${type === "additions" ? "Adicionais" : "Remoções"}</div>
+        <div class="order-modal__category-title">${
+          type === "additions" ? "Adicionais" : "Remoções"
+        }</div>
         ${type === "additions" ? buildAdditionsGrid() : buildRemovalsGrid()}
       </div>
       <style>
@@ -360,7 +405,9 @@ export default function OrderEditPage() {
             const next = Math.max(0, curr + (act === "inc" ? 1 : -1));
             if (next === 0) selectedAdds.delete(id);
             else selectedAdds.set(id, next);
-            const valEl = root.querySelector(`.order-modal__qty-val[data-id="${id}"]`);
+            const valEl = root.querySelector(
+              `.order-modal__qty-val[data-id="${id}"]`
+            );
             if (valEl) valEl.textContent = String(next);
             return;
           }
@@ -370,7 +417,9 @@ export default function OrderEditPage() {
             if (selectedRems.has(id)) selectedRems.delete(id);
             else selectedRems.add(id);
             toggle.classList.toggle("is-on");
-            toggle.textContent = toggle.classList.contains("is-on") ? "Remover ✓" : "Remover";
+            toggle.textContent = toggle.classList.contains("is-on")
+              ? "Remover ✓"
+              : "Remover";
             return;
           }
           if (e.target.matches('[data-close="1"]')) {
@@ -379,7 +428,9 @@ export default function OrderEditPage() {
           }
           if (e.target.matches('[data-save="1"]')) {
             if (type === "additions") {
-              const arr = Array.from(selectedAdds.entries()).map(([id, quantity]) => ({ id, quantity }));
+              const arr = Array.from(selectedAdds.entries()).map(
+                ([id, quantity]) => ({ id, quantity })
+              );
               setOrderLines((lines) => {
                 const copy = [...lines];
                 copy[index].additions = arr;
@@ -400,7 +451,8 @@ export default function OrderEditPage() {
     });
   };
 
-  const removeLine = (i) => setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
+  const removeLine = (i) =>
+    setOrderLines((lines) => lines.filter((_, idx) => idx !== i));
   const updateLine = (i, field, v) =>
     setOrderLines((lines) => {
       const copy = [...lines];
@@ -408,8 +460,17 @@ export default function OrderEditPage() {
       return copy;
     });
 
-  const money = (n) => `R$ ${Number(n || 0).toFixed(2).replace(".", ",")}`;
-  const ADD_TYPES = new Set(["addition", "combo", "extra", "adicional", "upgrade"]);
+  const money = (n) =>
+    `R$ ${Number(n || 0)
+      .toFixed(2)
+      .replace(".", ",")}`;
+  const ADD_TYPES = new Set([
+    "addition",
+    "combo",
+    "extra",
+    "adicional",
+    "upgrade",
+  ]);
   const findProductById = (id) => products.find((p) => p.id === id);
   const getModifierDisplayName = (m) => {
     const byId = findProductById(m.modifier_id);
@@ -431,7 +492,11 @@ export default function OrderEditPage() {
     const baseUnit = Number(it.item?.price ?? it.price ?? 0);
     const modifiers = Array.isArray(it.modifiers) ? it.modifiers : [];
     const additions = modifiers.filter((m) =>
-      ADD_TYPES.has(String(m.type || "").toLowerCase().trim())
+      ADD_TYPES.has(
+        String(m.type || "")
+          .toLowerCase()
+          .trim()
+      )
     );
     const addPerUnit = additions.reduce((acc, m) => {
       const unit = getModifierUnitPrice(m);
@@ -442,7 +507,9 @@ export default function OrderEditPage() {
     return { qty, additions, lineSubtotal };
   };
   const mapPaymentStatus = (raw) => {
-    const s = String(raw || "").toLowerCase().trim();
+    const s = String(raw || "")
+      .toLowerCase()
+      .trim();
     if (["pending", "pedding"].includes(s)) return "Pendente";
     if (s === "paid") return "Pago";
     if (s === "previsto") return "Previsto";
@@ -458,15 +525,27 @@ export default function OrderEditPage() {
     const CONTENT_MM = 70;
     const FONT_PT = 18;
     const BIG_PT = 28;
-    const mapFulfillment = { "dine-in": "LOCAL", "take-away": "LEVAR", delivery: "DELIVERY" };
-    const mapOrigin = { Balcão: "Balcão", WhatsApp: "WhatsApp", Telefone: "Telefone", App: "Aplicativo" };
-    const numero = String(order.order_number || "").padStart(4, "0");
+    const mapFulfillment = {
+      "dine-in": "LOCAL",
+      "take-away": "LEVAR",
+      delivery: "DELIVERY",
+    };
+    const printId = order?.id ?? order?.order_id ?? Number(orderId);
+    const mapOrigin = {
+      Balcão: "Balcão",
+      WhatsApp: "WhatsApp",
+      Telefone: "Telefone",
+      App: "Aplicativo",
+    };
     const dataHora = order.order_datetime
-      ? new Date(order.order_datetime).toLocaleString("pt-BR", { hour12: false })
+      ? new Date(order.order_datetime).toLocaleString("pt-BR", {
+          hour12: false,
+        })
       : new Date().toLocaleString("pt-BR", { hour12: false });
     const cliente = order.customer_name || "-";
     const origem = mapOrigin[order.origin] || order.origin || "-";
-    const consumo = mapFulfillment[order.fulfillment] || order.fulfillment || "-";
+    const consumo =
+      mapFulfillment[order.fulfillment] || order.fulfillment || "-";
     const metodo = order.payment_method || "-";
     const statusPag = mapPaymentStatus(order.payment_status);
     const obs = order.notes || "";
@@ -476,7 +555,9 @@ export default function OrderEditPage() {
 
     const itemRows = items
       .map((it, idx) => {
-        const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+        const name = (it.item?.name || it.name || "")
+          .replace("(Combo)", "")
+          .trim();
         const { qty, additions, lineSubtotal } = calcItemLine(it);
         const addRows = additions
           .map((m) => {
@@ -493,7 +574,12 @@ export default function OrderEditPage() {
           })
           .join("");
         const removalRows = (Array.isArray(it.modifiers) ? it.modifiers : [])
-          .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
+          .filter(
+            (m) =>
+              String(m.type || "")
+                .toLowerCase()
+                .trim() === "removal"
+          )
           .map((m) => {
             const mName = getModifierDisplayName(m);
             return `
@@ -515,7 +601,10 @@ export default function OrderEditPage() {
       })
       .join("");
 
-    const grandTotal = items.reduce((acc, it) => acc + calcItemLine(it).lineSubtotal, 0);
+    const grandTotal = items.reduce(
+      (acc, it) => acc + calcItemLine(it).lineSubtotal,
+      0
+    );
 
     const w = window.open("", "", "width=520,height=800");
     w.document.write(`
@@ -551,23 +640,37 @@ export default function OrderEditPage() {
         <body>
           <div class="wrap base">
             ${estab ? `<div class="center small">${estab}</div>` : ""}
-            <div class="center small">EXPEDIÇÃO</div>
-            <div class="center" style="margin:6px 0 8px;"><span class="bigcode">${numero}</span></div>
-            ${access ? `<div class="row"><div class="l"><span class="label">Código</span></div><div class="r">${access}</div></div>` : ""}
+           <div class="center" style="margin:6px 0 8px;">
+  <span class="bigcode">${printId}</span>
+</div>
+            <div class="center" style="margin:6px 0 8px;"><span class="bigcode">${order.id}</span></div>
+            ${
+              access
+                ? `<div class="row"><div class="l"><span class="label">Código</span></div><div class="r">${access}</div></div>`
+                : ""
+            }
             <div class="sep"></div>
             <div class="row"><div class="l"><span class="label">Data</span></div><div class="r">${dataHora}</div></div>
             <div class="row"><div class="l"><span class="label">Cliente</span></div><div class="r">${cliente}</div></div>
             <div class="row"><div class="l"><span class="label">Origem</span></div><div class="r">${origem}</div></div>
             <div class="row"><div class="l"><span class="label">Consumo</span></div><div class="r">${consumo}</div></div>
             <div class="sep"></div>
-            <div class="center"><span class="label">ITENS DO PEDIDO (${items.length})</span></div>
+            <div class="center"><span class="label">ITENS DO PEDIDO (${
+              items.length
+            })</span></div>
             ${itemRows}
             <div class="sep"></div>
             <div class="row"><div class="l"><span class="label">Pagamento</span></div><div class="r">${metodo}</div></div>
             <div class="row"><div class="l"><span class="label">Status</span></div><div class="r">${statusPag}</div></div>
-            ${obs ? `<div class="sep"></div><div><span class="label">Obs.:</span> ${obs}</div>` : ""}
+            ${
+              obs
+                ? `<div class="sep"></div><div><span class="label">Obs.:</span> ${obs}</div>`
+                : ""
+            }
             <div class="sep"></div>
-            <div class="row total leader"><div class="l">Total</div><div class="r">${money(grandTotal)}</div></div>
+            <div class="row total leader"><div class="l">Total</div><div class="r">${money(
+              grandTotal
+            )}</div></div>
           </div>
           <script>
             window.onload = function () {
@@ -581,72 +684,77 @@ export default function OrderEditPage() {
     w.document.close();
     w.focus();
   };
+// SUBSTITUIR TUDO por esta função
+const buildTextReceipt = (order) => {
+  // largura fixa da impressora (ajuste se preciso)
+  const WIDTH = 32;
 
-  const buildTextReceipt = (order) => {
-    const WIDTH = 36;
-    const center = (t) => t.padStart(Math.floor((WIDTH + t.length) / 2)).padEnd(WIDTH);
-    const line = (c = "-") => c.repeat(WIDTH);
-    const fmt = (n) => `R$ ${Number(n || 0).toFixed(2).replace(".", ",")}`;
-
-    const dt = order.order_datetime ? new Date(order.order_datetime) : new Date();
-    const consLabel = (fulfillmentLabels[order.fulfillment] || order.fulfillment || "").toString().toUpperCase();
-    const origLabel = (originLabels[order.origin] || order.origin || "").toString().toUpperCase();
-
-    const L = [];
-    L.push(center(estName || order.establishment_name || ""));
-    L.push(center("EXPEDIÇÃO"));
-    L.push(center(String(order.order_number || "").padStart(4, "0")));
-    L.push(line());
-    L.push(`Data: ${dt.toLocaleString("pt-BR", { hour12: false })}`);
-    L.push(`Cliente: ${order.customer_name || "-"}`);
-    L.push(`Origem: ${origLabel}`);
-    L.push(`Consumo: ${consLabel}`);
-    L.push(line());
-    L.push(center("ITENS DO PEDIDO"));
-
-    let grand = 0;
-
-    (order.items || []).forEach((it, idx) => {
-      const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
-      const { qty, additions, lineSubtotal } = calcItemLine(it);
-      grand += lineSubtotal;
-      L.push(line("."));
-      L.push(`#${idx + 1}  x${qty} ${name}`);
-      L.push(`Subtotal${".".repeat(Math.max(1, WIDTH - 8 - fmt(lineSubtotal).length))}${fmt(lineSubtotal)}`);
-
-      additions.forEach((m) => {
-        const mName = getModifierDisplayName(m);
-        const unit = getModifierUnitPrice(m);
-        const qpu = Number(m.quantity || 1);
-        const totalAdd = unit * qpu * qty;
-        grand += 0; // já incluso no lineSubtotal (calcItemLine soma por unidade)
-        L.push(`  + ${mName} x${qpu} (cada)${".".repeat(Math.max(1, WIDTH - (6 + mName.length + 8)))}${fmt(totalAdd)}`);
-      });
-
-      (Array.isArray(it.modifiers) ? it.modifiers : [])
-        .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
-        .forEach((m) => {
-          const mName = getModifierDisplayName(m);
-          L.push(`  - sem ${mName}`);
-        });
-    });
-
-    L.push(line());
-    L.push(`TOTAL${".".repeat(Math.max(1, WIDTH - 5 - fmt(grand).length))}${fmt(grand)}`);
-    if (order.payment_method) L.push(`Pagamento: ${order.payment_method}`);
-    if (order.payment_status) L.push(`Status: ${mapPaymentStatus(order.payment_status)}`);
-    if (order.notes) {
-      L.push(line());
-      L.push(`Obs.: ${order.notes}`);
-    }
-    L.push("");
-    return L.join("\n");
+  const line = (c = "─") => c.repeat(WIDTH);
+  const center = (t = "") =>
+    t.trim().padStart(Math.floor((WIDTH + t.length) / 2)).padEnd(WIDTH);
+  const fmt = (n) =>
+    `R$ ${Number(n || 0).toFixed(2).replace(".", ",")}`;
+  const rowDots = (left, right) => {
+    const l = left.trim();
+    const r = right.trim();
+    const dots = Math.max(1, WIDTH - l.length - r.length);
+    return `${l}${".".repeat(dots)}${r}`;
   };
+
+  const dt = order.order_datetime
+    ? new Date(order.order_datetime)
+    : new Date();
+
+  const estab = (order.establishment_name || estName || "").toUpperCase();
+  const cliente = (order.customer_name || "-").toUpperCase();
+  const orig = (order.origin || "").toString().toUpperCase();
+  const cons = (order.fulfillment || "").toString().toUpperCase();
+
+  let L = [];
+
+  // Cabeçalho
+  L.push(line("─"));
+  L.push(center(estab));
+  L.push(line("─"));
+  L.push(""); // linha em branco
+
+  // Dados do cliente/consumo (sem o ID e sem "Expedição")
+  L.push(`Cliente: ${cliente}`);
+  L.push(`Origem: ${orig}`);
+  L.push(`Consumo: ${cons}`);
+
+  // Seções
+  L.push(line("-"));
+  L.push(center("ITENS DO PEDIDO"));
+  L.push(line("-"));
+
+  // Itens
+  let total = 0;
+  (order.items || []).forEach((it) => {
+    const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+    const { qty, lineSubtotal } = calcItemLine(it);
+    total += lineSubtotal;
+
+    // Ex: "1x Royale..........R$ 22,00"
+    L.push(rowDots(`${qty}x ${name}`, fmt(lineSubtotal)));
+  });
+
+  // Total
+  L.push(line("-"));
+  L.push(rowDots("TOTAL", fmt(total)));
+  L.push(""); // linha em branco
+
+  // Data no fim
+  L.push(`Data: ${dt.toLocaleString("pt-BR", { hour12: false })}`);
+
+  return L.join("\n");
+};
+
 
   const showReceiptSwal = async (order) => {
     const text = buildTextReceipt(order);
     await Swal.fire({
-      title: `Recibo #${order.order_number}`,
+      title: `Recibo #${order.id}`,
       html: `
         <div class="receipt-modal">
           <pre id="receipt-text" class="receipt-pre" style="text-align:left;max-height:50vh;overflow:auto;margin:0">${text.replace(
@@ -673,7 +781,8 @@ export default function OrderEditPage() {
           if (act === "print") {
             await handlePrint(order);
           } else if (act === "copy") {
-            const plain = document.getElementById("receipt-text")?.innerText || text;
+            const plain =
+              document.getElementById("receipt-text")?.innerText || text;
             try {
               await navigator.clipboard.writeText(plain);
               Swal.showValidationMessage("");
@@ -730,9 +839,12 @@ export default function OrderEditPage() {
       await axios.put(`${apiBaseUrl}/order/${orderId}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const { data: fetched } = await axios.get(`${apiBaseUrl}/order/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data: fetched } = await axios.get(
+        `${apiBaseUrl}/order/${orderId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       await showReceiptSwal(fetched.order);
       navigate(`/order/list/${entityId}`);
     } catch (err) {
@@ -769,6 +881,7 @@ export default function OrderEditPage() {
           <p className="order-create__establishment-name">
             <strong>{estName}</strong>
           </p>
+
           <Button
             as={Link}
             to={`/order/list/${entityId}`}
@@ -779,11 +892,27 @@ export default function OrderEditPage() {
             Ver Pedidos
           </Button>
         </div>
-        <Button variant="success" onClick={handleAddItem} className="order-create__btn-add-item">
+        <Button
+          variant="success"
+          onClick={handleAddItem}
+          className="order-create__btn-add-item"
+        >
           + Adicionar Item
         </Button>
-        <div className="order-create__total">
+        <div className="order-number">
+          <p>{form.id}</p>
           <h5>Total: {formattedTotal}</h5>
+          <div className="order-date">
+            {form.date
+              ? new Date(form.date).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : ""}
+          </div>
         </div>
         <div className="order-lines__block">
           <p className="order-lines__title">Itens do Pedido</p>
@@ -808,11 +937,15 @@ export default function OrderEditPage() {
                     size="sm"
                     variant="outline-info"
                     className="order-line__btn-minus"
-                    onClick={() => updateLine(i, "quantity", Math.max(1, line.quantity - 1))}
+                    onClick={() =>
+                      updateLine(i, "quantity", Math.max(1, line.quantity - 1))
+                    }
                   >
                     −
                   </Button>
-                  <span className="order-line__quantity-value">{line.quantity}</span>
+                  <span className="order-line__quantity-value">
+                    {line.quantity}
+                  </span>
                   <Button
                     size="sm"
                     variant="outline-info"
@@ -844,15 +977,24 @@ export default function OrderEditPage() {
                   {line.additions.map((a) => {
                     const addProduct = products.find((p) => p.id === a.id);
                     return (
-                      <Badge key={`add-${a.id}`} bg="success" className="order-line__badge-addition">
-                        + {a.quantity} {addProduct?.name} – R$ {addProduct?.price}
+                      <Badge
+                        key={`add-${a.id}`}
+                        bg="success"
+                        className="order-line__badge-addition"
+                      >
+                        + {a.quantity} {addProduct?.name} – R${" "}
+                        {addProduct?.price}
                       </Badge>
                     );
                   })}
                   {line.removals.map((rid) => {
                     const remProduct = products.find((p) => p.id === rid);
                     return (
-                      <Badge key={`rem-${rid}`} bg="danger" className="order-line__badge-removal">
+                      <Badge
+                        key={`rem-${rid}`}
+                        bg="danger"
+                        className="order-line__badge-removal"
+                      >
                         − {remProduct?.name}
                       </Badge>
                     );
@@ -865,12 +1007,17 @@ export default function OrderEditPage() {
         <Form onSubmit={handleSubmit} className="order-create__form">
           <Row className="order-create__form-row">
             <Col md={4}>
-              <Form.Group controlId="customer" className="order-create__form-group">
+              <Form.Group
+                controlId="customer"
+                className="order-create__form-group"
+              >
                 <Form.Label className="order-create__label">Cliente</Form.Label>
                 <Form.Control
                   required
                   value={form.customer_name}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, customer_name: e.target.value }))
+                  }
                   className="order-create__input"
                 />
               </Form.Group>
@@ -878,11 +1025,16 @@ export default function OrderEditPage() {
           </Row>
           <Row className="order-create__form-row">
             <Col md={2}>
-              <Form.Group controlId="origin" className="order-create__form-group">
+              <Form.Group
+                controlId="origin"
+                className="order-create__form-group"
+              >
                 <Form.Label className="order-create__label">Origem</Form.Label>
                 <Form.Select
                   value={form.origin}
-                  onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, origin: e.target.value }))
+                  }
                   className="order-create__select"
                 >
                   {Object.keys(originLabels).map((o) => (
@@ -892,11 +1044,16 @@ export default function OrderEditPage() {
               </Form.Group>
             </Col>
             <Col md={2}>
-              <Form.Group controlId="fulfillment" className="order-create__form-group">
+              <Form.Group
+                controlId="fulfillment"
+                className="order-create__form-group"
+              >
                 <Form.Label className="order-create__label">Consumo</Form.Label>
                 <Form.Select
                   value={form.fulfillment}
-                  onChange={(e) => setForm((f) => ({ ...f, fulfillment: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, fulfillment: e.target.value }))
+                  }
                   className="order-create__select"
                 >
                   {Object.entries(fulfillmentLabels).map(([v, l]) => (
@@ -908,11 +1065,18 @@ export default function OrderEditPage() {
               </Form.Group>
             </Col>
             <Col md={2}>
-              <Form.Group controlId="payment_status" className="order-create__form-group">
-                <Form.Label className="order-create__label">Status Pagamento</Form.Label >
+              <Form.Group
+                controlId="payment_status"
+                className="order-create__form-group"
+              >
+                <Form.Label className="order-create__label">
+                  Status Pagamento
+                </Form.Label>
                 <Form.Select
                   value={form.payment_status}
-                  onChange={(e) => setForm((f) => ({ ...f, payment_status: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, payment_status: e.target.value }))
+                  }
                   className="order-create__select"
                 >
                   <option value="pending">Pendente</option>
@@ -922,11 +1086,18 @@ export default function OrderEditPage() {
               </Form.Group>
             </Col>
             <Col md={2}>
-              <Form.Group controlId="payment_method" className="order-create__form-group">
-                <Form.Label className="order-create__label">Método Pagamento</Form.Label>
+              <Form.Group
+                controlId="payment_method"
+                className="order-create__form-group"
+              >
+                <Form.Label className="order-create__label">
+                  Método Pagamento
+                </Form.Label>
                 <Form.Select
                   value={form.payment_method}
-                  onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, payment_method: e.target.value }))
+                  }
                   className="order-create__select"
                 >
                   <option>Dinheiro</option>
@@ -945,13 +1116,20 @@ export default function OrderEditPage() {
           </Row>
           <Row className="order-create__form-row">
             <Col md={12}>
-              <Form.Group controlId="notes" className="order-create__form-group">
-                <Form.Label className="order-create__label">Observações</Form.Label>
+              <Form.Group
+                controlId="notes"
+                className="order-create__form-group"
+              >
+                <Form.Label className="order-create__label">
+                  Observações
+                </Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={3}
                   value={form.notes}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, notes: e.target.value }))
+                  }
                   className="order-create__textarea"
                 />
               </Form.Group>
@@ -959,8 +1137,16 @@ export default function OrderEditPage() {
           </Row>
           <Row>
             <Col className="d-flex justify-content-center">
-              <Button type="submit" className="order-create__btn-submit" disabled={submitting}>
-                {submitting ? <Spinner animation="border" size="sm" /> : "Salvar Alterações"}
+              <Button
+                type="submit"
+                className="order-create__btn-submit"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <Spinner animation="border" size="sm" />
+                ) : (
+                  "Salvar Alterações"
+                )}
               </Button>
             </Col>
           </Row>

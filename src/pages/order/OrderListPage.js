@@ -543,7 +543,7 @@ export default function OrderListPage() {
     const receiptText = receiptTextRaw.replace(/#\d+\s*[·-]?\s*/g, "");
 
     await Swal.fire({
-      title: `Recibo Pedido #${o.order_number}`,
+      title: `Recibo Pedido #${o.id}`,
       html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
       showCancelButton: true,
       cancelButtonText: "Fechar",
@@ -772,7 +772,7 @@ export default function OrderListPage() {
           <Table striped hover variant="dark" responsive className="order-table">
             <thead>
               <tr>
-                <th>#</th>
+                <th>Numero do pedido</th>
                 <th>Data / Hora</th>
                 <th>Cliente</th>
                 <th>Origem</th>
@@ -809,7 +809,7 @@ export default function OrderListPage() {
                     }
                   >
                     <td>
-                      {o.order_number}
+                      {o.id}
                       {o.forecast && (
                         <span
                           style={{
