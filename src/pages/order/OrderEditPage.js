@@ -685,10 +685,9 @@ export default function OrderEditPage() {
     w.focus();
   };
 // SUBSTITUIR TUDO por esta função
+// SUBSTITUIR buildTextReceipt por esta versão
 const buildTextReceipt = (order) => {
-  // largura fixa da impressora (ajuste se preciso)
   const WIDTH = 32;
-
   const line = (c = "─") => c.repeat(WIDTH);
   const center = (t = "") =>
     t.trim().padStart(Math.floor((WIDTH + t.length) / 2)).padEnd(WIDTH);
@@ -716,35 +715,74 @@ const buildTextReceipt = (order) => {
   L.push(line("─"));
   L.push(center(estab));
   L.push(line("─"));
-  L.push(""); // linha em branco
+  L.push("");
 
-  // Dados do cliente/consumo (sem o ID e sem "Expedição")
+  // Dados principais
   L.push(`Cliente: ${cliente}`);
   L.push(`Origem: ${orig}`);
   L.push(`Consumo: ${cons}`);
 
-  // Seções
+  // Seção itens
   L.push(line("-"));
   L.push(center("ITENS DO PEDIDO"));
   L.push(line("-"));
 
-  // Itens
   let total = 0;
+
   (order.items || []).forEach((it) => {
     const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
-    const { qty, lineSubtotal } = calcItemLine(it);
-    total += lineSubtotal;
+    const qty = Number(it.quantity || 1);
+    const unitPrice = Number(it.item?.price ?? it.price ?? 0);
 
-    // Ex: "1x Royale..........R$ 22,00"
-    L.push(rowDots(`${qty}x ${name}`, fmt(lineSubtotal)));
+    const baseSubtotal = qty * unitPrice;
+    total += baseSubtotal;
+
+    // Linha principal do item (sem adicionais)
+    L.push(rowDots(`${qty}x ${name}`, fmt(baseSubtotal)));
+
+    // Adicionais
+    const additions = (Array.isArray(it.modifiers) ? it.modifiers : []).filter(
+      (m) =>
+        ["addition", "combo", "extra", "adicional", "upgrade"].includes(
+          String(m.type || "").toLowerCase().trim()
+        )
+    );
+
+    additions.forEach((m) => {
+      const mName =
+        m.name ||
+        m.item?.name ||
+        (products.find((p) => p.id === m.modifier_id)?.name ?? "Adicional");
+      const unit = Number(
+        m.price ??
+          m.item?.price ??
+          (products.find((p) => p.id === m.modifier_id)?.price ?? 0)
+      );
+      const qpu = Number(m.quantity || 1);
+      const subtotalAdd = unit * qpu * qty;
+      total += subtotalAdd;
+      L.push(rowDots(`  + ${qpu}x ${mName}`, fmt(subtotalAdd)));
+    });
+
+    // Remoções (sem valor)
+    const removals = (Array.isArray(it.modifiers) ? it.modifiers : []).filter(
+      (m) => String(m.type || "").toLowerCase().trim() === "removal"
+    );
+    removals.forEach((m) => {
+      const mName =
+        m.name ||
+        m.item?.name ||
+        (products.find((p) => p.id === m.modifier_id)?.name ?? "Item");
+      L.push(`  - sem ${mName}`);
+    });
   });
 
-  // Total
+  // Total geral
   L.push(line("-"));
   L.push(rowDots("TOTAL", fmt(total)));
-  L.push(""); // linha em branco
+  L.push("");
 
-  // Data no fim
+  // Data final
   L.push(`Data: ${dt.toLocaleString("pt-BR", { hour12: false })}`);
 
   return L.join("\n");

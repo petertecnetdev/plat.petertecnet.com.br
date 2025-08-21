@@ -127,7 +127,7 @@ export default function OrderListPage() {
     if (typeof f.items_forecast === "string") {
       try {
         itemsArr = JSON.parse(f.items_forecast);
-      } catch (e) {
+      } catch {
         itemsArr = [];
       }
     } else {
@@ -163,6 +163,11 @@ export default function OrderListPage() {
     let startDate;
     let endDate;
     switch (mode) {
+      case "todos":
+        startDate = "1900-01-01";
+        endDate = "9999-12-31";
+        setShowForecast(false);
+        break;
       case "hoje":
         startDate = endDate = today;
         setShowForecast(false);
@@ -190,7 +195,7 @@ export default function OrderListPage() {
               endTime: "23:59",
             }));
             setQuickFilter(mode);
-          } catch (e) {
+          } catch {
             setLoadingForecast(false);
             Swal.fire("Erro", "Falha ao gerar previsão!", "error");
           }
@@ -266,7 +271,7 @@ export default function OrderListPage() {
           },
         });
         fetchedOrders = Array.isArray(res.data.orders) ? res.data.orders : [];
-      } catch (e) {
+      } catch {
         fetchedOrders = [];
       }
       const [estRes, itemRes] = await Promise.allSettled([
@@ -294,10 +299,10 @@ export default function OrderListPage() {
     };
   }, [entityId]);
 
-  // ===== Helpers e cálculos (padrão Create/Edit) =====
   const money = (n) => `R$ ${Number(n || 0).toFixed(2).replace(".", ",")}`;
 
-  const ADD_TYPES = new Set(["addition", "combo", "extra", "adicional", "upgrade"]);
+  const ADD_TYPES = new Set(["addition", "extra", "adicional", "upgrade", "combo"]);
+  const LINE_TYPES = new Set(["combo"]);
 
   const findProductById = (id) => products.find((p) => p.id === id);
 
@@ -305,7 +310,10 @@ export default function OrderListPage() {
     const byId = findProductById(m.modifier_id);
     const viaItem = m.item?.name;
     const raw = m.name;
-    return String(raw || viaItem || byId?.name || "Adicional").trim();
+    const fallback =
+      (String(m.type || "").toLowerCase().trim() === "combo" && "Combo") ||
+      "Adicional";
+    return String(raw || viaItem || byId?.name || fallback).trim();
   };
 
   const getModifierUnitPrice = (m) => {
@@ -325,13 +333,30 @@ export default function OrderListPage() {
     const additions = modifiers.filter((m) =>
       ADD_TYPES.has(String(m.type || "").toLowerCase().trim())
     );
-    const addPerUnit = additions.reduce((acc, m) => {
+
+    const perUnit = additions.filter(
+      (m) => !LINE_TYPES.has(String(m.type || "").toLowerCase().trim())
+    );
+    const perLine = additions.filter((m) =>
+      LINE_TYPES.has(String(m.type || "").toLowerCase().trim())
+    );
+
+    const addPerUnit = perUnit.reduce((acc, m) => {
       const unit = getModifierUnitPrice(m);
       const qpu = Number(m.quantity || 1);
       return acc + unit * qpu;
     }, 0);
-    const lineSubtotal = qty * (baseUnit + addPerUnit);
-    return { qty, additions, lineSubtotal };
+
+    const addPerLineTotal = perLine.reduce((acc, m) => {
+      const unit = getModifierUnitPrice(m);
+      const ql = Number(m.quantity || 1);
+      return acc + unit * ql;
+    }, 0);
+
+    const basePart = qty * (baseUnit + addPerUnit);
+    const lineSubtotal = basePart + addPerLineTotal;
+
+    return { qty, perUnit, perLine, lineSubtotal };
   };
 
   const mapPaymentStatus = (raw) => {
@@ -352,7 +377,6 @@ export default function OrderListPage() {
     return arr.reduce((acc, it) => acc + calcItemLine(it).lineSubtotal, 0);
   };
 
-  // ===== Impressão (HTML) e Texto para copiar (padrão Create/Edit) =====
   const buildTicketHtml = (order, estNameFromState) => {
     const PAPER_MM = 80;
     const CONTENT_MM = 70;
@@ -370,47 +394,73 @@ export default function OrderListPage() {
     const metodo = order.payment_method || "-";
     const statusPag = mapPaymentStatus(order.payment_status);
     const obs = order.notes || "";
-    const access = order.access_code || "";
+       const access = order.access_code || "";
     const estab = estNameFromState || order.establishment_name || "";
     const items = Array.isArray(order.items) ? order.items : [];
 
-    const itemRows = items.map((it, idx) => {
-      const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
-      const { qty, additions, lineSubtotal } = calcItemLine(it);
-      const addRows = additions.map((m) => {
-        const mName = getModifierDisplayName(m);
-        const unit = getModifierUnitPrice(m);
-        const qpu = Number(m.quantity || 1);
-        const totalAdd = unit * qpu * qty;
-        return `
+    const itemRows = items
+      .map((it, idx) => {
+        const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+        const { qty, perUnit, perLine, lineSubtotal } = calcItemLine(it);
+
+        const perUnitRows = perUnit
+          .map((m) => {
+            const mName = getModifierDisplayName(m);
+            const unit = getModifierUnitPrice(m);
+            const qpu = Number(m.quantity || 1);
+            const totalAdd = unit * qpu * qty;
+            return `
           <div class="row leader add">
-            <div class="l">+ ${mName} x${qpu} (cada)</div>
+            <div class="l">+ ${qpu}x ${mName} (cada)</div>
             <div class="r">${money(totalAdd)}</div>
           </div>
         `;
-      }).join("");
+          })
+          .join("");
 
-      const removalRows = (Array.isArray(it.modifiers) ? it.modifiers : [])
-        .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
-        .map((m) => {
-          const mName = getModifierDisplayName(m);
-          return `
+        const perLineRows = perLine
+          .map((m) => {
+            const mName = getModifierDisplayName(m);
+            const totalAdd = getModifierUnitPrice(m) * Number(m.quantity || 1);
+            return `
+          <div class="row leader add">
+            <div class="l">+ ${mName}</div>
+            <div class="r">${money(totalAdd)}</div>
+          </div>
+        `;
+          })
+          .join("");
+
+        const removalRows = (Array.isArray(it.modifiers) ? it.modifiers : [])
+          .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
+          .map((m) => {
+            const mName = getModifierDisplayName(m);
+            return `
             <div class="row sub note">
               <div class="l">- sem ${mName}</div>
               <div class="r"></div>
             </div>
           `;
-        }).join("");
+          })
+          .join("");
 
-      return `
+        return `
         <div class="row leader item">
           <div class="l">#${idx + 1} · x${qty} ${name}</div>
-          <div class="r">${money(lineSubtotal)}</div>
+          <div class="r">${money(
+            lineSubtotal -
+              perLine.reduce(
+                (a, m) => a + getModifierUnitPrice(m) * Number(m.quantity || 1),
+                0
+              )
+          )}</div>
         </div>
-        ${addRows}
+        ${perUnitRows}
+        ${perLineRows}
         ${removalRows}
       `;
-    }).join("");
+      })
+      .join("");
 
     const grandTotal = items.reduce((acc, it) => acc + calcItemLine(it).lineSubtotal, 0);
 
@@ -505,17 +555,31 @@ export default function OrderListPage() {
     L.push(line());
 
     let totalRec = 0;
-    (order.items || []).forEach((it, idx) => {
+    (order.items || []).forEach((it) => {
       const name = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
-      const { qty, additions, lineSubtotal } = calcItemLine(it);
+      const { qty, perUnit, perLine, lineSubtotal } = calcItemLine(it);
+
+      const perLineTotal = perLine.reduce(
+        (acc, m) => acc + getModifierUnitPrice(m) * Number(m.quantity || 1),
+        0
+      );
+      const visibleLine = lineSubtotal - perLineTotal;
+
       totalRec += lineSubtotal;
-      L.push(pad(`#${idx + 1} · ${qty}x ${name}`, fmt(lineSubtotal)));
-      additions.forEach((m) => {
+      L.push(pad(`${qty}x ${name}`, fmt(visibleLine)));
+
+      perUnit.forEach((m) => {
         const addUnit = getModifierUnitPrice(m);
         const addQty = Number(m.quantity || 1);
         const addSub = addUnit * addQty * qty;
         L.push(pad(`  + ${addQty}x ${getModifierDisplayName(m)} (cada)`, fmt(addSub)));
       });
+
+      perLine.forEach((m) => {
+        const addSub = getModifierUnitPrice(m) * Number(m.quantity || 1);
+        L.push(pad(`  + ${getModifierDisplayName(m)}`, fmt(addSub)));
+      });
+
       (Array.isArray(it.modifiers) ? it.modifiers : [])
         .filter((m) => String(m.type || "").toLowerCase().trim() === "removal")
         .forEach((m) => {
@@ -533,73 +597,71 @@ export default function OrderListPage() {
     return L.join("\n");
   };
 
-  // ===== SweetAlert Reprint (Imprimir + Copiar) =====
   const handleReprint = async (id) => {
-  try {
-    const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
-    const o = data.order || {};
+    try {
+      const { data } = await axios.get(`${apiBaseUrl}/order/${id}`);
+      const o = data.order || {};
 
-    const receiptTextRaw = buildReceiptText(o, estName, originLabels, fulfillmentLabels);
-    const receiptText = receiptTextRaw.replace(/#\d+\s*[·-]?\s*/g, "");
+      const receiptTextRaw = buildReceiptText(o, estName, originLabels, fulfillmentLabels);
+      const receiptText = receiptTextRaw.replace(/#\d+\s*[·-]?\s*/g, "");
 
-    await Swal.fire({
-      title: `Recibo Pedido #${o.id}`,
-      html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
-      showCancelButton: true,
-      cancelButtonText: "Fechar",
-      showDenyButton: true,
-      confirmButtonText: "Imprimir",
-      denyButtonText: "Copiar",
-      width: "800px",
-      background: "#0b0b0b",
-      color: "#fff",
-      customClass: {
-        popup: "order-modal__swal-centered",
-        confirmButton: "order-modal__swal-btn",
-        denyButton: "order-modal__swal-btn-secondary",
-        cancelButton: "order-modal__swal-btn-cancel",
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const htmlRaw = buildTicketHtml(o, estName);
-        const html = htmlRaw.replace(/#\d+\s*·\s*/g, "");
-        const w = window.open("", "", "width=520,height=800");
-        w.document.write(html);
-        w.document.close();
-        w.focus();
-      } else if (result.isDenied) {
-        navigator.clipboard
-          .writeText(receiptText)
-          .then(() => {
-            Swal.fire({
-              icon: "success",
-              title: "Copiado!",
-              text: "O recibo foi copiado para a área de transferência.",
-              confirmButtonText: "OK",
-              background: "#0b0b0b",
-              color: "#fff",
-              customClass: { confirmButton: "order-modal__swal-btn" },
+      await Swal.fire({
+        title: `Recibo Pedido #${o.id}`,
+        html: `<pre style="text-align:left;white-space:pre-wrap;margin:0">${receiptText}</pre>`,
+        showCancelButton: true,
+        cancelButtonText: "Fechar",
+        showDenyButton: true,
+        confirmButtonText: "Imprimir",
+        denyButtonText: "Copiar",
+        width: "800px",
+        background: "#0b0b0b",
+        color: "#fff",
+        customClass: {
+          popup: "order-modal__swal-centered",
+          confirmButton: "order-modal__swal-btn",
+          denyButton: "order-modal__swal-btn-secondary",
+          cancelButton: "order-modal__swal-btn-cancel",
+        },
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const htmlRaw = buildTicketHtml(o, estName);
+          const html = htmlRaw.replace(/#\d+\s*·\s*/g, "");
+          const w = window.open("", "", "width=520,height=800");
+          w.document.write(html);
+          w.document.close();
+          w.focus();
+        } else if (result.isDenied) {
+          navigator.clipboard
+            .writeText(receiptText)
+            .then(() => {
+              Swal.fire({
+                icon: "success",
+                title: "Copiado!",
+                text: "O recibo foi copiado para a área de transferência.",
+                confirmButtonText: "OK",
+                background: "#0b0b0b",
+                color: "#fff",
+                customClass: { confirmButton: "order-modal__swal-btn" },
+              });
+            })
+            .catch(() => {
+              Swal.fire({
+                icon: "error",
+                title: "Falha ao copiar",
+                text: "Não foi possível copiar o recibo.",
+                confirmButtonText: "OK",
+                background: "#0b0b0b",
+                color: "#fff",
+                customClass: { confirmButton: "order-modal__swal-btn" },
+              });
             });
-          })
-          .catch(() => {
-            Swal.fire({
-              icon: "error",
-              title: "Falha ao copiar",
-              text: "Não foi possível copiar o recibo.",
-              confirmButtonText: "OK",
-              background: "#0b0b0b",
-              color: "#fff",
-              customClass: { confirmButton: "order-modal__swal-btn" },
-            });
-          });
-      }
-    });
-  } catch (e) {
-    Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
-  }
-};
+        }
+      });
+    } catch {
+      Swal.fire("Erro", "Não foi possível reimprimir a nota.", "error");
+    }
+  };
 
-  // ===== Filtros / lista =====
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const dtt = new Date(o.order_datetime);
@@ -635,9 +697,7 @@ export default function OrderListPage() {
     });
   }, [orders, filters]);
 
-  const ordersToShow = showForecast
-    ? forecastOrders.map(parseForecast)
-    : filteredOrders;
+  const ordersToShow = showForecast ? forecastOrders.map(parseForecast) : filteredOrders;
 
   const summary = useMemo(() => {
     const totalOrders = ordersToShow.length;
@@ -702,6 +762,7 @@ export default function OrderListPage() {
           <Col>
             <ButtonGroup className="order-list__quickfilter-group flex-wrap">
               {[
+                ["todos", "Todos"],
                 ["ontem", "Ontem"],
                 ["hoje", "Hoje"],
                 ["previsao", "Previsão do Dia"],
@@ -761,10 +822,201 @@ export default function OrderListPage() {
 
         <Card className="mb-4 order-lines__block bg-dark">
           <Card.Header className="order-lines__title">
+            <strong>Resumo Estatístico</strong>
+          </Card.Header>
+          <Card.Body className="p-3 text-light">
+            {(() => {
+              if (ordersToShow.length === 0) {
+                return <div>Nenhum pedido para calcular métricas.</div>;
+              }
+              const itemCount = {};
+              ordersToShow.forEach((o) => {
+                (o.items || []).forEach((it) => {
+                  const baseName = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
+                  itemCount[baseName] = (itemCount[baseName] || 0) + Number(it.quantity || 1);
+                });
+              });
+              const mostSold = Object.entries(itemCount).sort((a, b) => b[1] - a[1])[0];
+              const richestOrder = ordersToShow.reduce(
+                (max, o) => {
+                  const total = computeTotal(o);
+                  return total > max.total ? { id: o.id, total } : max;
+                },
+                { id: null, total: 0 }
+              );
+              const ticketMedio =
+                summary.totalOrders > 0 ? summary.totalValue / summary.totalOrders : 0;
+              return (
+                <Row className="gy-3">
+                  <Col xs={12} md={4}>
+                    <div><strong>🍔 Item mais vendido:</strong></div>
+                    <div className="fs-5 fw-bold text-warning">
+                      {mostSold ? `${mostSold[0]} (${mostSold[1]}x)` : "—"}
+                    </div>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <div><strong>💰 Pedido maior valor:</strong></div>
+                    <div className="fs-5 fw-bold text-warning">
+                      {richestOrder.id
+                        ? `#${richestOrder.id} — ${money(richestOrder.total)}`
+                        : "—"}
+                    </div>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <div><strong>📊 Ticket médio:</strong></div>
+                    <div className="fs-5 fw-bold text-warning">
+                      {money(ticketMedio)}
+                    </div>
+                  </Col>
+                </Row>
+              );
+            })()}
+          </Card.Body>
+        </Card>
+
+        <Card className="mb-4 order-lines__block bg-dark">
+          <Card.Header className="order-lines__title">
             <strong>Filtros</strong>
           </Card.Header>
-          <Card.Body className="order-list__filters-form p-3">
-            <Form />
+          <Card.Body className="order-list__filters-form p-3 text-light">
+            <Row className="gy-2">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Data início</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, startDate: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Hora início</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={filters.startTime}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, startTime: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Data final</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, endDate: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Hora final</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={filters.endTime}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, endTime: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Cliente</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={filters.customer}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, customer: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Origem</Form.Label>
+                  <Form.Select
+                    value={filters.origin}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, origin: e.target.value }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {Object.entries(originLabels).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Consumo</Form.Label>
+                  <Form.Select
+                    value={filters.fulfillment}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, fulfillment: e.target.value }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {Object.entries(fulfillmentLabels).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Status Pagamento</Form.Label>
+                  <Form.Select
+                    value={filters.payment_status}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, payment_status: e.target.value }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    <option value="pending">Pendente</option>
+                    <option value="paid">Pago</option>
+                    <option value="previsto">Previsto</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Método Pagamento</Form.Label>
+                  <Form.Select
+                    value={filters.payment_method}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, payment_method: e.target.value }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {Object.entries(paymentMethodLabels).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Item</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={filters.item}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, item: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
 
