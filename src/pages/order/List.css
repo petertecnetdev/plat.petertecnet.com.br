@@ -1,0 +1,168 @@
+/* List.css */
+
+.order-list__container {
+  padding: 20px;
+  background-color: #121212;
+  min-height: 100vh;
+  color: #fff;
+}
+
+.order-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+.order-list__logo {
+  max-height: 50px;
+  max-width: 100px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+}
+
+.order-list__establishment-name {
+  font-size: 1.25rem;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.order-list__btn-new {
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.order-list__quickfilter-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.order-list__quickfilter-group button {
+  min-width: 80px;
+}
+
+.order-list__loading {
+  min-height: 50vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.order-list__spinner {
+  width: 4rem;
+  height: 4rem;
+}
+
+.order-lines__block {
+  margin-bottom: 20px;
+}
+
+.order-lines__block .card {
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.order-lines__block .card-body {
+  padding: 0.75rem 0.5rem;
+}
+
+.order-lines__title {
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: #1f1f1f;
+  color: #fff;
+  border-bottom: 1px solid #333;
+}
+
+.order-modal__swal-centered {
+  text-align: center;
+  background-color: #0b0b0b !important;
+  color: #fff !important;
+}
+
+.order-modal__swal-btn,
+.order-modal__swal-btn-secondary,
+.order-modal__swal-btn-cancel {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+.order-modal__swal-btn {
+  background-color: #198754 !important;
+  color: #fff !important;
+}
+
+.order-modal__swal-btn-secondary {
+  background-color: #6c757d !important;
+  color: #fff !important;
+}
+
+.order-modal__swal-btn-cancel {
+  background-color: #dc3545 !important;
+  color: #fff !important;
+}
+
+/* Table styling for orders */
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.order-table th,
+.order-table td {
+  padding: 8px 6px;
+  border: 1px solid #333;
+  text-align: left;
+  vertical-align: middle;
+  color: #fff;
+}
+
+.order-table th {
+  background-color: #1f1f1f;
+}
+
+.order-table tr:nth-child(even) {
+  background-color: #1a1a1a;
+}
+
+.order-table tr:hover {
+  background-color: #2a2a2a;
+}
+
+/* Badge styling */
+.order-badge {
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .order-list__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .order-list__establishment-name {
+    text-align: center;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .order-list__btn-new {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .order-lines__block .card-body {
+    padding: 0.5rem 0.25rem;
+  }
+}

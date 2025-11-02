@@ -933,3 +933,131 @@
   color: #ffd700;
   margin: 0;
 }
+
+
+
+/* src/pages/order/Order.css */
+
+.order-list__container {
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.order-list__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.order-list__spinner {
+  width: 4rem;
+  height: 4rem;
+}
+
+.order-list__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.order-list__logo {
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.order-list__establishment-name {
+  flex-grow: 1;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.order-list__btn-new {
+  flex-shrink: 0;
+}
+
+.order-list__quickfilter-group {
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.order-lines__block {
+  margin-bottom: 1rem;
+}
+
+.order-lines__block .card {
+  border-radius: 0.35rem;
+}
+
+.order-lines__title {
+  background-color: #222 !important;
+  color: #fff;
+  font-weight: 600;
+}
+
+.order-lines__block .card-body {
+  padding: 0.75rem;
+}
+
+.order-lines__block .fs-5 {
+  font-size: 1.25rem !important;
+}
+
+.order-modal__swal-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-modal__swal-btn,
+.order-modal__swal-btn-secondary,
+.order-modal__swal-btn-cancel {
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.order-modal__swal-btn {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.order-modal__swal-btn-secondary {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.order-modal__swal-btn-cancel {
+  background-color: #343a40;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .order-list__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .order-list__establishment-name {
+    font-size: 1rem;
+    margin-top: 0.25rem;
+  }
+
+  .order-list__btn-new {
+    width: 100%;
+  }
+
+  .order-list__quickfilter-group {
+    flex-wrap: wrap;
+  }
+
+  .order-lines__block .card-body {
+    font-size: 0.9rem;
+  }
+}

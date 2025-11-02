@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom"; 
 import {
   Container,
   Row,
@@ -11,12 +11,13 @@ import {
   Form,
   Badge,
   ButtonGroup,
+  Collapse
 } from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import { apiBaseUrl, storageUrl } from "../../config";
-import "./Order.css";
+import "./List.css";
 
 function getFirstDayOfLastMonth(dt) {
   return new Date(dt.getFullYear(), dt.getMonth() - 1, 1);
@@ -24,6 +25,7 @@ function getFirstDayOfLastMonth(dt) {
 function getLastDayOfLastMonth(dt) {
   return new Date(dt.getFullYear(), dt.getMonth(), 0);
 }
+
 function getMonday(d) {
   const n = new Date(d);
   const day = n.getDay();
@@ -37,7 +39,7 @@ export default function OrderListPage() {
   const today = todayObj.toLocaleDateString("en-CA", {
     timeZone: "America/Sao_Paulo",
   });
-
+ const [open, setOpen] = useState(false);
   const dt = new Date();
   const ont = new Date(dt);
   ont.setDate(dt.getDate() - 1);
@@ -728,6 +730,56 @@ export default function OrderListPage() {
       </Container>
     );
   }
+  const weekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+const getWeekButtons = () => {
+  const today = new Date();
+  const buttons = [];
+  const diasPassados = 5; // quantos dias atrás você quer mostrar
+
+  for (let i = 1; i <= diasPassados; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const labelDay = weekdays[d.getDay()];
+    const labelDate = `${String(d.getDate()).padStart(2, "0")}/${String(
+      d.getMonth() + 1
+    ).padStart(2, "0")}`;
+    const dateISO = d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    buttons.push({ label: `${labelDay} (${labelDate})`, date: dateISO });
+  }
+
+  return buttons;
+};
+
+
+const handleFilterByDay = (date) => {
+  setQuickFilter(""); // limpa quick filter
+  setFilters((f) => ({
+    ...f,
+    startDate: date,
+    endDate: date,
+    startTime: "00:00",
+    endTime: "23:59",
+  }));
+};
+
+// No JSX, logo abaixo do ButtonGroup de filtros rápidos
+<Row className="mb-3">
+  <Col>
+    <ButtonGroup className="order-list__quickfilter-group flex-wrap">
+      {getWeekButtons().map((b) => (
+        <Button
+          key={b.date}
+          variant={filters.startDate === b.date ? "warning" : "secondary"}
+          size="sm"
+          onClick={() => handleFilterByDay(b.date)}
+        >
+          {b.label}
+        </Button>
+      ))}
+    </ButtonGroup>
+  </Col>
+</Row>
 
   return (
     <>
@@ -780,6 +832,18 @@ export default function OrderListPage() {
                 </Button>
               ))}
             </ButtonGroup>
+              <ButtonGroup className="order-list__quickfilter-group flex-wrap">
+      {getWeekButtons().map((b) => (
+        <Button
+          key={b.date}
+          variant={filters.startDate === b.date ? "warning" : "secondary"}
+          size="sm"
+          onClick={() => handleFilterByDay(b.date)}
+        >
+          {b.label}
+        </Button>
+      ))}
+    </ButtonGroup>
           </Col>
         </Row>
 
@@ -821,204 +885,195 @@ export default function OrderListPage() {
         </Row>
 
         <Card className="mb-4 order-lines__block bg-dark">
-          <Card.Header className="order-lines__title">
+          <Card.Header className="order-lines__title text-white">
             <strong>Resumo Estatístico</strong>
           </Card.Header>
           <Card.Body className="p-3 text-light">
-            {(() => {
-              if (ordersToShow.length === 0) {
-                return <div>Nenhum pedido para calcular métricas.</div>;
-              }
-              const itemCount = {};
-              ordersToShow.forEach((o) => {
-                (o.items || []).forEach((it) => {
-                  const baseName = (it.item?.name || it.name || "").replace("(Combo)", "").trim();
-                  itemCount[baseName] = (itemCount[baseName] || 0) + Number(it.quantity || 1);
-                });
-              });
-              const mostSold = Object.entries(itemCount).sort((a, b) => b[1] - a[1])[0];
-              const richestOrder = ordersToShow.reduce(
-                (max, o) => {
-                  const total = computeTotal(o);
-                  return total > max.total ? { id: o.id, total } : max;
-                },
-                { id: null, total: 0 }
-              );
-              const ticketMedio =
-                summary.totalOrders > 0 ? summary.totalValue / summary.totalOrders : 0;
-              return (
-                <Row className="gy-3">
-                  <Col xs={12} md={4}>
-                    <div><strong>🍔 Item mais vendido:</strong></div>
-                    <div className="fs-5 fw-bold text-warning">
-                      {mostSold ? `${mostSold[0]} (${mostSold[1]}x)` : "—"}
-                    </div>
-                  </Col>
-                  <Col xs={12} md={4}>
-                    <div><strong>💰 Pedido maior valor:</strong></div>
-                    <div className="fs-5 fw-bold text-warning">
-                      {richestOrder.id
-                        ? `#${richestOrder.id} — ${money(richestOrder.total)}`
-                        : "—"}
-                    </div>
-                  </Col>
-                  <Col xs={12} md={4}>
-                    <div><strong>📊 Ticket médio:</strong></div>
-                    <div className="fs-5 fw-bold text-warning">
-                      {money(ticketMedio)}
-                    </div>
-                  </Col>
-                </Row>
-              );
-            })()}
-          </Card.Body>
+  {ordersToShow.length === 0 ? (
+    <div className="text-center">Nenhum pedido encontrado.</div>
+  ) : (
+    ordersToShow.map((o) => (
+      <Card key={o.id} bg="secondary" text="light" className="mb-2">
+        <Card.Body className="p-2 d-flex justify-content-between align-items-center">
+          <div>
+            <strong>Pedido #{o.order_number}</strong> - {o.customer_name || "-"}
+          </div>
+          <div>
+            <Button
+              size="sm"
+              variant="warning"
+              className="me-2"
+              onClick={() => handleReprint(o.id)}
+            >
+              Reimprimir
+            </Button>
+          </div>
+        </Card.Body>
+      </Card>
+    ))
+  )}
+</Card.Body>
+
         </Card>
 
-        <Card className="mb-4 order-lines__block bg-dark">
-          <Card.Header className="order-lines__title">
-            <strong>Filtros</strong>
-          </Card.Header>
-          <Card.Body className="order-list__filters-form p-3 text-light">
-            <Row className="gy-2">
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Data início</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, startDate: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Hora início</Form.Label>
-                  <Form.Control
-                    type="time"
-                    value={filters.startTime}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, startTime: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Data final</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, endDate: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Hora final</Form.Label>
-                  <Form.Control
-                    type="time"
-                    value={filters.endTime}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, endTime: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Cliente</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={filters.customer}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, customer: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Origem</Form.Label>
-                  <Form.Select
-                    value={filters.origin}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, origin: e.target.value }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    {Object.entries(originLabels).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Consumo</Form.Label>
-                  <Form.Select
-                    value={filters.fulfillment}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, fulfillment: e.target.value }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    {Object.entries(fulfillmentLabels).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Status Pagamento</Form.Label>
-                  <Form.Select
-                    value={filters.payment_status}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, payment_status: e.target.value }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    <option value="pending">Pendente</option>
-                    <option value="paid">Pago</option>
-                    <option value="previsto">Previsto</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Método Pagamento</Form.Label>
-                  <Form.Select
-                    value={filters.payment_method}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, payment_method: e.target.value }))
-                    }
-                  >
-                    <option value="">Todos</option>
-                    {Object.entries(paymentMethodLabels).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Item</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={filters.item}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, item: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
+         <Button
+  variant="secondary"
+  onClick={() => setOpen(!open)}
+  aria-controls="filter-collapse"
+  aria-expanded={open}
+>
+  Filtrar
+</Button>
+
+      <Collapse in={open} id="filter-collapse">
+        <div id="filters-collapse">
+          <Card className="mb-4 order-lines__block bg-dark">
+            <Card.Header className="order-lines__title text-white">
+              <strong>Filtros</strong>
+            </Card.Header>
+            <Card.Body className="order-list__filters-form p-3 text-light">
+              <Row className="gy-2">
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Data início</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={filters.startDate}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, startDate: e.target.value }))
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Hora início</Form.Label>
+                    <Form.Control
+                      type="time"
+                      value={filters.startTime}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, startTime: e.target.value }))
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Data final</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={filters.endDate}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, endDate: e.target.value }))
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Hora final</Form.Label>
+                    <Form.Control
+                      type="time"
+                      value={filters.endTime}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, endTime: e.target.value }))
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Cliente</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={filters.customer}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, customer: e.target.value }))
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Origem</Form.Label>
+                    <Form.Select
+                      value={filters.origin}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, origin: e.target.value }))
+                      }
+                    >
+                      <option value="">Todos</option>
+                      {Object.entries(originLabels).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Consumo</Form.Label>
+                    <Form.Select
+                      value={filters.fulfillment}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, fulfillment: e.target.value }))
+                      }
+                    >
+                      <option value="">Todos</option>
+                      {Object.entries(fulfillmentLabels).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Status Pagamento</Form.Label>
+                    <Form.Select
+                      value={filters.payment_status}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, payment_status: e.target.value }))
+                      }
+                    >
+                      <option value="">Todos</option>
+                      <option value="pending">Pendente</option>
+                      <option value="paid">Pago</option>
+                      <option value="previsto">Previsto</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Método Pagamento</Form.Label>
+                    <Form.Select
+                      value={filters.payment_method}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, payment_method: e.target.value }))
+                      }
+                    >
+                      <option value="">Todos</option>
+                      {Object.entries(paymentMethodLabels).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Item</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={filters.item}
+                      onChange={(e) =>
+                        setFilters((f) => ({ ...f, item: e.target.value }))
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </div>
+      </Collapse>
 
         <div className="order-list__table-responsive d-none d-md-block">
           <Table striped hover variant="dark" responsive className="order-table">
