@@ -1,0 +1,303 @@
+/* ============================================================
+   CONTAINER PRINCIPAL
+   ============================================================ */
+.order-create__container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  margin-top: 40px;
+  margin-bottom: 80px;
+}
+
+
+/* ============================================================
+   HEADER (OrderHeader fica perfeito aqui)
+   ============================================================ */
+.order-create__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 35px;
+}
+
+.order-create__logo {
+  width: 65px;
+  height: 65px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #ffc107;
+  box-shadow: 0 0 12px rgba(255, 193, 7, 0.5);
+}
+
+.order-create__establishment-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffc107;
+  text-shadow: 0 0 6px rgba(255, 193, 7, 0.3);
+}
+
+.order-create__btn-orders {
+  background: #ffc107;
+  color: #000;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: 0.2s;
+}
+
+.order-create__btn-orders:hover {
+  background: #e0ac00;
+}
+
+
+/* ============================================================
+   BOTÃO — ADICIONAR ITEM
+   ============================================================ */
+.order-create__btn-add-item {
+  background: #ffc107;
+  color: #000;
+  font-weight: 700;
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-bottom: 25px;
+  transition: 0.25s;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.25);
+}
+
+.order-create__btn-add-item:hover {
+  background: #e1b000;
+  transform: translateY(-3px);
+}
+
+
+/* ============================================================
+   TOTAL DO PEDIDO
+   ============================================================ */
+.order-summary {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #ffc107;
+  text-align: right;
+  margin-bottom: 25px;
+}
+
+
+/* ============================================================
+   LISTA DE ITENS DO PEDIDO
+   ============================================================ */
+.order-items-list {
+  margin-bottom: 40px;
+}
+
+.order-line {
+  background: rgba(25, 25, 25, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  transition: background 0.25s;
+}
+
+.order-line:hover {
+  background: rgba(40, 40, 40, 0.95);
+}
+
+.order-line__name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.order-line__price {
+  color: #ffc107;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.order-line__remove {
+  background: #ff4d4d;
+  border: none;
+  padding: 5px 9px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.order-line__remove:hover {
+  background: #d93636;
+}
+
+/* CONTROLE QTD */
+.order-line__qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-line__qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #0dcaf0;
+  color: #0dcaf0;
+  background: transparent;
+  font-weight: 700;
+  transition: 0.25s;
+}
+
+.order-line__qty-btn:hover {
+  background: #0dcaf0;
+  color: #000;
+}
+
+/* ADICIONAIS / REMOÇÕES */
+.order-line__mod-btn {
+  border: 1px solid #0d6efd;
+  color: #0d6efd;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: transparent;
+  transition: 0.25s;
+}
+
+.order-line__mod-btn:hover {
+  background: #0d6efd;
+  color: #fff;
+}
+
+
+/* ============================================================
+   FORMULÁRIO — OrderForm
+   ============================================================ */
+.order-create__form {
+  background: rgba(20, 20, 20, 0.8);
+  padding: 35px 28px;
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  margin-bottom: 50px;
+}
+
+.order-create__label {
+  color: #ffc107;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
+.order-create__input,
+.order-create__select,
+.order-create__textarea {
+  width: 100%;
+  background: rgba(35, 35, 35, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-top: 4px;
+  margin-bottom: 18px;
+  font-size: 1rem;
+  transition: 0.25s;
+}
+
+.order-create__textarea {
+  min-height: 90px;
+  resize: none;
+}
+
+.order-create__input:focus,
+.order-create__select:focus,
+.order-create__textarea:focus {
+  border-color: #ffc107;
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.4);
+}
+
+/* BOTÃO SUBMIT */
+.order-create__btn-submit {
+  width: 100%;
+  padding: 14px;
+  background: #ffc107 !important;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #000 !important;
+  transition: 0.25s;
+}
+
+.order-create__btn-submit:hover {
+  background: #e1b000 !important;
+  transform: translateY(-2px);
+}
+
+.order-create__btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+
+/* ============================================================
+   LOAD SPINNER
+   ============================================================ */
+.order-loading__spinner {
+  width: 55px;
+  height: 55px;
+  border: 4px solid #ffc107;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 150px auto 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ============================================================
+   RESPONSIVIDADE
+   ============================================================ */
+@media (max-width: 900px) {
+  .order-create__container {
+    padding: 25px 14px;
+    margin-top: 20px;
+  }
+
+  .order-line {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .order-line__qty {
+    justify-content: center;
+  }
+
+  .order-create__form {
+    padding: 25px 18px;
+  }
+
+  .order-summary {
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .order-create__btn-add-item {
+    width: 100%;
+  }
+}

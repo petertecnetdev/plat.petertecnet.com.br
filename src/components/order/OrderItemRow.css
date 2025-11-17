@@ -1,0 +1,188 @@
+/* ===============================
+   OrderItemRow – Linha do Pedido
+   =============================== */
+
+.order-line__row {
+  background: #1d1d1d;
+  border-radius: 0.55rem;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.85rem;
+  box-shadow: 0 2px 8px #00000080;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  transition: 0.2s;
+  border: 1px solid #2a2a2a;
+}
+
+.order-line__row:hover {
+  background: #222;
+  border-color: #ffb300;
+  box-shadow: 0 0 10px #ffb30044;
+}
+
+/* ===============================
+   Nome do Produto
+   =============================== */
+
+.order-line__product {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #ffd700;
+}
+
+.order-line__product-name {
+  flex: 1;
+}
+
+/* Botão Remover (X) */
+.order-line__btn-remove {
+  background: transparent !important;
+  color: #ff4e4e !important;
+  font-size: 1.36rem !important;
+  border: none !important;
+  padding: 0 0.35rem !important;
+  transition: 0.2s;
+}
+
+.order-line__btn-remove:hover {
+  color: #ffffff !important;
+  transform: scale(1.15);
+}
+
+/* ===============================
+   Quantidade
+   =============================== */
+
+.order-line__quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  justify-content: center;
+}
+
+.order-line__quantity-value {
+  font-weight: 700;
+  color: #ffd700;
+  font-size: 1.2rem;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* Botões + e − */
+.order-line__btn-minus,
+.order-line__btn-plus {
+  background: #2b2b2b !important;
+  border: 1px solid #444 !important;
+  color: #ffd700 !important;
+  padding: 0.35rem 0.65rem !important;
+  border-radius: 0.35rem !important;
+  transition: 0.2s;
+}
+
+.order-line__btn-minus:hover,
+.order-line__btn-plus:hover {
+  background: #ffd700 !important;
+  color: #181818 !important;
+  transform: translateY(-2px);
+}
+
+/* ===============================
+   Botões de Adicionais / Remoções
+   =============================== */
+
+.order-line__modifiers {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  justify-content: center;
+}
+
+.order-line__btn-addition,
+.order-line__btn-removal {
+  border-radius: 0.3rem !important;
+  padding: 0.45rem 0.9rem !important;
+  font-weight: 600 !important;
+  transition: 0.2s !important;
+}
+
+.order-line__btn-addition:hover {
+  background: #ffd700 !important;
+  color: #181818 !important;
+}
+
+.order-line__btn-removal:hover {
+  background: #cc3333 !important;
+  color: #fff !important;
+}
+
+/* ===============================
+   Badges (Adicionais / Remoções)
+   =============================== */
+
+.order-line__badges {
+  width: 100%;
+  margin-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.order-line__badge-addition {
+  background: #ffd700 !important;
+  color: #181818 !important;
+  font-weight: 700 !important;
+  border-radius: 0.3rem !important;
+  padding: 0.35rem 0.55rem !important;
+}
+
+.order-line__badge-removal {
+  background: #b81e1e !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  border-radius: 0.3rem !important;
+  padding: 0.35rem 0.55rem !important;
+}
+
+/* ===============================
+   Responsividade
+   =============================== */
+
+@media (max-width: 768px) {
+  .order-line__row {
+    padding: 0.75rem;
+  }
+
+  .order-line__product {
+    justify-content: space-between;
+  }
+
+  .order-line__modifiers {
+    justify-content: flex-start;
+  }
+
+  .order-line__quantity {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-line__product-name {
+    font-size: 0.98rem;
+  }
+
+  .order-line__btn-addition,
+  .order-line__btn-removal {
+    padding: 0.35rem 0.7rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  .order-line__badge-addition,
+  .order-line__badge-removal {
+    font-size: 0.85rem !important;
+  }
+}

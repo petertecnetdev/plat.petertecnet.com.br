@@ -1,0 +1,130 @@
+/* ============================================================
+   MODAL BASE
+   ============================================================ */
+.order-modal {
+  background: #151515;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 193, 7, 0.08);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+/* HEADER */
+.order-modal .modal-header {
+  background: #1b1b1b;
+  border-bottom: 1px solid rgba(255, 193, 7, 0.15);
+  padding: 16px 22px;
+}
+
+.order-modal .modal-title {
+  color: #ffc107;
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.5px;
+}
+
+.order-modal .btn-close {
+  filter: invert(1) brightness(0.7);
+  transition: 0.2s;
+}
+
+.order-modal .btn-close:hover {
+  filter: invert(1) brightness(1);
+}
+
+/* ============================================================
+   GRID INTERNO
+   ============================================================ */
+.order-modal .modal-body {
+  padding: 22px 20px;
+  background: #121212;
+}
+
+/* ============================================================
+   ITEM CARD
+   ============================================================ */
+.order-modal__item {
+  background: #1d1d1d;
+  border-radius: 10px;
+  padding: 16px 12px;
+  text-align: center;
+  border: 1px solid rgba(255, 193, 7, 0.08);
+  transition: 0.25s;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+}
+
+.order-modal__item:hover {
+  background: #242424;
+  transform: translateY(-4px);
+}
+
+/* NOME DO ITEM */
+.order-modal__item-name {
+  color: #ffc107;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+/* PREÇO DO ITEM */
+.order-modal__item-price {
+  color: #e6e6e6;
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+
+/* BOTÃO ADICIONAR */
+.order-modal__item-add {
+  background: #ffc107;
+  color: #000;
+  border: none;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.25s;
+  margin-top: auto;
+  box-shadow: 0 3px 10px rgba(255, 193, 7, 0.3);
+}
+
+.order-modal__item-add:hover {
+  background: #e0ac00;
+  transform: scale(1.05);
+}
+
+/* ============================================================
+   RESPONSIVIDADE
+   ============================================================ */
+@media (max-width: 768px) {
+  .order-modal .modal-body {
+    padding: 18px 12px;
+  }
+
+  .order-modal__item {
+    padding: 14px 10px;
+  }
+
+  .order-modal__item-add {
+    padding: 7px 10px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .order-modal .modal-dialog {
+    margin: 12px;
+  }
+
+  .order-modal__item {
+    border-radius: 8px;
+  }
+
+  .order-modal__item-name {
+    font-size: 0.95rem;
+  }
+}
