@@ -87,7 +87,6 @@ export default function OrderUniversalModal({
     <div ref={modalRef} className="modal fade" tabIndex="-1">
       <div className="modal-dialog modal-dialog-scrollable modal-lg">
         <div className="modal-content oum__modal">
-
           <div className="oum__body-header">
             <h5 className="oum__title">{title}</h5>
             <button className="oum__close-btn" onClick={closeModal}>×</button>
@@ -120,7 +119,6 @@ export default function OrderUniversalModal({
               </button>
             </div>
           )}
-
         </div>
       </div>
     </div>
