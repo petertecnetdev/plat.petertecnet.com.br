@@ -163,6 +163,12 @@ export default function useOrderCreate() {
 
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+    if (!user || !user.id) {
+      Swal.fire("Erro", "Usuário não identificado. Faça login novamente.", "error");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const payload = {
         mode: "direct",
@@ -202,7 +208,7 @@ export default function useOrderCreate() {
       setSubmitting(false);
     }
   };
-JSON.parse(localStorage.getItem("user"));
+
   return {
     loading,
     estId,
