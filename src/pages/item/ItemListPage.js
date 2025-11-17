@@ -38,7 +38,7 @@ export default function ItemListPage() {
         setEstablishment(data.establishment);
         setMenu(data.items || []);
         const cats = Array.from(
-          new Set((data.items || []).map(i => i.category || "Sem categoria"))
+          new Set((data.items || []).map((i) => i.category || "Sem categoria"))
         );
         setSelectedCategory(cats[0] || null);
       } catch {
@@ -49,44 +49,102 @@ export default function ItemListPage() {
     })();
   }, [slug]);
 
+  const reloadItems = async () => {
+    const token = localStorage.getItem("token");
+    const { data } = await axios.get(
+      `${apiBaseUrl}/establishment/view/${slug}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setMenu(data.items || []);
+  };
+
+  const handlePriceChange = async (type) => {
+    const { value: percentage } = await Swal.fire({
+      title: type === "increase" ? "Aumentar preços" : "Reduzir preços",
+      input: "number",
+      inputLabel: "Porcentagem (%)",
+      inputPlaceholder: "Ex: 10",
+      inputAttributes: { min: 0 },
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!percentage) return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      const endpoint =
+        type === "increase"
+          ? `${apiBaseUrl}/item/increase-prices`
+          : `${apiBaseUrl}/item/decrease-prices`;
+
+      await axios.post(
+        endpoint,
+        {
+          entity_id: establishment.id,
+          percentage: Number(percentage),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      await reloadItems();
+
+      Swal.fire(
+        "Sucesso",
+        `Preços ${
+          type === "increase" ? "aumentados" : "reduzidos"
+        } em ${percentage}%`,
+        "success"
+      );
+    } catch (e) {
+      Swal.fire(
+        "Erro",
+        e.response?.data?.error ||
+          "Não foi possível atualizar os preços.",
+        "error"
+      );
+    }
+  };
+
   const handleExportPDF = async () => {
-  if (!pdfRef.current) return;
-  try {
-    const el = pdfRef.current;
-    const dpr = Math.max(2, window.devicePixelRatio || 1);
+    if (!pdfRef.current) return;
+    try {
+      const el = pdfRef.current;
+      const dpr = Math.max(2, window.devicePixelRatio || 1);
 
-    const canvas = await html2canvas(el, {
-      scale: dpr,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      width: el.scrollWidth,
-      height: el.scrollHeight,
-      logging: false,
-    });
+      const canvas = await html2canvas(el, {
+        scale: dpr,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        logging: false,
+      });
 
-    const imgData = canvas.toDataURL("image/png", 1.0);
+      const imgData = canvas.toDataURL("image/png", 1.0);
 
-    const widthMm = 80; // largura padrão de bobina térmica (iFood/99Food)
-    const heightMm = (canvas.height / canvas.width) * widthMm;
+      const widthMm = 80;
+      const heightMm = (canvas.height / canvas.width) * widthMm;
 
-    const pdf = new jsPDF({
-      orientation: "p",
-      unit: "mm",
-      format: [widthMm, Math.max(heightMm, 100)],
-    });
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm",
+        format: [widthMm, Math.max(heightMm, 100)],
+      });
 
-    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
+      pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
 
-    const safeName = `${(establishment?.name || "menu")}_menu`
-      .replace(/[\\/:*?"<>|]+/g, "_")
-      .trim();
+      const safeName = `${(establishment?.name || "menu")}_menu`
+        .replace(/[\\/:*?"<>|]+/g, "_")
+        .trim();
 
-    pdf.save(`${safeName}.pdf`);
-  } catch (e) {
-    Swal.fire("Erro", "Não foi possível gerar o PDF.", "error");
-  }
-};
-
+      pdf.save(`${safeName}.pdf`);
+    } catch (e) {
+      Swal.fire("Erro", "Não foi possível gerar o PDF.", "error");
+    }
+  };
 
   if (loading) {
     return (
@@ -97,10 +155,10 @@ export default function ItemListPage() {
   }
 
   const categories = Array.from(
-    new Set(menu.map(i => i.category || "Sem categoria"))
+    new Set(menu.map((i) => i.category || "Sem categoria"))
   );
   const itemsToShow = selectedCategory
-    ? menu.filter(i => (i.category || "Sem categoria") === selectedCategory)
+    ? menu.filter((i) => (i.category || "Sem categoria") === selectedCategory)
     : menu;
 
   return (
@@ -108,16 +166,35 @@ export default function ItemListPage() {
       <NavlogComponent />
       <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h3>{establishment.name.toUpperCase()}</h3>
+          <h3>{establishment.name?.toUpperCase()}</h3>
+
           <div>
+            <Button
+              variant="dark"
+              className="me-2"
+              onClick={() => handlePriceChange("increase")}
+            >
+              + Aumentar preços
+            </Button>
+
+            <Button
+              variant="outline-dark"
+              className="me-2"
+              onClick={() => handlePriceChange("decrease")}
+            >
+              - Reduzir preços
+            </Button>
+
             <Link to={`/item/create/${establishment.slug}`}>
               <Button variant="success" className="me-2">
                 Novo Item
               </Button>
             </Link>
+
             <Button variant="primary" onClick={handleExportPDF} className="me-2">
               Exportar PDF
             </Button>
+
             <Link to="/dashboard">
               <Button variant="secondary">Voltar</Button>
             </Link>
@@ -125,7 +202,7 @@ export default function ItemListPage() {
         </div>
 
         <div className="mb-4">
-          {categories.map(cat => (
+          {categories.map((cat) => (
             <Button
               key={cat}
               variant={cat === selectedCategory ? "warning" : "outline-warning"}
@@ -139,7 +216,7 @@ export default function ItemListPage() {
 
         <div ref={pdfRef}>
           <Row className="g-4">
-            {itemsToShow.map(item => (
+            {itemsToShow.map((item) => (
               <Col key={item.id} xs={12} sm={6} md={4} lg={3}>
                 <Card className="h-100 shadow-sm">
                   {item.image ? (
@@ -186,7 +263,7 @@ export default function ItemListPage() {
                           showCancelButton: true,
                           confirmButtonText: "Sim",
                           cancelButtonText: "Não",
-                        }).then(res => {
+                        }).then((res) => {
                           if (res.isConfirmed) {
                             axios
                               .delete(`${apiBaseUrl}/item/${item.id}`, {
@@ -197,7 +274,9 @@ export default function ItemListPage() {
                                 },
                               })
                               .then(() =>
-                                setMenu(prev => prev.filter(i => i.id !== item.id))
+                                setMenu((prev) =>
+                                  prev.filter((i) => i.id !== item.id)
+                                )
                               )
                               .catch(() =>
                                 Swal.fire(
