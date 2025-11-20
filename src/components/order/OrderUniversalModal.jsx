@@ -1,3 +1,4 @@
+// src/components/order/OrderUniversalModal.jsx
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import PropTypes from "prop-types";
 import CategoryTabs from "./universal/CategoryTabs";
@@ -11,7 +12,7 @@ export default function OrderUniversalModal({
   mode,
   onSelect,
   onSave,
-  onClose,
+  onClose
 }) {
   const modalRef = useRef(null);
   const modalInstanceRef = useRef(null);
@@ -45,7 +46,7 @@ export default function OrderUniversalModal({
 
     modalInstanceRef.current = new window.bootstrap.Modal(modalRef.current, {
       backdrop: true,
-      keyboard: true,
+      keyboard: true
     });
 
     modalInstanceRef.current.show();
@@ -57,18 +58,18 @@ export default function OrderUniversalModal({
     };
   }, [show]);
 
-  const closeModal = () => {
+  const close = () => {
     modalInstanceRef.current?.hide();
     document.querySelectorAll(".modal-backdrop").forEach((b) => b.remove());
     document.body.style.overflow = "auto";
     onClose();
   };
 
-  const saveModifiers = () => {
+  const save = () => {
     if (mode === "additions") {
       const arr = Object.entries(selectedAdds).map(([id, quantity]) => ({
         id: Number(id),
-        quantity,
+        quantity
       }));
       onSave(arr);
     }
@@ -80,7 +81,7 @@ export default function OrderUniversalModal({
       onSave(arr);
     }
 
-    closeModal();
+    close();
   };
 
   return (
@@ -89,7 +90,7 @@ export default function OrderUniversalModal({
         <div className="modal-content oum__modal">
           <div className="oum__body-header">
             <h5 className="oum__title">{title}</h5>
-            <button className="oum__close-btn" onClick={closeModal}>×</button>
+            <button className="oum__close-btn" onClick={close}>×</button>
           </div>
 
           <CategoryTabs
@@ -106,15 +107,14 @@ export default function OrderUniversalModal({
             setSelectedAdds={setSelectedAdds}
             setSelectedRems={setSelectedRems}
             onAddItem={onSelect}
-            onClose={closeModal}
           />
 
           {(mode === "additions" || mode === "removals") && (
             <div className="oum__actions">
-              <button className="oum__action-btn cancel" onClick={closeModal}>
+              <button className="oum__action-btn cancel" onClick={close}>
                 Cancelar
               </button>
-              <button className="oum__action-btn save" onClick={saveModifiers}>
+              <button className="oum__action-btn save" onClick={save}>
                 Salvar
               </button>
             </div>
@@ -132,5 +132,5 @@ OrderUniversalModal.propTypes = {
   mode: PropTypes.oneOf(["add", "additions", "removals"]).isRequired,
   onSelect: PropTypes.func,
   onSave: PropTypes.func,
-  onClose: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired
 };

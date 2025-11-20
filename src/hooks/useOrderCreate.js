@@ -12,6 +12,7 @@ export default function useOrderCreate() {
   const [estId, setEstId] = useState(null);
   const [estName, setEstName] = useState("");
   const [estLogo, setEstLogo] = useState("");
+
   const [orderLines, setOrderLines] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,6 +30,9 @@ export default function useOrderCreate() {
   const [modalIndex, setModalIndex] = useState(null);
   const [modalItems, setModalItems] = useState([]);
 
+  const [existingAdds, setExistingAdds] = useState([]);
+  const [existingRems, setExistingRems] = useState([]);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -37,9 +41,10 @@ export default function useOrderCreate() {
       try {
         const [resItems, resEst] = await Promise.all([
           axios.get(`${apiBaseUrl}/item`, {
-            params: { entity_name: "establishment", entity_id: entityId },
+            params: { entity_name: "establishment", entity_id: Number(entityId) },
             headers: { Authorization: `Bearer ${token}` }
           }),
+
           axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
             headers: { Authorization: `Bearer ${token}` }
           })
@@ -51,7 +56,8 @@ export default function useOrderCreate() {
         setEstId(e.id);
         setEstName(String(e.name || "").toUpperCase());
         setEstLogo(e.logo || "");
-      } catch (err) {
+
+      } catch {
         Swal.fire("Erro", "Não foi possível carregar dados.", "error");
       } finally {
         setLoading(false);
@@ -63,6 +69,8 @@ export default function useOrderCreate() {
     setModalMode("add-item");
     setModalIndex(null);
     setModalItems(products);
+    setExistingAdds([]);
+    setExistingRems([]);
     setModalOpen(true);
   };
 
@@ -70,9 +78,12 @@ export default function useOrderCreate() {
     const additions = products.filter(
       (p) => String(p.category || "").toLowerCase() === "adicionais"
     );
+
     setModalMode("additions");
     setModalIndex(index);
     setModalItems(additions);
+    setExistingAdds(orderLines[index]?.additions || []);
+    setExistingRems([]);
     setModalOpen(true);
   };
 
@@ -80,9 +91,12 @@ export default function useOrderCreate() {
     const additions = products.filter(
       (p) => String(p.category || "").toLowerCase() === "adicionais"
     );
+
     setModalMode("removals");
     setModalIndex(index);
     setModalItems(additions);
+    setExistingAdds([]);
+    setExistingRems(orderLines[index]?.removals || []);
     setModalOpen(true);
   };
 
@@ -90,9 +104,18 @@ export default function useOrderCreate() {
     setModalOpen(false);
     setModalMode(null);
     setModalIndex(null);
+    setExistingAdds([]);
+    setExistingRems([]);
   };
 
-  const handleAddItem = (line) => {
+  const handleAddItem = (item) => {
+    const line = {
+      product: item,
+      quantity: 1,
+      additions: [],
+      removals: []
+    };
+
     setOrderLines((prev) => [...prev, line]);
     closeModal();
   };
@@ -137,8 +160,8 @@ export default function useOrderCreate() {
       t += Number(line.quantity || 1) * Number(line.product.price || 0);
 
       line.additions?.forEach((a) => {
-        const p = products.find((x) => x.id === a.id);
-        if (p) t += Number(p.price || 0) * Number(a.quantity || 1);
+        const prod = products.find((x) => x.id === a.id);
+        if (prod) t += Number(prod.price || 0) * Number(a.quantity || 1);
       });
     });
 
@@ -160,7 +183,6 @@ export default function useOrderCreate() {
 
     setSubmitting(true);
     const token = localStorage.getItem("token");
-
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
     if (!user || !user.id) {
@@ -173,7 +195,7 @@ export default function useOrderCreate() {
       const payload = {
         mode: "direct",
         app_id: appId,
-        entity_id: entityId,
+        entity_id: Number(estId),
         entity_name: "establishment",
         attendant_id: user.id,
         customer_name: form.customer_name,
@@ -185,8 +207,8 @@ export default function useOrderCreate() {
         items: orderLines.map((l) => ({
           item_id: l.product.id,
           quantity: l.quantity,
-          additions: l.additions || [],
-          removals: l.removals || []
+          additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
+          removals: l.removals
         }))
       };
 
@@ -202,6 +224,7 @@ export default function useOrderCreate() {
         customer_name: "",
         notes: ""
       }));
+
     } catch (err) {
       Swal.fire("Erro", err.response?.data?.error || "Erro ao criar pedido.", "error");
     } finally {
@@ -223,6 +246,10 @@ export default function useOrderCreate() {
     modalMode,
     modalIndex,
     modalItems,
+
+    existingAdds,
+    existingRems,
+
     openAddItemModal,
     openAdditionsModal,
     openRemovalsModal,

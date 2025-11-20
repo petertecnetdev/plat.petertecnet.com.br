@@ -852,7 +852,7 @@ const handleFilterByDay = (date) => {
             <Card bg="dark" text="light" className="text-center h-100">
               <Card.Body className="p-2">
                 <Card.Title className="fs-6">Total Pedidos</Card.Title>
-                <Card.Text className="fs-5 fw-bold">
+                <Card.Text className="fs-5 fw-boldshh">
                   {summary.totalOrders}
                 </Card.Text>
               </Card.Body>
