@@ -12,6 +12,8 @@ export default function OrderUniversalModal({
   onSelect,
   onSave,
   onClose,
+  initialAdditions = [],
+  initialRemovals = [],
 }) {
   const modalRef = useRef(null);
   const modalInstanceRef = useRef(null);
@@ -19,6 +21,20 @@ export default function OrderUniversalModal({
   const [activeCategory, setActiveCategory] = useState("");
   const [selectedAdds, setSelectedAdds] = useState({});
   const [selectedRems, setSelectedRems] = useState({});
+
+  useEffect(() => {
+    const adds = {};
+    initialAdditions.forEach((a) => {
+      adds[a.id] = a.quantity;
+    });
+    setSelectedAdds(adds);
+
+    const rems = {};
+    initialRemovals.forEach((r) => {
+      rems[r] = true;
+    });
+    setSelectedRems(rems);
+  }, [initialAdditions, initialRemovals]);
 
   const categories = useMemo(() => {
     const set = new Set();
@@ -92,11 +108,13 @@ export default function OrderUniversalModal({
             <button className="oum__close-btn" onClick={closeModal}>×</button>
           </div>
 
-          <CategoryTabs
-            categories={categories}
-            active={activeCategory}
-            setActive={setActiveCategory}
-          />
+          {mode !== "removals" && (
+            <CategoryTabs
+              categories={categories}
+              active={activeCategory}
+              setActive={setActiveCategory}
+            />
+          )}
 
           <ModifierGrid
             mode={mode}
@@ -133,4 +151,6 @@ OrderUniversalModal.propTypes = {
   onSelect: PropTypes.func,
   onSave: PropTypes.func,
   onClose: PropTypes.func.isRequired,
+  initialAdditions: PropTypes.array,
+  initialRemovals: PropTypes.array,
 };

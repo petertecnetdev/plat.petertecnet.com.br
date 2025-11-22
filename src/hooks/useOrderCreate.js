@@ -1,3 +1,4 @@
+// ====================== useOrderCreate.js ======================
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -15,19 +16,21 @@ export default function useOrderCreate() {
   const [orderLines, setOrderLines] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState(null);
+  const [modalIndex, setModalIndex] = useState(null);
+  const [modalItems, setModalItems] = useState([]);
+  const [modalInitialAdditions, setModalInitialAdditions] = useState([]);
+  const [modalInitialRemovals, setModalInitialRemovals] = useState([]);
+
   const [form, setForm] = useState({
     customer_name: "",
     origin: "Balcão",
     fulfillment: "dine-in",
     payment_status: "pending",
     payment_method: "Dinheiro",
-    notes: ""
+    notes: "",
   });
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState(null);
-  const [modalIndex, setModalIndex] = useState(null);
-  const [modalItems, setModalItems] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -37,12 +40,15 @@ export default function useOrderCreate() {
       try {
         const [resItems, resEst] = await Promise.all([
           axios.get(`${apiBaseUrl}/item`, {
-            params: { entity_name: "establishment", entity_id: entityId },
-            headers: { Authorization: `Bearer ${token}` }
+            params: {
+              entity_name: "establishment",
+              entity_id: entityId,
+            },
+            headers: { Authorization: `Bearer ${token}` },
           }),
           axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         setProducts(Array.isArray(resItems.data) ? resItems.data : []);
@@ -51,7 +57,7 @@ export default function useOrderCreate() {
         setEstId(e.id);
         setEstName(String(e.name || "").toUpperCase());
         setEstLogo(e.logo || "");
-      } catch (err) {
+      } catch {
         Swal.fire("Erro", "Não foi possível carregar dados.", "error");
       } finally {
         setLoading(false);
@@ -63,26 +69,40 @@ export default function useOrderCreate() {
     setModalMode("add-item");
     setModalIndex(null);
     setModalItems(products);
+    setModalInitialAdditions([]);
+    setModalInitialRemovals([]);
     setModalOpen(true);
   };
 
   const openAdditionsModal = (index) => {
+    const line = orderLines[index];
+    const adds = Array.isArray(line.additions) ? line.additions : [];
+
     const additions = products.filter(
       (p) => String(p.category || "").toLowerCase() === "adicionais"
     );
+
     setModalMode("additions");
     setModalIndex(index);
     setModalItems(additions);
+    setModalInitialAdditions(adds);
+    setModalInitialRemovals([]);
     setModalOpen(true);
   };
 
   const openRemovalsModal = (index) => {
+    const line = orderLines[index];
+    const rems = Array.isArray(line.removals) ? line.removals : [];
+
     const additions = products.filter(
       (p) => String(p.category || "").toLowerCase() === "adicionais"
     );
+
     setModalMode("removals");
     setModalIndex(index);
     setModalItems(additions);
+    setModalInitialAdditions([]);
+    setModalInitialRemovals(rems);
     setModalOpen(true);
   };
 
@@ -90,6 +110,9 @@ export default function useOrderCreate() {
     setModalOpen(false);
     setModalMode(null);
     setModalIndex(null);
+    setModalItems([]);
+    setModalInitialAdditions([]);
+    setModalInitialRemovals([]);
   };
 
   const handleAddItem = (line) => {
@@ -99,18 +122,18 @@ export default function useOrderCreate() {
 
   const handleSaveAdditions = (index, newAdditions) => {
     setOrderLines((lines) => {
-      const copy = [...lines];
-      copy[index].additions = newAdditions;
-      return copy;
+      const c = [...lines];
+      c[index].additions = newAdditions;
+      return c;
     });
     closeModal();
   };
 
   const handleSaveRemovals = (index, newRemovals) => {
     setOrderLines((lines) => {
-      const copy = [...lines];
-      copy[index].removals = newRemovals;
-      return copy;
+      const c = [...lines];
+      c[index].removals = newRemovals;
+      return c;
     });
     closeModal();
   };
@@ -120,14 +143,14 @@ export default function useOrderCreate() {
 
   const handleQuantity = (i, action) =>
     setOrderLines((lines) => {
-      const copy = [...lines];
-      let q = Number(copy[i].quantity || 1);
+      const c = [...lines];
+      let q = Number(c[i].quantity || 1);
 
       if (action === "minus") q = Math.max(1, q - 1);
       if (action === "plus") q++;
 
-      copy[i].quantity = q;
-      return copy;
+      c[i].quantity = q;
+      return c;
     });
 
   const total = useMemo(() => {
@@ -148,7 +171,10 @@ export default function useOrderCreate() {
   const formattedTotal = `R$ ${total.toFixed(2).replace(".", ",")}`;
 
   const handleFormChange = (field, value) =>
-    setForm((f) => ({ ...f, [field]: value }));
+    setForm((f) => ({
+      ...f,
+      [field]: value,
+    }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,12 +212,12 @@ export default function useOrderCreate() {
           item_id: l.product.id,
           quantity: l.quantity,
           additions: l.additions || [],
-          removals: l.removals || []
-        }))
+          removals: l.removals || [],
+        })),
       };
 
       await axios.post(`${apiBaseUrl}/order`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       Swal.fire("Sucesso", "Pedido criado.", "success");
@@ -200,7 +226,7 @@ export default function useOrderCreate() {
       setForm((f) => ({
         ...f,
         customer_name: "",
-        notes: ""
+        notes: "",
       }));
     } catch (err) {
       Swal.fire("Erro", err.response?.data?.error || "Erro ao criar pedido.", "error");
@@ -223,6 +249,8 @@ export default function useOrderCreate() {
     modalMode,
     modalIndex,
     modalItems,
+    modalInitialAdditions,
+    modalInitialRemovals,
     openAddItemModal,
     openAdditionsModal,
     openRemovalsModal,
@@ -233,6 +261,6 @@ export default function useOrderCreate() {
     handleRemoveLine,
     handleQuantity,
     handleSubmit,
-    handleFormChange
+    handleFormChange,
   };
 }

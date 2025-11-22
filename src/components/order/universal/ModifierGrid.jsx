@@ -82,9 +82,7 @@ export default function ModifierGrid({
 
             {mode === "removals" && (
               <button
-                className={`oum__toggle ${
-                  selectedRems[p.id] ? "is-on" : ""
-                }`}
+                className={`oum__toggle ${selectedRems[p.id] ? "is-on" : ""}`}
                 onClick={() => toggleRemoval(p.id)}
               >
                 {selectedRems[p.id] ? "Remover ✓" : "Remover"}
