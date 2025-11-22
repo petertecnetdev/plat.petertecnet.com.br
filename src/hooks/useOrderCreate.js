@@ -13,6 +13,7 @@ export default function useOrderCreate() {
   const [estId, setEstId] = useState(null);
   const [estName, setEstName] = useState("");
   const [estLogo, setEstLogo] = useState("");
+
   const [orderLines, setOrderLines] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,6 +33,17 @@ export default function useOrderCreate() {
     notes: "",
   });
 
+<<<<<<< HEAD
+=======
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState(null);
+  const [modalIndex, setModalIndex] = useState(null);
+  const [modalItems, setModalItems] = useState([]);
+
+  const [existingAdds, setExistingAdds] = useState([]);
+  const [existingRems, setExistingRems] = useState([]);
+
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -40,12 +52,18 @@ export default function useOrderCreate() {
       try {
         const [resItems, resEst] = await Promise.all([
           axios.get(`${apiBaseUrl}/item`, {
+<<<<<<< HEAD
             params: {
               entity_name: "establishment",
               entity_id: entityId,
             },
             headers: { Authorization: `Bearer ${token}` },
+=======
+            params: { entity_name: "establishment", entity_id: Number(entityId) },
+            headers: { Authorization: `Bearer ${token}` }
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
           }),
+
           axios.get(`${apiBaseUrl}/establishment/show/${entityId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -57,6 +75,10 @@ export default function useOrderCreate() {
         setEstId(e.id);
         setEstName(String(e.name || "").toUpperCase());
         setEstLogo(e.logo || "");
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
       } catch {
         Swal.fire("Erro", "Não foi possível carregar dados.", "error");
       } finally {
@@ -69,8 +91,13 @@ export default function useOrderCreate() {
     setModalMode("add-item");
     setModalIndex(null);
     setModalItems(products);
+<<<<<<< HEAD
     setModalInitialAdditions([]);
     setModalInitialRemovals([]);
+=======
+    setExistingAdds([]);
+    setExistingRems([]);
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
     setModalOpen(true);
   };
 
@@ -85,8 +112,13 @@ export default function useOrderCreate() {
     setModalMode("additions");
     setModalIndex(index);
     setModalItems(additions);
+<<<<<<< HEAD
     setModalInitialAdditions(adds);
     setModalInitialRemovals([]);
+=======
+    setExistingAdds(orderLines[index]?.additions || []);
+    setExistingRems([]);
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
     setModalOpen(true);
   };
 
@@ -101,8 +133,13 @@ export default function useOrderCreate() {
     setModalMode("removals");
     setModalIndex(index);
     setModalItems(additions);
+<<<<<<< HEAD
     setModalInitialAdditions([]);
     setModalInitialRemovals(rems);
+=======
+    setExistingAdds([]);
+    setExistingRems(orderLines[index]?.removals || []);
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
     setModalOpen(true);
   };
 
@@ -110,12 +147,24 @@ export default function useOrderCreate() {
     setModalOpen(false);
     setModalMode(null);
     setModalIndex(null);
+<<<<<<< HEAD
     setModalItems([]);
     setModalInitialAdditions([]);
     setModalInitialRemovals([]);
+=======
+    setExistingAdds([]);
+    setExistingRems([]);
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
   };
 
-  const handleAddItem = (line) => {
+  const handleAddItem = (item) => {
+    const line = {
+      product: item,
+      quantity: 1,
+      additions: [],
+      removals: []
+    };
+
     setOrderLines((prev) => [...prev, line]);
     closeModal();
   };
@@ -160,8 +209,8 @@ export default function useOrderCreate() {
       t += Number(line.quantity || 1) * Number(line.product.price || 0);
 
       line.additions?.forEach((a) => {
-        const p = products.find((x) => x.id === a.id);
-        if (p) t += Number(p.price || 0) * Number(a.quantity || 1);
+        const prod = products.find((x) => x.id === a.id);
+        if (prod) t += Number(prod.price || 0) * Number(a.quantity || 1);
       });
     });
 
@@ -186,7 +235,6 @@ export default function useOrderCreate() {
 
     setSubmitting(true);
     const token = localStorage.getItem("token");
-
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
     if (!user || !user.id) {
@@ -199,7 +247,7 @@ export default function useOrderCreate() {
       const payload = {
         mode: "direct",
         app_id: appId,
-        entity_id: entityId,
+        entity_id: Number(estId),
         entity_name: "establishment",
         attendant_id: user.id,
         customer_name: form.customer_name,
@@ -211,9 +259,15 @@ export default function useOrderCreate() {
         items: orderLines.map((l) => ({
           item_id: l.product.id,
           quantity: l.quantity,
+<<<<<<< HEAD
           additions: l.additions || [],
           removals: l.removals || [],
         })),
+=======
+          additions: l.additions.flatMap((a) => Array(a.quantity).fill(a.id)),
+          removals: l.removals
+        }))
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
       };
 
       await axios.post(`${apiBaseUrl}/order`, payload, {
@@ -228,6 +282,7 @@ export default function useOrderCreate() {
         customer_name: "",
         notes: "",
       }));
+
     } catch (err) {
       Swal.fire("Erro", err.response?.data?.error || "Erro ao criar pedido.", "error");
     } finally {
@@ -249,8 +304,15 @@ export default function useOrderCreate() {
     modalMode,
     modalIndex,
     modalItems,
+<<<<<<< HEAD
     modalInitialAdditions,
     modalInitialRemovals,
+=======
+
+    existingAdds,
+    existingRems,
+
+>>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
     openAddItemModal,
     openAdditionsModal,
     openRemovalsModal,

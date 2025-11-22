@@ -23,6 +23,8 @@ export default function OrderCreatePage() {
     modalMode,
     modalIndex,
     modalItems,
+    existingAdds,
+    existingRems,
     openAddItemModal,
     openAdditionsModal,
     openRemovalsModal,
@@ -58,7 +60,7 @@ export default function OrderCreatePage() {
           orderLines={orderLines}
           products={products}
           onRemove={handleRemoveLine}
-          onQty={handleQuantity}
+          onQty={(i, type) => handleQuantity(i, type)}
           onModifiers={(i, type) => {
             if (type === "additions") openAdditionsModal(i);
             else openRemovalsModal(i);
@@ -84,16 +86,10 @@ export default function OrderCreatePage() {
               : "Remoções"
           }
           products={modalItems}
-          mode={
-            modalMode === "add-item"
-              ? "add"
-              : modalMode === "additions"
-              ? "additions"
-              : "removals"
-          }
-          onSelect={(data) => {
-            if (modalMode === "add-item") handleAddItem(data);
-          }}
+          mode={modalMode}
+          existingAdds={existingAdds}
+          existingRems={existingRems}
+          onSelect={handleAddItem}
           onSave={(data) => {
             if (modalMode === "additions") handleSaveAdditions(modalIndex, data);
             else if (modalMode === "removals") handleSaveRemovals(modalIndex, data);
