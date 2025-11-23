@@ -12,13 +12,9 @@ export default function OrderUniversalModal({
   mode,
   onSelect,
   onSave,
-<<<<<<< HEAD
   onClose,
   initialAdditions = [],
   initialRemovals = [],
-=======
-  onClose
->>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
 }) {
   const modalRef = useRef(null);
   const modalInstanceRef = useRef(null);
@@ -66,7 +62,7 @@ export default function OrderUniversalModal({
 
     modalInstanceRef.current = new window.bootstrap.Modal(modalRef.current, {
       backdrop: true,
-      keyboard: true
+      keyboard: true,
     });
 
     modalInstanceRef.current.show();
@@ -89,7 +85,7 @@ export default function OrderUniversalModal({
     if (mode === "additions") {
       const arr = Object.entries(selectedAdds).map(([id, quantity]) => ({
         id: Number(id),
-        quantity
+        quantity,
       }));
       onSave(arr);
     }
@@ -99,6 +95,10 @@ export default function OrderUniversalModal({
         .filter((id) => selectedRems[id])
         .map((id) => Number(id));
       onSave(arr);
+    }
+
+    if (mode === "add") {
+      onSave();
     }
 
     close();
@@ -131,16 +131,14 @@ export default function OrderUniversalModal({
             onAddItem={onSelect}
           />
 
-          {(mode === "additions" || mode === "removals") && (
-            <div className="oum__actions">
-              <button className="oum__action-btn cancel" onClick={close}>
-                Cancelar
-              </button>
-              <button className="oum__action-btn save" onClick={save}>
-                Salvar
-              </button>
-            </div>
-          )}
+          <div className="oum__actions">
+            <button className="oum__action-btn cancel" onClick={close}>
+              Cancelar
+            </button>
+            <button className="oum__action-btn save" onClick={save}>
+              Salvar
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -154,11 +152,7 @@ OrderUniversalModal.propTypes = {
   mode: PropTypes.oneOf(["add", "additions", "removals"]).isRequired,
   onSelect: PropTypes.func,
   onSave: PropTypes.func,
-<<<<<<< HEAD
   onClose: PropTypes.func.isRequired,
   initialAdditions: PropTypes.array,
   initialRemovals: PropTypes.array,
-=======
-  onClose: PropTypes.func.isRequired
->>>>>>> 7821e4cda2b1677cb7ba42942e24e0f09a220b65
 };

@@ -1,10 +1,9 @@
-// src/components/order/OrderItemsList.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import { Row, Col, Button, Badge } from "react-bootstrap";
 import "./OrderItemsList.css";
 
-export default function OrderItemsList({ orderLines, onRemove, onQty, onModifiers }) {
+export default function OrderItemsList({ orderLines, products, onRemove, onQty, onModifiers }) {
   return (
     <div className="order-lines__block">
       <p className="order-lines__title">Itens do Pedido</p>
@@ -72,17 +71,31 @@ export default function OrderItemsList({ orderLines, onRemove, onQty, onModifier
             </Col>
 
             <div className="order-line__badges">
-              {line.additions?.map((a) => (
-                <Badge key={`add-${a.id}`} bg="success" className="order-line__badge-addition">
-                  + {a.quantity}
-                </Badge>
-              ))}
+              {line.additions?.map((a) => {
+                const prod = products.find((p) => p.id === a.id);
+                return (
+                  <Badge
+                    key={`add-${a.id}`}
+                    bg="success"
+                    className="order-line__badge-addition"
+                  >
+                    + {a.quantity} {prod?.name}
+                  </Badge>
+                );
+              })}
 
-              {line.removals?.map((id) => (
-                <Badge key={`rem-${id}`} bg="danger" className="order-line__badge-removal">
-                  − Remover
-                </Badge>
-              ))}
+              {line.removals?.map((id) => {
+                const prod = products.find((p) => p.id === id);
+                return (
+                  <Badge
+                    key={`rem-${id}`}
+                    bg="danger"
+                    className="order-line__badge-removal"
+                  >
+                    − sem {prod?.name}
+                  </Badge>
+                );
+              })}
             </div>
           </Row>
         ))}
@@ -93,7 +106,8 @@ export default function OrderItemsList({ orderLines, onRemove, onQty, onModifier
 
 OrderItemsList.propTypes = {
   orderLines: PropTypes.array.isRequired,
+  products: PropTypes.array.isRequired,
   onRemove: PropTypes.func.isRequired,
   onQty: PropTypes.func.isRequired,
-  onModifiers: PropTypes.func.isRequired
+  onModifiers: PropTypes.func.isRequired,
 };

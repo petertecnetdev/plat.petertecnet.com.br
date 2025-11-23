@@ -7,7 +7,7 @@ export default function ModifiersModalComponent({
   products,
   initialAdditions,
   initialRemovals,
-  mode,
+  mode, // "additions" | "removals"
   onSave,
   onClose,
 }) {
@@ -22,11 +22,14 @@ export default function ModifiersModalComponent({
         a.quantity,
       ])
     );
-    const selectedRems = new Set(mode === "removals" ? initialRemovals : []);
+
+    const selectedRems = new Set(
+      mode === "removals" ? initialRemovals : []
+    );
 
     const buildAdditionsGrid = () => {
       if (!additionsProducts.length)
-        return '<div class="order-modal__empty">Nenhum adicional cadastrado.</div>';
+        return `<div class="order-modal__empty">Nenhum adicional cadastrado.</div>`;
 
       return `
         <div class="container-fluid flex-grow-1 overflow-auto p-3">
@@ -39,10 +42,13 @@ export default function ModifiersModalComponent({
                     <div class="order-modal__item">
                       <div class="order-modal__item-info">
                         <span class="order-modal__item-name">${p.name}</span>
-                        <span class="order-modal__item-price">R$ ${Number(p.price)
+                        <span class="order-modal__item-price">R$ ${Number(
+                          p.price
+                        )
                           .toFixed(2)
                           .replace(".", ",")}</span>
                       </div>
+
                       <div class="order-modal__qty">
                         <button class="order-modal__qty-btn" data-act="dec" data-id="${p.id}">−</button>
                         <span class="order-modal__qty-val" data-id="${p.id}">${qty}</span>
@@ -55,6 +61,7 @@ export default function ModifiersModalComponent({
               .join("")}
           </div>
         </div>
+
         <div class="order-modal__footer">
           <button class="order-modal__swal-btn-cancel" data-close="1">Cancelar</button>
           <button class="order-modal__swal-btn" data-save="1">Salvar</button>
@@ -64,7 +71,7 @@ export default function ModifiersModalComponent({
 
     const buildRemovalsGrid = () => {
       if (!additionsProducts.length)
-        return '<div class="order-modal__empty">Nenhum item removível cadastrado.</div>';
+        return `<div class="order-modal__empty">Nenhum item removível cadastrado.</div>`;
 
       return `
         <div class="container-fluid flex-grow-1 overflow-auto p-3">
@@ -79,9 +86,11 @@ export default function ModifiersModalComponent({
                         <span class="order-modal__item-name">${p.name}</span>
                         <span class="order-modal__item-price">&nbsp;</span>
                       </div>
-                      <button class="order-modal__toggle ${
-                        on ? "is-on" : ""
-                      }" data-id="${p.id}">
+
+                      <button 
+                        class="order-modal__toggle ${on ? "is-on" : ""}" 
+                        data-id="${p.id}"
+                      >
                         ${on ? "Remover ✓" : "Remover"}
                       </button>
                     </div>
@@ -91,6 +100,7 @@ export default function ModifiersModalComponent({
               .join("")}
           </div>
         </div>
+
         <div class="order-modal__footer">
           <button class="order-modal__swal-btn-cancel" data-close="1">Cancelar</button>
           <button class="order-modal__swal-btn" data-save="1">Salvar</button>
@@ -103,6 +113,7 @@ export default function ModifiersModalComponent({
         <div class="order-modal__category-title">
           ${mode === "additions" ? "Adicionais" : "Remoções"}
         </div>
+
         ${mode === "additions" ? buildAdditionsGrid() : buildRemovalsGrid()}
       </div>
     `;
@@ -110,10 +121,10 @@ export default function ModifiersModalComponent({
     Swal.fire({
       html,
       showConfirmButton: false,
-      heightAuto: false,
       background: "#000",
-      padding: "0",
       width: "100vw",
+      heightAuto: false,
+      padding: "0",
       customClass: {
         container: "order-modal__container-fullscreen",
         popup: "order-modal__swal-fullscreen",
@@ -123,27 +134,34 @@ export default function ModifiersModalComponent({
         const root = Swal.getHtmlContainer();
 
         root.addEventListener("click", (e) => {
+          // -------------------
+          // QUANTIDADE ADICIONAIS
+          // -------------------
           const qtyBtn = e.target.closest(".order-modal__qty-btn");
           if (qtyBtn && mode === "additions") {
             const id = Number(qtyBtn.dataset.id);
             const action = qtyBtn.dataset.act;
-            const curr = selectedAdds.get(id) || 0;
 
-            const next = Math.max(0, curr + (action === "inc" ? 1 : -1));
+            const current = selectedAdds.get(id) || 0;
+            const next = Math.max(0, current + (action === "inc" ? 1 : -1));
+
             if (next === 0) selectedAdds.delete(id);
             else selectedAdds.set(id, next);
 
-            root.querySelector(
+            const val = root.querySelector(
               `.order-modal__qty-val[data-id="${id}"]`
-            ).textContent = next;
+            );
+            if (val) val.textContent = next;
 
             return;
           }
 
+          // -------------------
+          // TOGGLE REMOÇÕES
+          // -------------------
           const toggle = e.target.closest(".order-modal__toggle");
           if (toggle && mode === "removals") {
             const id = Number(toggle.dataset.id);
-
             if (selectedRems.has(id)) selectedRems.delete(id);
             else selectedRems.add(id);
 
@@ -155,29 +173,45 @@ export default function ModifiersModalComponent({
             return;
           }
 
+          // -------------------
+          // CANCELAR
+          // -------------------
           if (e.target.matches('[data-close="1"]')) {
             onClose();
             Swal.close();
             return;
           }
 
+          // -------------------
+          // SALVAR
+          // -------------------
           if (e.target.matches('[data-save="1"]')) {
             if (mode === "additions") {
-              onSave(
-                Array.from(selectedAdds.entries()).map(([id, quantity]) => ({
+              const arr = Array.from(selectedAdds.entries()).map(
+                ([id, quantity]) => ({
                   id,
                   quantity,
-                }))
+                })
               );
+              onSave(arr);
             } else {
-              onSave(Array.from(selectedRems.values()));
+              const arr = Array.from(selectedRems.values());
+              onSave(arr);
             }
+
             Swal.close();
           }
         });
       },
     });
-  }, [products, initialAdditions, initialRemovals, mode, onSave, onClose]);
+  }, [
+    products,
+    initialAdditions,
+    initialRemovals,
+    mode,
+    onSave,
+    onClose,
+  ]);
 
   return null;
 }
