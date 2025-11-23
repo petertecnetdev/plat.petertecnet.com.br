@@ -1,0 +1,217 @@
+/* src/pages/order/OrderEdit.css */
+
+.order-loading__spinner {
+  margin: 40px auto;
+  display: block;
+}
+
+/* CONTAINER PRINCIPAL */
+.order-create__container {
+  padding: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* HEADER */
+.order-create__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.order-create__logo {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #333;
+}
+
+.order-create__establishment-name {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #eee;
+}
+
+.order-create__btn-orders {
+  margin-left: auto;
+}
+
+/* BOTÃO ADICIONAR ITEM */
+.order-create__btn-add-item {
+  width: 100%;
+  padding: 14px;
+  background: #00a84f;
+  color: #fff;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.order-create__btn-add-item:hover {
+  background: #009045;
+}
+
+/* RESUMO */
+.order-number {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.order-number p {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+
+.order-number h5 {
+  margin-top: 8px;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.order-date {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* LISTA DE ITENS */
+.order-lines__block {
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.order-lines__title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.order-lines__list {
+  gap: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-line__row {
+  background: #131313;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #222;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ITEM PRINCIPAL */
+.order-line__product {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.order-line__product-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.order-line__btn-remove {
+  padding: 2px 7px !important;
+}
+
+/* QUANTIDADE */
+.order-line__quantity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.order-line__btn-minus,
+.order-line__btn-plus {
+  width: 36px;
+  height: 32px;
+  padding: 0 !important;
+}
+
+.order-line__quantity-value {
+  font-size: 1.1rem;
+  font-weight: bold;
+  min-width: 22px;
+  text-align: center;
+}
+
+/* MODIFICADORES */
+.order-line__modifiers {
+  display: flex;
+  gap: 10px;
+}
+
+.order-line__badges {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* FORMULÁRIO */
+.order-create__form {
+  margin-top: 30px;
+}
+
+.order-create__label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.order-create__input,
+.order-create__textarea,
+.order-create__select {
+  background: #111;
+  color: #fff;
+  border: 1px solid #333;
+  border-radius: 8px;
+}
+
+.order-create__input:focus,
+.order-create__textarea:focus,
+.order-create__select:focus {
+  border-color: #00a84f;
+  box-shadow: 0 0 4px #00a84f;
+}
+
+/* BOTÃO SALVAR */
+.order-create__btn-submit {
+  padding: 12px 28px;
+  background: #0074ff;
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  margin-top: 20px;
+  transition: 0.2s ease-in-out;
+}
+
+.order-create__btn-submit:hover {
+  background: #0060d1;
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .order-line__row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .order-line__modifiers {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .order-create__btn-add-item {
+    font-size: 1rem;
+  }
+}
