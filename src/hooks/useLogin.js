@@ -1,64 +1,112 @@
 import { useState } from "react";
-import axios from "axios";
 import Swal from "sweetalert2";
-import { apiBaseUrl } from "../config";
+import api from "../services/api";
 
 export default function useLogin(onSuccess, redirectTo) {
   const [loading, setLoading] = useState(false);
 
-  const loadUserFromMe = async (token) => {
-    try {
-      const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  const setToken = (token) => localStorage.setItem("token", token);
 
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("profile", JSON.stringify(data.user?.profile || {}));
-      localStorage.setItem("is_employer", data.is_employer ? "1" : "0");
+  const extractToken = (p) =>
+    p.token?.access_token ??
+    p.token?.original?.access_token ??
+    p.access_token ??
+    p.token;
 
-      return data.user;
-    } catch (err) {
-      console.error("Erro ao carregar /me:", err);
-      throw new Error("Falha ao carregar informações do usuário.");
-    }
-  };
+  const showError = (msg) =>
+    Swal.fire({
+      title: "Erro",
+      text: msg,
+      icon: "error",
+      confirmButtonText: "Ok",
+      customClass: {
+        popup: "custom-swal",
+        title: "custom-swal-title",
+        content: "custom-swal-text",
+      },
+    });
+
+  const getLocation = () =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        return resolve({ latitude: null, longitude: null });
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }),
+        () => resolve({ latitude: null, longitude: null }),
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    });
 
   const login = async (username, password) => {
     setLoading(true);
 
     try {
-      const { data } = await axios.post(`${apiBaseUrl}/auth/login`, {
+      const location = await getLocation();
+
+      const { data } = await api.post("/auth/login", {
         username,
-        password
+        password,
+        ...location,
       });
 
-      const token = data.token?.access_token || data.token || data.access_token;
+      const token = extractToken(data);
+      if (!token) throw new Error("Token nÃ£o recebido");
 
-      if (!token) {
-        Swal.fire("Erro", "Nenhum token retornado pela API.", "error");
-        setLoading(false);
-        return;
-      }
+      setToken(token);
+      window.dispatchEvent(new Event("authChanged"));
 
-      localStorage.setItem("token", token);
-
-      await loadUserFromMe(token);
-
-      Swal.fire("Sucesso", "Login realizado!", "success");
-
-      if (onSuccess) onSuccess();
-      if (redirectTo) window.location.href = redirectTo;
-
+      if (onSuccess) onSuccess(token);
+      else window.location.href = redirectTo;
     } catch (err) {
-      Swal.fire(
-        "Erro",
-        err.response?.data?.error || "Falha ao efetuar login.",
-        "error"
-      );
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Falha no login.";
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  return { loading, login };
+  const loginGoogle = async (credential) => {
+    setLoading(true);
+
+    try {
+      const location = await getLocation();
+
+      const { data } = await api.post("/auth/google", {
+        token_id: credential,
+        ...location,
+      });
+
+      const token = extractToken(data);
+      if (!token) throw new Error("Token Google nÃ£o recebido");
+
+      setToken(token);
+      window.dispatchEvent(new Event("authChanged"));
+
+      if (onSuccess) onSuccess(token);
+      else window.location.href = redirectTo;
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Falha no login com Google.";
+      showError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    loading,
+    login,
+    loginGoogle,
+  };
 }
