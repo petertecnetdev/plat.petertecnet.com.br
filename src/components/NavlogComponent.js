@@ -1,33 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Navbar } from "react-bootstrap";
-import { storageUrl, apiBaseUrl } from "../config";
 import axios from "axios";
+import {
+  FiActivity,
+  FiBriefcase,
+  FiCalendar,
+  FiChevronDown,
+  FiClipboard,
+  FiHome,
+  FiLogOut,
+  FiMenu,
+  FiPlusCircle,
+  FiSettings,
+  FiUser,
+  FiUsers,
+  FiX,
+} from "react-icons/fi";
+import { storageUrl, apiBaseUrl } from "../config";
 import "./NavlogComponent.css";
 
 export default function NavlogComponent() {
   const location = useLocation();
   const isPublicView = location.pathname.startsWith("/establishment/view");
-
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loadingMenu, setLoadingMenu] = useState(true);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showAdminSubmenu, setShowAdminSubmenu] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 992) setShowMobileMenu(false);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   useEffect(() => {
     if (isPublicView) {
       setLoading(false);
-      setLoadingMenu(false);
       return;
     }
 
@@ -35,136 +37,149 @@ export default function NavlogComponent() {
       const token = localStorage.getItem("token");
       if (!token) {
         setLoading(false);
-        setLoadingMenu(false);
         return;
       }
-
       try {
-        const headers = { Authorization: `Bearer ${token}` };
-        const response = await axios.get(`${apiBaseUrl}/auth/me`, { headers });
-        setUser({
-          ...response.data.user,
-          establishments: response.data.establishments || [],
+        const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        setUser({ ...data.user, establishments: data.establishments || [] });
       } catch {
         localStorage.removeItem("token");
       } finally {
         setLoading(false);
-        setLoadingMenu(false);
       }
     })();
   }, [isPublicView]);
 
-  const handleImageError = (e) => {
-    e.target.onerror = null;
-    e.target.src = "/images/user.png";
-  };
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
-  const handleToggleMobileMenu = () => {
-    setShowMobileMenu((prev) => !prev);
-    setShowAdminSubmenu(false);
-  };
+  const firstEstablishment = user?.establishments?.[0];
+  const isAdmin = user?.profile?.name === "Administrador";
+  const displayName = user?.first_name || user?.name || "Conta";
 
-  const renderAdminMenu = () => (
-    <>
-      <button
-        className="navlog__admin-btn"
-        onClick={() => setShowAdminSubmenu((v) => !v)}
-      >
-        Administrativo {showAdminSubmenu ? "▲" : "▼"}
-      </button>
-      {showAdminSubmenu && (
-        <div className="navlog__admin-submenu">
-          <Link to="/user/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
-            Usuários
-          </Link>
-          <Link to="/barber/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
-            Barbeiros
-          </Link>
-          <Link to="/service/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
-            Serviços
-          </Link>
-          <Link to="/appointments/list" onClick={handleToggleMobileMenu} className="navlog__submenu-link">
-            Agendamentos
-          </Link>
-        </div>
-      )}
-    </>
-  );
+  const avatar = user?.avatar ? `${storageUrl}/${user.avatar}` : "/images/user.png";
+
+  const navItems = useMemo(() => {
+    const items = [
+      { to: "/dashboard", label: "Visão geral", icon: FiHome },
+      { to: "/establishment", label: "Estabelecimentos", icon: FiBriefcase },
+      { to: "/appointment/my", label: "Agendamentos", icon: FiCalendar },
+      { to: "/service-record/my", label: "Atendimentos", icon: FiClipboard },
+    ];
+
+    if (firstEstablishment) {
+      items.splice(2, 0,
+        { to: `/order/list/${firstEstablishment.id}`, label: "Pedidos", icon: FiActivity },
+        { to: `/item/list/${firstEstablishment.slug}`, label: "Itens", icon: FiClipboard },
+      );
+    }
+    return items;
+  }, [firstEstablishment]);
+
+  const active = (to) => location.pathname === to || (to !== "/dashboard" && location.pathname.startsWith(to));
+
+  if (isPublicView) {
+    return (
+      <header className="plat-public-nav">
+        <Link to="/" className="plat-public-nav__brand" aria-label="Plat">
+          <img src="/images/logo.png" alt="Plat" />
+          <span>PLAT</span>
+        </Link>
+      </header>
+    );
+  }
 
   return (
     <>
-      <Navbar expand={false} sticky="top" bg="dark" variant="dark" className="navlog__navbar">
-        <Navbar.Brand as={Link} to="/" className="navlog__brand">
-          <img
-            src="/images/logo.png"
-            alt="Logo Buddys Royale"
-            className="navlog__logo-image"
-            draggable={false}
-          />
-        </Navbar.Brand>
-        <div className="navlog__menu-icon">
-          <button
-            onClick={handleToggleMobileMenu}
-            className="navlog__mobile-toggle-btn"
-            aria-label="Abrir menu"
-          >
-            ☰
+      <button
+        className="plat-mobile-trigger"
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Abrir navegação"
+      >
+        <FiMenu />
+      </button>
+
+      {mobileOpen && <button className="plat-nav-backdrop" onClick={() => setMobileOpen(false)} aria-label="Fechar menu" />}
+
+      <aside className={`plat-sidebar${mobileOpen ? " plat-sidebar--open" : ""}`}>
+        <div className="plat-sidebar__top">
+          <Link to="/dashboard" className="plat-sidebar__brand">
+            <img src="/images/logo.png" alt="Plat" />
+            <div>
+              <strong>PLAT</strong>
+              <span>Gestão inteligente</span>
+            </div>
+          </Link>
+          <button className="plat-sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Fechar navegação">
+            <FiX />
           </button>
         </div>
-      </Navbar>
 
-      {showMobileMenu && (
-        <div className="navlog__mobile-menu">
-          <div className="navlog__mobile-close">
-            <button
-              onClick={handleToggleMobileMenu}
-              className="navlog__close-btn"
-              aria-label="Fechar menu"
-            >
-              ×
-            </button>
-          </div>
-          <div className="navlog__mobile-content">
-            {loading || loadingMenu ? (
-              <p className="navlog__loading">Carregando...</p>
-            ) : user ? (
-              <>
-                <img
-                  src={user.avatar ? `${storageUrl}/${user.avatar}` : "/images/user.png"}
-                  alt="Avatar"
-                  onError={handleImageError}
-                  className="navlog__avatar"
-                />
-                <h5 className="navlog__user-name">{user.first_name}</h5>
-                <div className="navlog__mobile-links">
-                  <Link to="/user/update" onClick={handleToggleMobileMenu} className="navlog__link">
-                    Gerenciar Conta
-                  </Link>
+        <nav className="plat-sidebar__nav" aria-label="Navegação principal">
+          <span className="plat-sidebar__eyebrow">Operação</span>
+          {navItems.map(({ to, label, icon: Icon }) => (
+            <Link key={to} to={to} className={`plat-sidebar__link${active(to) ? " is-active" : ""}`}>
+              <Icon />
+              <span>{label}</span>
+            </Link>
+          ))}
 
-                  {user.establishments?.length === 0 && (
-                    <Link
-                      to="/establishment/create"
-                      onClick={handleToggleMobileMenu}
-                      className="navlog__link"
-                    >
-                      Criar Estabelecimento
-                    </Link>
-                  )}
+          <span className="plat-sidebar__eyebrow plat-sidebar__eyebrow--spaced">Gestão</span>
+          <Link to="/establishment/create" className="plat-sidebar__link">
+            <FiPlusCircle />
+            <span>Novo estabelecimento</span>
+          </Link>
+          <Link to="/user/update" className={`plat-sidebar__link${active("/user/update") ? " is-active" : ""}`}>
+            <FiSettings />
+            <span>Minha conta</span>
+          </Link>
 
-                  {user.profile?.name === "Administrador" && renderAdminMenu()}
-
-                  <Link to="/logout" onClick={handleToggleMobileMenu} className="navlog__link">
-                    Sair
-                  </Link>
+          {isAdmin && (
+            <div className="plat-sidebar__admin">
+              <button className="plat-sidebar__link plat-sidebar__admin-toggle" onClick={() => setAdminOpen((v) => !v)}>
+                <FiUsers />
+                <span>Administrativo</span>
+                <FiChevronDown className={adminOpen ? "is-rotated" : ""} />
+              </button>
+              {adminOpen && (
+                <div className="plat-sidebar__submenu">
+                  <Link to="/user/list">Usuários</Link>
+                  <Link to="/profile/list">Perfis</Link>
                 </div>
-              </>
-            ) : isPublicView ? null : (
-              <p className="navlog__loading">Usuário não encontrado</p>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+        </nav>
+
+        <div className="plat-sidebar__footer">
+          {loading ? (
+            <span className="plat-sidebar__loading">Carregando conta…</span>
+          ) : user ? (
+            <>
+              {firstEstablishment && (
+                <div className="plat-sidebar__context">
+                  <span>Operação principal</span>
+                  <strong>{firstEstablishment.name}</strong>
+                </div>
+              )}
+              <div className="plat-sidebar__account">
+                <img src={avatar} alt="" onError={(e) => { e.currentTarget.src = "/images/user.png"; }} />
+                <div>
+                  <strong>{displayName}</strong>
+                  <span>{user?.profile?.name || "Usuário"}</span>
+                </div>
+                <Link to="/logout" aria-label="Sair" className="plat-sidebar__logout"><FiLogOut /></Link>
+              </div>
+            </>
+          ) : (
+            <Link to="/login" className="plat-sidebar__link"><FiUser /> Entrar</Link>
+          )}
         </div>
-      )}
+      </aside>
     </>
   );
 }
