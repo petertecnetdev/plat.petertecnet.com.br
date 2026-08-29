@@ -1,4 +1,3 @@
-// src/pages/item/ItemCreatePage.js
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Container, Row, Col, Form, Button, Spinner } from "react-bootstrap";
@@ -6,297 +5,156 @@ import { useForm } from "react-hook-form";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
-import { apiBaseUrl } from "../../config";
+import { apiBaseUrl, appId } from "../../config";
 import "./Item.css";
+
+const apiMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  (error?.response?.data?.errors
+    ? Object.values(error.response.data.errors).flat().join("\n")
+    : "") ||
+  fallback;
 
 export default function ItemCreatePage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm();
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+    defaultValues: { status: "1", limited_by_user: "0", is_featured: "0", stock: 0 },
+  });
   const [establishment, setEstablishment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imagePreview, setImagePreview] = useState(null);
-  const [files, setFiles] = useState({});
+  const [imageFile, setImageFile] = useState(null);
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${apiBaseUrl}/establishment/view/${slug}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const res = await axios.get(`${apiBaseUrl}/establishment/view/${encodeURIComponent(slug)}`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        setEstablishment(res.data.establishment);
-      } catch {
-        Swal.fire("Erro", "Não foi possível carregar o estabelecimento.", "error");
-        navigate(-1);
+        const est = res.data?.establishment || res.data;
+        if (!est?.id) throw new Error("Estabelecimento não encontrado.");
+        if (Number(est.app_id) !== Number(appId)) {
+          throw new Error("Este estabelecimento não pertence à Plat.");
+        }
+        if (mounted) setEstablishment(est);
+      } catch (error) {
+        await Swal.fire("Erro", apiMessage(error, "Não foi possível carregar o estabelecimento."), "error");
+        navigate("/establishment", { replace: true });
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     })();
+    return () => { mounted = false; };
   }, [slug, navigate]);
 
-  const handleResizeImage = (file, setPreview, width, height, key) => {
-    return new Promise((resolve, reject) => {
-      if (!file?.type.startsWith("image/")) {
-        Swal.fire("Formato inválido", "Selecione uma imagem válida.", "error");
-        return reject();
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          const previewDataURL = canvas.toDataURL("image/png");
-          setPreview(previewDataURL);
-          canvas.toBlob(blob => {
-            const filename = file.name.replace(/\.[^/.]+$/, "") + ".png";
-            const resizedFile = new File([blob], filename, { type: "image/png" });
-            setFiles(prev => ({ ...prev, [key]: resizedFile }));
-            resolve(resizedFile);
-          }, "image/png", 0.95);
-        };
-        img.onerror = () => reject();
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleImageChange = async e => {
-    const file = e.target.files[0];
-    await handleResizeImage(file, setImagePreview, 250, 250, "image");
-  };
-
-  const onSubmit = async data => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      Swal.fire("Erro", "Você precisa estar autenticado.", "error");
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      Swal.fire("Formato inválido", "Selecione uma imagem válida.", "error");
       return;
     }
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, value || "");
-    });
-    formData.append("entity_id", establishment.id);
-    formData.append("entity_name", "establishment");
-    formData.append("app_id", "3");
-    if (files.image) {
-      formData.append("image", files.image);
+    if (file.size > 8 * 1024 * 1024) {
+      Swal.fire("Imagem muito grande", "Use uma imagem com até 8 MB.", "warning");
+      return;
     }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const onSubmit = async (data) => {
+    const token = localStorage.getItem("token");
+    if (!token || !establishment?.id) {
+      Swal.fire("Erro", "Sessão ou estabelecimento inválido.", "error");
+      return;
+    }
+
+    const formData = new FormData();
+    const normalized = {
+      ...data,
+      name: String(data.name || "").trim(),
+      type: String(data.type || "").trim(),
+      price: data.price === "" ? 0 : data.price,
+      stock: data.stock === "" ? 0 : data.stock,
+      status: data.status === "1" ? "1" : "0",
+      limited_by_user: data.limited_by_user === "1" ? "1" : "0",
+      is_featured: data.is_featured === "1" ? "1" : "0",
+    };
+
+    Object.entries(normalized).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") formData.append(key, value);
+    });
+    formData.append("entity_id", String(establishment.id));
+    formData.append("entity_name", "establishment");
+    formData.append("app_id", String(appId));
+    if (imageFile) formData.append("image", imageFile);
+
     try {
       await axios.post(`${apiBaseUrl}/item`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
-      Swal.fire("Sucesso", "Item cadastrado com sucesso.", "success");
-      navigate(-1);
-    } catch (err) {
-      if (err.response?.status === 422) {
-        const msgs = Object.values(err.response.data.errors || {}).flat();
-        Swal.fire("Erro de Validação", msgs.join("\n"), "warning");
-      } else {
-        Swal.fire("Erro", "Não foi possível criar o item.", "error");
-      }
+      await Swal.fire("Sucesso", "Item cadastrado com sucesso.", "success");
+      navigate(`/item/list/${establishment.slug}`);
+    } catch (error) {
+      Swal.fire("Erro", apiMessage(error, "Não foi possível criar o item."), error?.response?.status === 422 ? "warning" : "error");
     }
   };
 
   if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: 400 }}>
-        <Spinner animation="border" variant="warning" />
-      </div>
-    );
+    return <div className="d-flex justify-content-center align-items-center" style={{ minHeight: 400 }}><Spinner animation="border" variant="warning" /></div>;
   }
 
   return (
     <>
       <NavlogComponent />
-      <Container className="mt-4">
+      <Container className="main-container" fluid>
         <Row className="mb-3 align-items-center">
-          <Col><h3>Criar Item</h3></Col>
+          <Col>
+            <span className="text-muted">{establishment?.name}</span>
+            <h1 className="page-header mb-0">Novo item</h1>
+          </Col>
           <Col className="text-end">
-            <Button variant="secondary" onClick={() => navigate(-1)}>
-              Voltar
-            </Button>
+            <Button variant="secondary" onClick={() => navigate(`/item/list/${establishment.slug}`)}>Voltar</Button>
           </Col>
         </Row>
-        <Form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
+
+        <Form className="card-container" onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
           <Row className="g-3">
-            <Col xs={12} className="text-center mb-4">
+            <Col xs={12} className="text-center mb-3">
               <label htmlFor="imageInput" style={{ cursor: "pointer" }}>
                 {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="img-fluid img-thumbnail"
-                    width={150}
-                    height={150}
-                  />
+                  <img src={imagePreview} alt="Preview" style={{ width: 150, height: 150, objectFit: "cover", borderRadius: 18 }} />
                 ) : (
-                  <div className="border p-5">Clique para adicionar imagem</div>
+                  <div className="border rounded p-5 text-muted">Clique para adicionar imagem</div>
                 )}
               </label>
-              <div className="mt-2">
-                <Button variant="secondary" onClick={() => document.getElementById("imageInput").click()}>
-                  Selecionar imagem
-                </Button>
-              </div>
-              <Form.Control
-                id="imageInput"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                style={{ display: "none" }}
-              />
+              <Form.Control id="imageInput" type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />
             </Col>
-            <Col md={6}>
-              <Form.Group controlId="name">
-                <Form.Label>Nome*</Form.Label>
-                <Form.Control
-                  {...register("name", { required: true })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="type">
-                <Form.Label>Tipo*</Form.Label>
-                <Form.Control
-                  {...register("type", { required: true })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="description">
-                <Form.Label>Descrição</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  {...register("description")}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="category">
-                <Form.Label>Categoria</Form.Label>
-                <Form.Control {...register("category")} />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="subcategory">
-                <Form.Label>Subcategoria</Form.Label>
-                <Form.Control {...register("subcategory")} />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="brand">
-                <Form.Label>Marca</Form.Label>
-                <Form.Control {...register("brand")} />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="price">
-                <Form.Label>Preço (R$)*</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  {...register("price", { required: true })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="stock">
-                <Form.Label>Estoque*</Form.Label>
-                <Form.Control
-                  type="number"
-                  {...register("stock", { required: true })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="status">
-                <Form.Label>Status</Form.Label>
-                <Form.Select {...register("status")}>
-                  <option value="1">Ativo</option>
-                  <option value="0">Inativo</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="limited_by_user">
-                <Form.Label>Limitado por usuário</Form.Label>
-                <Form.Select {...register("limited_by_user")}>
-                  <option value="0">Não</option>
-                  <option value="1">Sim</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="availability_start">
-                <Form.Label>Disponível de</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  {...register("availability_start")}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="availability_end">
-                <Form.Label>até</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  {...register("availability_end")}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="expiration_date">
-                <Form.Label>Expira em</Form.Label>
-                <Form.Control
-                  type="date"
-                  {...register("expiration_date")}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="discount">
-                <Form.Label>Desconto (%)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  {...register("discount")}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="is_featured">
-                <Form.Label>Destaque</Form.Label>
-                <Form.Select {...register("is_featured")}>
-                  <option value="0">Não</option>
-                  <option value="1">Sim</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={12}>
-              <Form.Group controlId="notes">
-                <Form.Label>Notas</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  {...register("notes")}
-                />
-              </Form.Group>
-            </Col>
-            <Col xs={12} className="text-end">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Spinner animation="border" size="sm" /> : "Criar Item"}
-              </Button>
-            </Col>
+
+            <Col md={6}><Form.Group><Form.Label>Nome*</Form.Label><Form.Control {...register("name", { required: true })} /></Form.Group></Col>
+            <Col md={6}><Form.Group><Form.Label>Tipo*</Form.Label><Form.Select {...register("type", { required: true })}><option value="">Selecione</option><option value="product">Produto</option><option value="service">Serviço</option></Form.Select></Form.Group></Col>
+            <Col xs={12}><Form.Group><Form.Label>Descrição</Form.Label><Form.Control as="textarea" rows={3} {...register("description")} /></Form.Group></Col>
+            <Col md={4}><Form.Group><Form.Label>Categoria</Form.Label><Form.Control {...register("category")} /></Form.Group></Col>
+            <Col md={4}><Form.Group><Form.Label>Subcategoria</Form.Label><Form.Control {...register("subcategory")} /></Form.Group></Col>
+            <Col md={4}><Form.Group><Form.Label>Marca</Form.Label><Form.Control {...register("brand")} /></Form.Group></Col>
+            <Col md={3}><Form.Group><Form.Label>Preço (R$)*</Form.Label><Form.Control type="number" min="0" step="0.01" {...register("price", { required: true })} /></Form.Group></Col>
+            <Col md={3}><Form.Group><Form.Label>Estoque</Form.Label><Form.Control type="number" min="0" {...register("stock")} /></Form.Group></Col>
+            <Col md={3}><Form.Group><Form.Label>Status</Form.Label><Form.Select {...register("status")}><option value="1">Ativo</option><option value="0">Inativo</option></Form.Select></Form.Group></Col>
+            <Col md={3}><Form.Group><Form.Label>Destaque</Form.Label><Form.Select {...register("is_featured")}><option value="0">Não</option><option value="1">Sim</option></Form.Select></Form.Group></Col>
+            <Col md={4}><Form.Group><Form.Label>Disponível de</Form.Label><Form.Control type="datetime-local" {...register("availability_start")} /></Form.Group></Col>
+            <Col md={4}><Form.Group><Form.Label>Até</Form.Label><Form.Control type="datetime-local" {...register("availability_end")} /></Form.Group></Col>
+            <Col md={4}><Form.Group><Form.Label>Expira em</Form.Label><Form.Control type="date" {...register("expiration_date")} /></Form.Group></Col>
+            <Col md={3}><Form.Group><Form.Label>Desconto</Form.Label><Form.Control type="number" min="0" step="0.01" {...register("discount")} /></Form.Group></Col>
+            <Col md={3}><Form.Group><Form.Label>Limitado por usuário</Form.Label><Form.Select {...register("limited_by_user")}><option value="0">Não</option><option value="1">Sim</option></Form.Select></Form.Group></Col>
+            <Col xs={12}><Form.Group><Form.Label>Notas</Form.Label><Form.Control as="textarea" rows={2} {...register("notes")} /></Form.Group></Col>
+            <Col xs={12} className="text-end"><Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Spinner animation="border" size="sm" /> : "Criar item"}</Button></Col>
           </Row>
         </Form>
       </Container>
