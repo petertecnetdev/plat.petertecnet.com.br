@@ -1,472 +1,142 @@
-import React, { useState, useEffect } from "react";
-import { Form, Button, Container, Row, Card, Col } from "react-bootstrap";
+import React, { useEffect, useState } from "react";
+import { Form } from "react-bootstrap";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { FiCamera, FiMail, FiSave, FiUser } from "react-icons/fi";
 import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
-import Swal from "sweetalert2";
-import axios from "axios";
 import { apiBaseUrl, storageUrl } from "../../config";
+import "./User.css";
 
-const UserUpdatePage = () => {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [userData, setUserData] = useState({
-    avatar: null,
-    first_name: "",
-    user_name: "",
-    last_name: "",
-    cpf: "",
-    address: "",
-    phone: "",
-    city: "",
-    uf: "",
-    postal_code: "",
-    birthdate: "",
-    gender: "",
-    occupation: "",
-    about: "",
-    is_barber: false,
-    email: "",
-  });
+const initialUser = {
+  avatar: null,
+  first_name: "",
+  user_name: "",
+  last_name: "",
+  cpf: "",
+  address: "",
+  phone: "",
+  city: "",
+  uf: "",
+  postal_code: "",
+  birthdate: "",
+  gender: "",
+  occupation: "",
+  about: "",
+  email: "",
+};
+
+export default function UserUpdatePage() {
+  const [processing, setProcessing] = useState(false);
+  const [userData, setUserData] = useState(initialUser);
   const [originalData, setOriginalData] = useState({});
   const [avatarPreview, setAvatarPreview] = useState(null);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    (async () => {
+      setProcessing(true);
       try {
-        setIsProcessing(true);
-        const response = await axios.get(`${apiBaseUrl}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+        const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        const data = response.data.user;
-        setUserData({
-          avatar: data.avatar || null,
-          first_name: data.first_name || "",
-          user_name: data.user_name || "",
-          last_name: data.last_name || "",
-          cpf: data.cpf || "",
-          address: data.address || "",
-          phone: data.phone || "",
-          city: data.city || "",
-          uf: data.uf || "",
-          postal_code: data.postal_code || "",
-          birthdate: data.birthdate || "",
-          gender: data.gender || "",
-          occupation: data.occupation || "",
-          about: data.about || "",
-          is_barber: data.is_barber === "1" || data.is_barber === 1 || data.is_barber === true,
-          email: data.email || "",
-        });
-        setOriginalData(data);
-        setAvatarPreview(data.avatar ? `${storageUrl}/${data.avatar}` : null);
-      } catch (error) {
-        console.error("Erro ao buscar dados do usuário:", error);
-        Swal.fire({
-          title: "Sem dados",
-          text: "Não conseguimos carregar seus dados. Tente novamente",
-          icon: "error",
-          confirmButtonText: "OK",
-          customClass: {
-            popup: "custom-swal",
-            title: "custom-swal-title",
-            content: "custom-swal-text",
-          },
-        });
+        const user = data.user || {};
+        const normalized = Object.fromEntries(
+          Object.keys(initialUser).map((key) => [key, user[key] ?? initialUser[key]])
+        );
+        setUserData(normalized);
+        setOriginalData(user);
+        setAvatarPreview(user.avatar ? `${storageUrl}/${user.avatar}` : "/images/user.png");
+      } catch {
+        Swal.fire("Erro", "Não foi possível carregar os dados da conta.", "error");
       } finally {
-        setIsProcessing(false);
+        setProcessing(false);
       }
-    };
-
-    fetchUserData();
+    })();
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setUserData((prevData) => ({
-      ...prevData,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  const change = (event) => {
+    const { name, value } = event.target;
+    setUserData((current) => ({ ...current, [name]: value }));
   };
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result);
-        setUserData((prevData) => ({ ...prevData, avatar: file }));
-      };
-      reader.readAsDataURL(file);
-    } else {
-      Swal.fire({
-        title: "Formato Inválido",
-        text: "Selecione uma imagem válida.",
-        icon: "error",
-        confirmButtonText: "OK",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
-      });
+  const handleAvatarChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file?.type?.startsWith("image/")) {
+      Swal.fire("Imagem inválida", "Selecione uma imagem válida.", "error");
+      return;
     }
+    setUserData((current) => ({ ...current, avatar: file }));
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmit = async (event) => {
+  const submit = async (event) => {
     event.preventDefault();
-    setIsProcessing(true);
-    setMessages(["Atualizando dados do usuário..."]);
-
+    setProcessing(true);
     const formData = new FormData();
-
-    // Se o usuário selecionou um novo avatar, envia o arquivo diretamente
-    if (userData.avatar && userData.avatar instanceof File) {
-      formData.append("avatar", userData.avatar);
-    }
-
-    // Lista de campos que são booleanos e precisam ser enviados como "1" ou "0"
-    const booleanFields = ["is_barber"];
-
-    // Adiciona campos alterados
-    Object.keys(userData).forEach((key) => {
-      if (key === "avatar") return;
-      // Verifica se houve alteração comparado aos dados originais
-      if (userData[key] !== originalData[key]) {
-        let value = userData[key];
-        if (booleanFields.includes(key)) {
-          // Converte boolean para string "1" ou "0"
-          value = value ? "1" : "0";
-        }
-        formData.append(key, value);
-      }
+    if (userData.avatar instanceof File) formData.append("avatar", userData.avatar);
+    Object.entries(userData).forEach(([key, value]) => {
+      if (key !== "avatar" && value !== originalData[key]) formData.append(key, value ?? "");
     });
 
     try {
-      const headers = {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      };
-
-      const response = await axios.post(
-        `${apiBaseUrl}/user/${originalData.id}`,
-        formData,
-        { headers }
-      );
-      console.log(response);
-
-      Swal.fire({
-        title: "Sucesso!",
-        text: "Dados do usuário atualizados com sucesso.",
-        icon: "success",
-        confirmButtonText: "OK",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
-      }).then((result) => {
-        if (result.isConfirmed) {
-          window.location.reload();
-        }
+      await axios.post(`${apiBaseUrl}/user/${originalData.id}`, formData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
+      await Swal.fire("Conta atualizada", "Suas informações foram salvas.", "success");
+      window.location.reload();
     } catch (error) {
-      console.error("Erro ao atualizar dados do usuário:", error);
-      if (error.response && error.response.status === 422) {
-        const validationErrors = error.response.data.errors;
-        const errorMessage = Object.entries(validationErrors)
-          .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
-          .join("\n");
-        Swal.fire({
-          title: "Erro de Validação",
-          text: errorMessage,
-          icon: "error",
-          confirmButtonText: "OK",
-          customClass: {
-            popup: "custom-swal",
-            title: "custom-swal-title",
-            content: "custom-swal-text",
-          },
-        });
-      } else {
-        Swal.fire({
-          title: "Erro",
-          text: "Não foi possível atualizar os dados do usuário.",
-          icon: "error",
-          confirmButtonText: "OK",
-          customClass: {
-            popup: "custom-swal",
-            title: "custom-swal-title",
-            content: "custom-swal-text",
-          },
-        });
-      }
+      const validation = error.response?.data?.errors;
+      const message = validation
+        ? Object.values(validation).flat().join("\n")
+        : error.response?.data?.message || "Não foi possível atualizar sua conta.";
+      Swal.fire("Erro", message, "error");
     } finally {
-      setIsProcessing(false);
+      setProcessing(false);
     }
   };
 
-  const handleAvatarError = (e) => {
-    if (e.target.src.includes("/images/user.png")) return;
-    e.target.src = "/images/user.png";
-  };
-
   return (
-    <>
+    <div className="account-root">
       <NavlogComponent />
-      <p className="section-title text-center">Atualizar meu perfil</p>
-      <Container className="main-container" fluid>
-        {isProcessing ? (
-          <ProcessingIndicatorComponent messages={messages} />
-        ) : (
-          <Card className="card-container">
-            <p className="page-header">Atualizar meus dados</p>
-            <Card.Body className="card-body">
-              <div className="avatar-container">
-                <label htmlFor="avatarInput">
-                  {avatarPreview ? (
-                    <img
-                      src={avatarPreview}
-                      alt="Preview da avatar"
-                      className="avatar-preview"
-                      onError={handleAvatarError}
-                    />
-                  ) : (
-                    <img
-                      src="/images/user.png"
-                      alt="Preview da avatar"
-                      className="avatar-preview"
-                      onError={handleAvatarError}
-                    />
-                  )}
-                </label>
-                <Button
-                  variant="secondary"
-                  className="change-avatar-btn"
-                  onClick={() =>
-                    document.getElementById("avatarInput").click()
-                  }
-                >
-                  Alterar Avatar
-                </Button>
-                <Form.Control
-                  id="avatarInput"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  style={{ display: "none" }}
-                />
-              </div>
-              <Form className="form-container" onSubmit={handleSubmit}>
-                <Row>
-                  <Col md={2}>
-                    <Form.Group controlId="first_name" className="form-group">
-                      <Form.Label>Primeiro Nome</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="first_name"
-                        value={userData.first_name}
-                        onChange={handleInputChange}
-                        required
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="last_name" className="form-group">
-                      <Form.Label>Sobrenome</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="last_name"
-                        value={userData.last_name}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="user_name" className="form-group">
-                      <Form.Label>Nome de Usuário</Form.Label>
-                      <p className="text-white">{userData.user_name}</p>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="email" className="form-group">
-                      <Form.Label>Email</Form.Label>
-                      <p className="text-white">{userData.email}</p>
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group controlId="cpf" className="form-group">
-                      <Form.Label>CPF</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="cpf"
-                        value={userData.cpf}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="birthdate" className="form-group">
-                      <Form.Label>Data de Nascimento</Form.Label>
-                      <Form.Control
-                        type="date"
-                        name="birthdate"
-                        value={userData.birthdate}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="phone" className="form-group">
-                      <Form.Label>Telefone (whatsapp)</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="phone"
-                        value={userData.phone}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group controlId="gender" className="form-group">
-                      <Form.Label>Gênero</Form.Label>
-                      <Form.Select
-                        name="gender"
-                        value={userData.gender}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      >
-                        <option value="">Selecione</option>
-                        <option value="male">Masculino</option>
-                        <option value="female">Feminino</option>
-                        <option value="other">Outro</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={4}>
-                    <Form.Group controlId="address" className="form-group">
-                      <Form.Label>Endereço</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="address"
-                        value={userData.address}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="city" className="form-group">
-                      <Form.Label>Cidade</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="city"
-                        value={userData.city}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={2}>
-                    <Form.Group controlId="uf" className="form-group">
-                      <Form.Label>Estado (UF)</Form.Label>
-                      <Form.Select
-                        name="uf"
-                        value={userData.uf}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      >
-                        <option value="">Selecione</option>
-                        <option value="AC">AC</option>
-                        <option value="AL">AL</option>
-                        <option value="AP">AP</option>
-                        <option value="AM">AM</option>
-                        <option value="BA">BA</option>
-                        <option value="CE">CE</option>
-                        <option value="DF">DF</option>
-                        <option value="ES">ES</option>
-                        <option value="GO">GO</option>
-                        <option value="MA">MA</option>
-                        <option value="MT">MT</option>
-                        <option value="MS">MS</option>
-                        <option value="MG">MG</option>
-                        <option value="PA">PA</option>
-                        <option value="PB">PB</option>
-                        <option value="PR">PR</option>
-                        <option value="PE">PE</option>
-                        <option value="PI">PI</option>
-                        <option value="RJ">RJ</option>
-                        <option value="RN">RN</option>
-                        <option value="RS">RS</option>
-                        <option value="RO">RO</option>
-                        <option value="RR">RR</option>
-                        <option value="SC">SC</option>
-                        <option value="SP">SP</option>
-                        <option value="SE">SE</option>
-                        <option value="TO">TO</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="postal_code" className="form-group">
-                      <Form.Label>CEP</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="postal_code"
-                        value={userData.postal_code}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group controlId="occupation" className="form-group">
-                      <Form.Label>Ocupação</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="occupation"
-                        value={userData.occupation}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col>
-                    <Form.Group controlId="about" className="form-group">
-                      <Form.Label>Fale sobre você</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={3}
-                        name="about"
-                        value={userData.about}
-                        onChange={handleInputChange}
-                        className="input-field"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <div className="center text-center">
-                  <Button variant="primary" type="submit" className="submit-btn">
-                    Atualizar
-                  </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        )}
-      </Container>
-    </>
-  );
-};
+      {processing && <ProcessingIndicatorComponent messages={["Atualizando sua conta…"]} />}
 
-export default UserUpdatePage;
+      <main className="account-page">
+        <header className="account-header">
+          <div><span>Conta</span><h1>Meu perfil</h1><p>Gerencie suas informações pessoais e de acesso.</p></div>
+        </header>
+
+        <form className="account-layout" onSubmit={submit}>
+          <aside className="account-profile-card">
+            <div className="account-avatar-shell">
+              <img src={avatarPreview || "/images/user.png"} alt="Avatar" onError={(e) => { e.currentTarget.src = "/images/user.png"; }} />
+              <label htmlFor="avatarInput" className="account-avatar-action"><FiCamera /></label>
+              <input id="avatarInput" type="file" accept="image/*" onChange={handleAvatarChange} hidden />
+            </div>
+            <h2>{userData.first_name || "Usuário"} {userData.last_name}</h2>
+            <p>@{userData.user_name || "usuario"}</p>
+            <div className="account-readonly"><FiMail /><span>{userData.email}</span></div>
+          </aside>
+
+          <section className="account-form-card">
+            <div className="account-section-heading"><FiUser /><div><h2>Informações pessoais</h2><p>Dados usados na sua conta Plat.</p></div></div>
+            <div className="account-grid">
+              <label>Nome<Form.Control name="first_name" value={userData.first_name} onChange={change} /></label>
+              <label>Sobrenome<Form.Control name="last_name" value={userData.last_name} onChange={change} /></label>
+              <label>CPF<Form.Control name="cpf" value={userData.cpf} onChange={change} /></label>
+              <label>Nascimento<Form.Control type="date" name="birthdate" value={userData.birthdate || ""} onChange={change} /></label>
+              <label>Telefone<Form.Control name="phone" value={userData.phone} onChange={change} /></label>
+              <label>Gênero<Form.Select name="gender" value={userData.gender} onChange={change}><option value="">Selecione</option><option value="male">Masculino</option><option value="female">Feminino</option><option value="other">Outro</option></Form.Select></label>
+              <label className="account-span-2">Endereço<Form.Control name="address" value={userData.address} onChange={change} /></label>
+              <label>Cidade<Form.Control name="city" value={userData.city} onChange={change} /></label>
+              <label>UF<Form.Control name="uf" maxLength={2} value={userData.uf} onChange={change} /></label>
+              <label>CEP<Form.Control name="postal_code" value={userData.postal_code} onChange={change} /></label>
+              <label>Ocupação<Form.Control name="occupation" value={userData.occupation} onChange={change} /></label>
+              <label className="account-span-2">Sobre você<Form.Control as="textarea" rows={4} name="about" value={userData.about} onChange={change} /></label>
+            </div>
+            <div className="account-actions"><button type="submit"><FiSave /> Salvar alterações</button></div>
+          </section>
+        </form>
+      </main>
+    </div>
+  );
+}
