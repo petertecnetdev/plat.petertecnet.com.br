@@ -8,6 +8,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./LegacyTheme.css";
 import "./pages/establishment/Management.css";
 import "./Responsive.css";
+import "./PeterAppTheme.css";
 
 axios.defaults.headers.common["X-Peter-App"] = "plat";
 
