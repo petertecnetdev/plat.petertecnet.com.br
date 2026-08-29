@@ -1,0 +1,491 @@
+/* =========================================================
+   PLAT — Peter Tecnet Application Visual System
+   Architecture aligned with Rasoio AppLayout visual language.
+   Plat keeps its own gold identity while sharing the same UI grammar.
+   ========================================================= */
+
+:root {
+  --pt-shell-bg: #05070a;
+  --pt-shell-bg-2: #090d12;
+  --pt-surface: rgba(255,255,255,.055);
+  --pt-surface-strong: rgba(12,16,22,.91);
+  --pt-surface-hover: rgba(255,255,255,.075);
+  --pt-border: rgba(214,181,108,.16);
+  --pt-border-soft: rgba(255,255,255,.085);
+  --pt-text: rgba(255,255,255,.95);
+  --pt-text-dim: rgba(255,255,255,.66);
+  --pt-text-soft: rgba(255,255,255,.42);
+  --pt-accent: #d6b56c;
+  --pt-accent-2: #f0d99d;
+  --pt-accent-deep: #9d7a36;
+  --pt-sidebar: 248px;
+  --pt-radius: 20px;
+  --pt-radius-sm: 13px;
+  --pt-shadow: 0 22px 64px rgba(0,0,0,.32);
+  --pt-shadow-soft: 0 12px 34px rgba(0,0,0,.22);
+  --pt-focus: 0 0 0 4px rgba(214,181,108,.12);
+}
+
+html, body, #root {
+  min-height: 100%;
+  margin: 0;
+  background: var(--pt-shell-bg);
+  color: var(--pt-text);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  overflow-x: hidden;
+  background:
+    radial-gradient(900px 520px at 8% 0%, rgba(214,181,108,.11), transparent 62%),
+    radial-gradient(900px 580px at 92% 5%, rgba(112,137,170,.08), transparent 64%),
+    linear-gradient(160deg, #05070a, #070c12 44%, #05070a);
+}
+
+#root { position: relative; isolation: isolate; }
+
+/* ---------- Shared application pages ---------- */
+.main-container,
+.dashboard-main,
+.establishment-list-page,
+.establishment-create-page,
+[class*="-page"] .main-container {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0;
+}
+
+.main-container {
+  margin-left: var(--pt-sidebar) !important;
+  padding: 38px clamp(24px, 3.2vw, 48px) 58px !important;
+}
+
+.section-title {
+  margin-left: var(--pt-sidebar) !important;
+  padding: 34px clamp(24px, 3.2vw, 48px) 0 !important;
+  color: var(--pt-text) !important;
+  font-size: clamp(1.8rem, 2.6vw, 2.55rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: -.04em !important;
+}
+
+.page-header,
+.main-container h1,
+.dashboard-hero h1,
+.establishment-page-header h1,
+.establishment-create-page .title {
+  color: #fff !important;
+  text-shadow: 0 10px 34px rgba(0,0,0,.32) !important;
+}
+
+.page-header {
+  font-size: clamp(1.55rem, 2.2vw, 2.15rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: -.035em !important;
+  text-transform: none !important;
+}
+
+.main-container p,
+.main-container label,
+.main-container small,
+.dashboard-main p,
+.dashboard-main small,
+.establishment-list-page p,
+.establishment-create-page label,
+.text-muted {
+  color: var(--pt-text-dim) !important;
+}
+
+/* ---------- Surfaces / cards ---------- */
+.card-container,
+.card-component,
+.inner-card,
+.card,
+.dashboard-panel,
+.dashboard-kpi,
+.dashboard-establishment,
+.establishment-card,
+.establishment-empty-state,
+.establishment-create-page .form,
+.modal-content,
+.dropdown-menu,
+.list-group-item {
+  color: var(--pt-text) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.026)) !important;
+  border: 1px solid var(--pt-border-soft) !important;
+  border-radius: var(--pt-radius) !important;
+  box-shadow: var(--pt-shadow-soft) !important;
+  backdrop-filter: blur(18px);
+}
+
+.card-container,
+.establishment-create-page .form {
+  padding: clamp(20px, 2.5vw, 30px) !important;
+}
+
+.card-header,
+.dashboard-panel__header,
+.modal-header,
+.modal-footer,
+.card-footer {
+  border-color: var(--pt-border-soft) !important;
+  background: rgba(255,255,255,.018) !important;
+}
+
+.card:hover,
+.establishment-card:hover,
+.dashboard-establishment:hover {
+  border-color: rgba(214,181,108,.22) !important;
+}
+
+/* ---------- Forms ---------- */
+.form-control,
+.form-select,
+.input-field,
+.input-username,
+.input-password,
+textarea,
+select,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(255,255,255,.105) !important;
+  border-radius: var(--pt-radius-sm) !important;
+  background: rgba(3,8,14,.74) !important;
+  color: var(--pt-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+textarea,
+textarea.form-control { min-height: 112px; resize: vertical; }
+
+.form-control:focus,
+.form-select:focus,
+.input-field:focus,
+.input-username:focus,
+.input-password:focus,
+textarea:focus,
+select:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus {
+  outline: none !important;
+  border-color: rgba(214,181,108,.62) !important;
+  background: rgba(5,11,18,.92) !important;
+  box-shadow: var(--pt-focus) !important;
+}
+
+.form-label,
+.form-group label {
+  margin-bottom: 8px !important;
+  color: rgba(255,255,255,.72) !important;
+  font-size: .86rem !important;
+  font-weight: 700 !important;
+}
+
+.form-check-input {
+  border-color: rgba(214,181,108,.30) !important;
+  background-color: rgba(3,8,14,.88) !important;
+}
+.form-check-input:checked {
+  border-color: var(--pt-accent) !important;
+  background-color: var(--pt-accent) !important;
+}
+
+/* ---------- Buttons ---------- */
+.btn,
+.action-button,
+.submit-btn,
+button:not(.plat-mobile-trigger):not(.plat-sidebar__close):not(.plat-sidebar__admin-toggle) {
+  min-height: 42px;
+  border-radius: 12px !important;
+  font-weight: 750;
+  transition: transform .16s ease, filter .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.btn-primary,
+.submit-btn,
+.action-button.primary,
+.establishment-primary-action,
+.dashboard-primary-action {
+  border: 1px solid rgba(214,181,108,.36) !important;
+  background: linear-gradient(135deg, var(--pt-accent-2), var(--pt-accent)) !important;
+  color: #17120a !important;
+  font-weight: 850 !important;
+  box-shadow: 0 14px 34px rgba(214,181,108,.14) !important;
+}
+
+.btn-primary:hover,
+.submit-btn:hover,
+.establishment-primary-action:hover,
+.dashboard-primary-action:hover {
+  color: #17120a !important;
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.btn-secondary,
+.action-button,
+.change-avatar-btn {
+  border: 1px solid rgba(255,255,255,.11) !important;
+  background: rgba(255,255,255,.065) !important;
+  color: var(--pt-text) !important;
+}
+.btn-secondary:hover,
+.action-button:hover,
+.change-avatar-btn:hover {
+  border-color: rgba(214,181,108,.22) !important;
+  background: rgba(214,181,108,.075) !important;
+  color: #fff !important;
+}
+
+/* ---------- Tables ---------- */
+.table-responsive {
+  overflow-x: auto !important;
+  border: 1px solid var(--pt-border-soft);
+  border-radius: 18px !important;
+  background: rgba(0,0,0,.12);
+}
+
+.table,
+table {
+  --bs-table-bg: transparent !important;
+  --bs-table-color: var(--pt-text) !important;
+  --bs-table-border-color: rgba(255,255,255,.075) !important;
+  color: var(--pt-text) !important;
+  margin-bottom: 0;
+}
+
+.table th,
+table th {
+  padding: 14px 16px !important;
+  color: rgba(255,255,255,.68) !important;
+  font-size: .75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+  white-space: nowrap;
+}
+
+.table td,
+table td {
+  padding: 14px 16px !important;
+  vertical-align: middle !important;
+}
+
+.table tbody tr,
+table tbody tr { transition: background .14s ease; }
+.table tbody tr:hover,
+table tbody tr:hover { background: rgba(214,181,108,.045) !important; }
+
+/* ---------- Sidebar matching Peter Tecnet/Rasoio shell ---------- */
+.plat-sidebar {
+  width: var(--pt-sidebar) !important;
+  background:
+    linear-gradient(180deg, rgba(11,15,21,.97), rgba(7,10,14,.985)) !important;
+  border-right: 1px solid rgba(214,181,108,.12) !important;
+  box-shadow: 18px 0 55px rgba(0,0,0,.22) !important;
+  backdrop-filter: blur(22px);
+}
+
+.plat-sidebar__brand img {
+  border-radius: 14px !important;
+  border-color: rgba(214,181,108,.22) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.34) !important;
+}
+
+.plat-sidebar__link {
+  min-height: 44px !important;
+  border-radius: 12px !important;
+  color: rgba(255,255,255,.66) !important;
+}
+.plat-sidebar__link:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.045) !important;
+}
+.plat-sidebar__link.is-active {
+  color: #fff2cf !important;
+  border-color: rgba(214,181,108,.18) !important;
+  background: linear-gradient(90deg, rgba(214,181,108,.17), rgba(214,181,108,.05)) !important;
+  box-shadow: inset 2px 0 0 var(--pt-accent) !important;
+}
+
+.plat-mobile-trigger {
+  border-color: rgba(214,181,108,.18) !important;
+  background: rgba(10,14,19,.93) !important;
+  box-shadow: 0 12px 34px rgba(0,0,0,.28) !important;
+  backdrop-filter: blur(16px);
+}
+
+/* ---------- Dashboard refinements ---------- */
+.dashboard-main { margin-left: var(--pt-sidebar) !important; }
+.dashboard-kpis { gap: 16px !important; }
+.dashboard-kpi { padding: 19px !important; }
+.dashboard-grid { gap: 18px !important; }
+.dashboard-establishments { gap: 14px !important; padding: 16px !important; }
+.dashboard-establishment { padding: 18px !important; }
+
+/* ---------- Establishments ---------- */
+.establishment-list-page,
+.establishment-create-page {
+  margin-left: var(--pt-sidebar) !important;
+  max-width: none !important;
+  padding: 38px clamp(24px, 3.2vw, 48px) 58px !important;
+}
+
+.establishment-grid { gap: 18px !important; }
+.establishment-card { padding: 22px !important; }
+.establishment-card__identity img {
+  border-radius: 18px !important;
+  border-color: rgba(214,181,108,.22) !important;
+}
+
+.establishment-card__actions a {
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,.04) !important;
+  color: rgba(255,255,255,.69) !important;
+}
+.establishment-card__actions a:hover {
+  border-color: rgba(214,181,108,.22) !important;
+  background: rgba(214,181,108,.065) !important;
+  color: #fff !important;
+}
+
+/* ---------- Modals / SweetAlert ---------- */
+.modal-dialog { margin: 1rem auto; }
+.modal-content { overflow: hidden; }
+.swal2-popup {
+  width: min(680px, calc(100vw - 28px)) !important;
+  border: 1px solid rgba(214,181,108,.16) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(18,23,30,.98), rgba(10,14,19,.99)) !important;
+  color: var(--pt-text) !important;
+  box-shadow: 0 26px 80px rgba(0,0,0,.48) !important;
+}
+.swal2-title { color: #fff !important; }
+.swal2-html-container { color: var(--pt-text-dim) !important; }
+
+/* ---------- Auth ---------- */
+.login-bg,
+.page-row {
+  background:
+    radial-gradient(850px 500px at 12% 0%, rgba(214,181,108,.11), transparent 62%),
+    radial-gradient(760px 480px at 88% 12%, rgba(112,137,170,.08), transparent 62%),
+    linear-gradient(160deg, #05070a, #07101a 50%, #05070a) !important;
+}
+.login-card {
+  border: 1px solid rgba(214,181,108,.14) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.026)) !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,.4) !important;
+  backdrop-filter: blur(22px);
+}
+
+/* ---------- Responsiveness ---------- */
+@media (max-width: 1199px) {
+  .main-container,
+  .dashboard-main,
+  .establishment-list-page,
+  .establishment-create-page {
+    padding-right: 24px !important;
+    padding-left: 24px !important;
+  }
+}
+
+@media (max-width: 991px) {
+  .main-container,
+  .dashboard-main,
+  .establishment-list-page,
+  .establishment-create-page {
+    margin-left: 0 !important;
+    padding: 82px 18px 42px !important;
+  }
+
+  .section-title {
+    margin-left: 0 !important;
+    padding: 82px 18px 0 !important;
+  }
+
+  .plat-sidebar { width: min(310px, 88vw) !important; }
+  .dashboard-hero,
+  .establishment-page-header { align-items: flex-start !important; }
+}
+
+@media (max-width: 767px) {
+  .main-container,
+  .dashboard-main,
+  .establishment-list-page,
+  .establishment-create-page {
+    padding: 78px 14px 34px !important;
+  }
+
+  .card-container,
+  .card-component .card-body,
+  .inner-card,
+  .establishment-create-page .form {
+    padding: 18px !important;
+  }
+
+  .dashboard-hero,
+  .establishment-page-header,
+  .d-flex.justify-content-between.align-items-center {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-hero__actions,
+  .establishment-page-header > a,
+  .main-container > .d-flex .btn {
+    width: 100%;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .submit-btn,
+  .establishment-primary-action {
+    min-height: 46px;
+  }
+
+  .table-responsive {
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+}
+
+@media (max-width: 575px) {
+  .main-container,
+  .dashboard-main,
+  .establishment-list-page,
+  .establishment-create-page {
+    padding-inline: 12px !important;
+  }
+
+  .page-header { font-size: 1.55rem !important; }
+  .card-container,
+  .establishment-card,
+  .dashboard-kpi,
+  .dashboard-establishment { border-radius: 17px !important; }
+
+  .establishment-card__identity {
+    align-items: flex-start !important;
+  }
+
+  .establishment-card__actions { grid-template-columns: 1fr !important; }
+  .dashboard-establishment__actions a { flex: 1 1 100% !important; }
+
+  .swal2-actions { width: 100% !important; }
+  .swal2-actions .swal2-styled {
+    flex: 1 1 100%;
+    width: 100%;
+    margin: 4px 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
