@@ -1,63 +1,59 @@
-import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
-import ReactDOM from 'react-dom';
-import loadingImage from '../images/logo.gif';
+import React, { useEffect, useRef, useState } from "react";
+import PropTypes from "prop-types";
+import "./ProcessingIndicatorComponent.css";
 
-const ProcessingIndicatorComponent = ({ messages = [], interval = 1500 }) => {
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+export default function ProcessingIndicatorComponent({
+  messages = ["Carregando a Plat…", "Preparando sua operação…"],
+  interval = 2200,
+  logoSrc = "/images/logo.png",
+  compact = false,
+}) {
+  const messageIndex = useRef(0);
+  const [currentMessage, setCurrentMessage] = useState(messages[0] || "Carregando…");
 
   useEffect(() => {
-    if (!messages.length) return;
-    const messageInterval = setInterval(() => {
-      setCurrentMessageIndex(prev => (prev + 1) % messages.length);
+    if (!messages?.length || messages.length === 1) return undefined;
+
+    const timer = window.setInterval(() => {
+      messageIndex.current = (messageIndex.current + 1) % messages.length;
+      setCurrentMessage(messages[messageIndex.current]);
     }, interval);
-    return () => clearInterval(messageInterval);
+
+    return () => window.clearInterval(timer);
   }, [messages, interval]);
 
-  const indicator = (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      zIndex: 9999,
-      overflow: 'hidden'
-    }}>
-      <img
-        src={loadingImage}
-        alt="Loading"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover'
-        }}
-      />
-      {messages.length > 0 && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          width: '100%',
-          textAlign: 'center',
-          color: '#FFFFFF',
-          fontSize: '1.2rem',
-          padding: '0 20px'
-        }}>
-          {messages[currentMessageIndex]}
+  return (
+    <div
+      className={`plat-processing${compact ? " plat-processing--compact" : ""}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="plat-processing__loader" aria-hidden="true">
+        <div className="plat-processing__orbit plat-processing__orbit--outer" />
+        <div className="plat-processing__orbit plat-processing__orbit--inner" />
+        <span className="plat-processing__pulse" />
+        <div className="plat-processing__logo-shell">
+          <img src={logoSrc} alt="" className="plat-processing__logo" draggable={false} />
         </div>
-      )}
+      </div>
+
+      <div className="plat-processing__copy">
+        <strong>PLAT</strong>
+        <span>{currentMessage}</span>
+        <div className="plat-processing__dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </div>
+      </div>
     </div>
   );
-
-  return ReactDOM.createPortal(indicator, document.body);
-};
+}
 
 ProcessingIndicatorComponent.propTypes = {
   messages: PropTypes.arrayOf(PropTypes.string),
   interval: PropTypes.number,
+  logoSrc: PropTypes.string,
+  compact: PropTypes.bool,
 };
-
-export default ProcessingIndicatorComponent;
