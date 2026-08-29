@@ -26,16 +26,11 @@ import ItemListPage from "./pages/item/ItemListPage";
 import ItemCreatePage from "./pages/item/ItemCreatePage";
 import ItemUpdatePage from "./pages/item/ItemUpdatePage";
 import ItemViewPage from "./pages/item/ItemViewPage";
-import MenuListPage from "./pages/menu/MenuListPage";
-import MenuCreatePage from "./pages/menu/MenuCreatePage";
-import MenuUpdatePage from "./pages/menu/MenuUpdatePage";
-import MenuShowPage from "./pages/menu/MenuShowPage";
 import EstablishmentListPage from "./pages/corp/establishment/EstablishmentListPage";
 import EstablishmentCreatePage from "./pages/establishment/EstablishmentCreatePage";
 import EstablishmentViewPage from "./pages/establishment/EstablishmentViewPage";
 import EstablishmentUpdatePage from "./pages/establishment/EstablishmentUpdatePage";
 import ServiceRecordListPage from "./pages/serviceRecord/ServiceRecordListPage";
-import ServiceRecordCreatePage from "./pages/serviceRecord/ServiceRecordCreatePage";
 import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
 import ReportOrderPage from "./pages/report/ReportOrderPage";
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
@@ -125,14 +120,8 @@ const App = () => {
         <Route path="/establishment/create" element={protectedRoute(<EstablishmentCreatePage />)} />
         <Route path="/establishment/update/:id" element={protectedRoute(<EstablishmentUpdatePage />)} />
 
-        <Route path="/service-record/create/:slug" element={protectedRoute(<ServiceRecordCreatePage />)} />
         <Route path="/service-record/my" element={protectedRoute(<ServiceRecordListPage />)} />
         <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage />)} />
-
-        <Route path="/menu" element={protectedRoute(<MenuListPage />)} />
-        <Route path="/menu/create" element={protectedRoute(<MenuCreatePage />)} />
-        <Route path="/menu/update/:id" element={protectedRoute(<MenuUpdatePage />)} />
-        <Route path="/menu/show/:id" element={<MenuShowPage />} />
 
         <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage />)} />
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
