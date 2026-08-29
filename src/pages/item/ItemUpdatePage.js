@@ -1,416 +1,172 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Container, Row, Col, Form, Button, Spinner } from "react-bootstrap";
+import { useNavigate, useParams } from "react-router-dom";
+import { Button, Col, Container, Form, Row, Spinner } from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
-import { apiBaseUrl, storageUrl } from "../../config";
+import { apiBaseUrl, appId, storageUrl } from "../../config";
+import "./Item.css";
+
+const emptyForm = {
+  name: "", type: "", description: "", price: "", stock: "0", status: "1",
+  limited_by_user: "0", category: "", subcategory: "", brand: "",
+  availability_start: "", availability_end: "", tags: "", discount: "",
+  expiration_date: "", notes: "", is_featured: "0",
+};
+
+const apiMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.response?.data?.error ||
+  (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join("\n") : "") || fallback;
+
+const firstImage = (item) => {
+  const file = Array.isArray(item?.files) ? item.files.find((entry) => entry?.path) : null;
+  if (file?.path) return `${storageUrl}/${file.path}`;
+  if (item?.image) return `${storageUrl}/${item.image}`;
+  return null;
+};
 
 export default function ItemUpdatePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const [form, setForm] = useState({
-    name: "",
-    type: "",
-    description: "",
-    price: "",
-    stock: "",
-    status: "1",
-    limited_by_user: "0",
-    category: "",
-    subcategory: "",
-    brand: "",
-    availability_start: "",
-    availability_end: "",
-    tags: "",
-    discount: "",
-    expiration_date: "",
-    notes: "",
-    is_featured: "0",
-  });
+  const [form, setForm] = useState(emptyForm);
+  const [item, setItem] = useState(null);
+  const [establishment, setEstablishment] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    async function fetchItem() {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
       try {
-        setLoading(true);
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${apiBaseUrl}/item/${id}`, {
+        const { data } = await axios.get(`${apiBaseUrl}/item/view/${id}`, {
+          params: { app_id: appId },
           headers: { Authorization: `Bearer ${token}` },
         });
-        const item = res.data;
-        setForm({
-          name: item.name || "",
-          type: item.type || "",
-          description: item.description || "",
-          price: String(item.price || ""),
-          stock: String(item.stock || ""),
-          status: String(item.status || 0),
-          limited_by_user: String(item.limited_by_user || 0),
-          category: item.category || "",
-          subcategory: item.subcategory || "",
-          brand: item.brand || "",
-          availability_start: item.availability_start?.slice(0, 16) || "",
-          availability_end: item.availability_end?.slice(0, 16) || "",
-          tags: item.tags || "",
-          discount: String(item.discount || ""),
-          expiration_date: item.expiration_date?.slice(0, 10) || "",
-          notes: item.notes || "",
-          is_featured: String(item.is_featured || 0),
-        });
-        if (item.image) {
-          setImagePreview(`${storageUrl}/${item.image}`);
+        const loaded = data?.item || data;
+        const est = data?.establishment || null;
+        if (!loaded?.id || Number(loaded.app_id) !== Number(appId)) {
+          throw new Error("Item inválido para a Plat.");
         }
-      } catch (err) {
-        Swal.fire(
-          "Erro",
-          err.response?.data?.error || "Não foi possível carregar o item.",
-          "error"
-        );
+        if (!mounted) return;
+        setItem(loaded);
+        setEstablishment(est);
+        setImagePreview(firstImage(loaded));
+        setForm({
+          name: loaded.name || "",
+          type: loaded.type || "",
+          description: loaded.description || "",
+          price: loaded.price ?? "",
+          stock: loaded.stock ?? "0",
+          status: loaded.status ? "1" : "0",
+          limited_by_user: loaded.limited_by_user ? "1" : "0",
+          category: loaded.category || "",
+          subcategory: loaded.subcategory || "",
+          brand: loaded.brand || "",
+          availability_start: loaded.availability_start?.slice(0, 16) || "",
+          availability_end: loaded.availability_end?.slice(0, 16) || "",
+          tags: Array.isArray(loaded.tags) ? loaded.tags.join(", ") : (loaded.tags || ""),
+          discount: loaded.discount ?? "",
+          expiration_date: loaded.expiration_date?.slice(0, 10) || "",
+          notes: loaded.notes || "",
+          is_featured: loaded.is_featured ? "1" : "0",
+        });
+      } catch (error) {
+        await Swal.fire("Erro", apiMessage(error, "Não foi possível carregar o item."), "error");
+        navigate(-1);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
-    }
-    fetchItem();
-  }, [id]);
+    })();
+    return () => { mounted = false; };
+  }, [id, navigate]);
 
-  function handleImageChange(e) {
-    const file = e.target.files[0];
-    if (!file || !file.type.startsWith("image/")) {
-      Swal.fire("Formato inválido", "Selecione uma imagem válida.", "error");
+  const change = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024) {
+      Swal.fire("Imagem inválida", "Selecione uma imagem de até 8 MB.", "warning");
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const img = new Image();
-      img.src = reader.result;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const W = 150,
-          H = 150;
-        canvas.width = W;
-        canvas.height = H;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, W, H);
-        setImagePreview(canvas.toDataURL("image/png"));
-      };
-    };
-    reader.readAsDataURL(file);
-  }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
-  function handleImageError(e) {
-    e.target.src = "/images/default_item.png";
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!item?.id) return;
     setSubmitting(true);
     try {
       const token = localStorage.getItem("token");
-      const formData = new FormData();
-      Object.entries(form).forEach(([key, value]) => {
-        formData.append(key, value);
+      const payload = new FormData();
+      const plainFields = [
+        "name", "type", "description", "price", "stock", "status", "limited_by_user",
+        "category", "subcategory", "brand", "availability_start", "availability_end",
+        "discount", "expiration_date", "notes", "is_featured",
+      ];
+      plainFields.forEach((field) => {
+        const value = form[field];
+        if (value !== "" && value !== null && value !== undefined) payload.append(field, value);
       });
-      if (imagePreview && imagePreview.startsWith("data:")) {
-        const blob = await fetch(imagePreview).then((res) => res.blob());
-        formData.append("image", blob, "image.png");
-      }
-      await axios.post(`${apiBaseUrl}/item/${id}`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+      String(form.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean)
+        .forEach((tag) => payload.append("tags[]", tag));
+      if (imageFile) payload.append("image", imageFile);
+
+      await axios.post(`${apiBaseUrl}/item/${item.id}`, payload, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
-      Swal.fire("Sucesso", "Item atualizado com sucesso.", "success");
-      navigate("/");
-    } catch (err) {
-      if (err.response?.status === 422) {
-        const msgs = Object.values(err.response.data.errors || {}).flat();
-        Swal.fire("Erro de Validação", msgs.join("\n"), "warning");
-      } else {
-        Swal.fire("Erro", "Não foi possível atualizar o item.", "error");
-      }
+      await Swal.fire("Sucesso", "Item atualizado com sucesso.", "success");
+      if (establishment?.slug) navigate(`/item/list/${establishment.slug}`);
+      else navigate(-1);
+    } catch (error) {
+      Swal.fire("Erro", apiMessage(error, "Não foi possível atualizar o item."), error?.response?.status === 422 ? "warning" : "error");
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
-  if (loading) {
-    return <Spinner animation="border" className="mt-5 d-block mx-auto" />;
-  }
+  if (loading) return <Spinner animation="border" className="mt-5 d-block mx-auto" />;
 
   return (
     <>
       <NavlogComponent />
-      <Container className="mt-4">
-        <Row className="mb-3 align-items-center">
-          <Col>
-            <h3>Editar Item</h3>
-          </Col>
-          <Col className="text-end">
-            <Button variant="secondary" onClick={() => navigate(-1)}>
-              Voltar
-            </Button>
-          </Col>
-        </Row>
-        <Form onSubmit={handleSubmit}>
+      <Container className="main-container" fluid>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div><span className="text-muted">{establishment?.name || "Plat"}</span><h1 className="page-header mb-0">Editar item</h1></div>
+          <Button variant="secondary" onClick={() => navigate(-1)}>Voltar</Button>
+        </div>
+        <Form className="card-container" onSubmit={handleSubmit}>
           <Row className="g-3">
-            <Col xs={12} className="text-center mb-4">
-              <label htmlFor="imageInput" style={{ cursor: "pointer" }}>
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview do Item"
-                    className="img-fluid img-thumbnail"
-                    onError={handleImageError}
-                    width={150}
-                    height={150}
-                  />
-                ) : (
-                  <div className="border p-5">Clique para adicionar imagem</div>
-                )}
+            <Col xs={12} className="text-center mb-3">
+              <label htmlFor="itemImage" style={{ cursor: "pointer" }}>
+                {imagePreview ? <img src={imagePreview} alt="Item" style={{ width: 150, height: 150, objectFit: "cover", borderRadius: 18 }} onError={(e) => { e.currentTarget.src = "/images/itemimage.png"; }} /> : <div className="border rounded p-5 text-muted">Adicionar imagem</div>}
               </label>
-              <div className="mt-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => document.getElementById("imageInput").click()}
-                >
-                  Selecionar imagem
-                </Button>
-              </div>
-              <Form.Control
-                id="imageInput"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                style={{ display: "none" }}
-              />
+              <Form.Control id="itemImage" type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />
             </Col>
-            {/* Campos de formulário */}
-            <Col md={6}>
-              <Form.Group controlId="name">
-                <Form.Label>Nome</Form.Label>
-                <Form.Control
-                  required
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="type">
-                <Form.Label>Tipo</Form.Label>
-                <Form.Control
-                  value={form.type}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, type: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="description">
-                <Form.Label>Descrição</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="category">
-                <Form.Label>Categoria</Form.Label>
-                <Form.Control
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, category: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="subcategory">
-                <Form.Label>Subcategoria</Form.Label>
-                <Form.Control
-                  value={form.subcategory}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, subcategory: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="brand">
-                <Form.Label>Marca</Form.Label>
-                <Form.Control
-                  value={form.brand}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, brand: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="price">
-                <Form.Label>Preço (R$)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  required
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="stock">
-                <Form.Label>Estoque</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={form.stock}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, stock: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="status">
-                <Form.Label>Status</Form.Label>
-                <Form.Select
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, status: e.target.value }))
-                  }
-                >
-                  <option value="1">Ativo</option>
-                  <option value="0">Inativo</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="limited_by_user">
-                <Form.Label>Limitado por usuário</Form.Label>
-                <Form.Select
-                  value={form.limited_by_user}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, limited_by_user: e.target.value }))
-                  }
-                >
-                  <option value="0">Não</option>
-                  <option value="1">Sim</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="availability_start">
-                <Form.Label>Disponível de</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={form.availability_start}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      availability_start: e.target.value,
-                    }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="availability_end">
-                <Form.Label>até</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={form.availability_end}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, availability_end: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group controlId="expiration_date">
-                <Form.Label>Expira em</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={form.expiration_date}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, expiration_date: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="tags">
-                <Form.Label>Tags (vírgula)</Form.Label>
-                <Form.Control
-                  value={form.tags}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, tags: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="discount">
-                <Form.Label>Desconto (R$)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  value={form.discount}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, discount: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group controlId="is_featured">
-                <Form.Label>Destaque</Form.Label>
-                <Form.Select
-                  value={form.is_featured}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, is_featured: e.target.value }))
-                  }
-                >
-                  <option value="0">Não</option>
-                  <option value="1">Sim</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={12}>
-              <Form.Group controlId="notes">
-                <Form.Label>Notas</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, notes: e.target.value }))
-                  }
-                />
-              </Form.Group>
-            </Col>
+            <Col md={6}><Form.Label>Nome</Form.Label><Form.Control required value={form.name} onChange={change("name")} /></Col>
+            <Col md={6}><Form.Label>Tipo</Form.Label><Form.Select required value={form.type} onChange={change("type")}><option value="product">Produto</option><option value="service">Serviço</option></Form.Select></Col>
+            <Col xs={12}><Form.Label>Descrição</Form.Label><Form.Control as="textarea" rows={3} value={form.description} onChange={change("description")} /></Col>
+            <Col md={4}><Form.Label>Categoria</Form.Label><Form.Control value={form.category} onChange={change("category")} /></Col>
+            <Col md={4}><Form.Label>Subcategoria</Form.Label><Form.Control value={form.subcategory} onChange={change("subcategory")} /></Col>
+            <Col md={4}><Form.Label>Marca</Form.Label><Form.Control value={form.brand} onChange={change("brand")} /></Col>
+            <Col md={3}><Form.Label>Preço</Form.Label><Form.Control type="number" min="0" step="0.01" required value={form.price} onChange={change("price")} /></Col>
+            <Col md={3}><Form.Label>Estoque</Form.Label><Form.Control type="number" min="0" value={form.stock} onChange={change("stock")} /></Col>
+            <Col md={3}><Form.Label>Status</Form.Label><Form.Select value={form.status} onChange={change("status")}><option value="1">Ativo</option><option value="0">Inativo</option></Form.Select></Col>
+            <Col md={3}><Form.Label>Destaque</Form.Label><Form.Select value={form.is_featured} onChange={change("is_featured")}><option value="0">Não</option><option value="1">Sim</option></Form.Select></Col>
+            <Col md={4}><Form.Label>Disponível de</Form.Label><Form.Control type="datetime-local" value={form.availability_start} onChange={change("availability_start")} /></Col>
+            <Col md={4}><Form.Label>Até</Form.Label><Form.Control type="datetime-local" value={form.availability_end} onChange={change("availability_end")} /></Col>
+            <Col md={4}><Form.Label>Expira em</Form.Label><Form.Control type="date" value={form.expiration_date} onChange={change("expiration_date")} /></Col>
+            <Col md={6}><Form.Label>Tags</Form.Label><Form.Control value={form.tags} onChange={change("tags")} placeholder="hambúrguer, promoção, vegetariano" /></Col>
+            <Col md={3}><Form.Label>Desconto</Form.Label><Form.Control type="number" min="0" step="0.01" value={form.discount} onChange={change("discount")} /></Col>
+            <Col md={3}><Form.Label>Limitado por usuário</Form.Label><Form.Select value={form.limited_by_user} onChange={change("limited_by_user")}><option value="0">Não</option><option value="1">Sim</option></Form.Select></Col>
+            <Col xs={12}><Form.Label>Notas</Form.Label><Form.Control as="textarea" rows={2} value={form.notes} onChange={change("notes")} /></Col>
+            <Col xs={12} className="text-end"><Button type="submit" disabled={submitting}>{submitting ? <Spinner size="sm" /> : "Salvar alterações"}</Button></Col>
           </Row>
-          <Button type="submit" className="mt-4" disabled={submitting}>
-            {submitting ? (
-              <Spinner animation="border" size="sm" />
-            ) : (
-              "Salvar Alterações"
-            )}
-          </Button>
         </Form>
       </Container>
     </>
