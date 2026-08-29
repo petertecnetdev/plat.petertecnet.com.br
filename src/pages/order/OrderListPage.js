@@ -4,7 +4,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
-import { apiBaseUrl, appId, storageUrl } from "../../config";
+import { apiBaseUrl, apiV1BaseUrl, appId, storageUrl } from "../../config";
 import "./List.css";
 
 const authHeaders = () => ({
@@ -26,6 +26,7 @@ const formatDate = (value) => {
 const apiMessage = (error, fallback) =>
   error?.response?.data?.message ||
   error?.response?.data?.error ||
+  error?.message ||
   (error?.response?.data?.errors
     ? Object.values(error.response.data.errors).flat().join("\n")
     : "") ||
@@ -43,39 +44,52 @@ export default function OrderListPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (!entityId || Number.isNaN(Number(entityId))) {
-        throw new Error("Estabelecimento inválido.");
-      }
+      const id = Number(entityId);
+      if (!id || Number.isNaN(id)) throw new Error("Estabelecimento inválido.");
 
       const headers = authHeaders();
-      const estRes = await axios.get(
-        `${apiBaseUrl}/establishment/show/${entityId}`,
-        { headers }
-      );
-      const est = estRes.data?.establishment || estRes.data;
+
+      // Never resolve an establishment through the legacy global endpoint.
+      // The v1 account context returns only establishments owned by this Plat app.
+      const { data: accountResponse } = await axios.get(`${apiV1BaseUrl}/me`, { headers });
+      const context = accountResponse?.data || {};
+      const scopedEstablishments = Array.isArray(context.establishments)
+        ? context.establishments.filter((entry) => Number(entry.app_id) === Number(appId))
+        : [];
+      const est = scopedEstablishments.find((entry) => Number(entry.id) === id);
 
       if (!est?.id || !est?.slug) {
-        throw new Error("Estabelecimento não encontrado.");
-      }
-      if (Number(est.app_id) !== Number(appId)) {
-        throw new Error("Este estabelecimento não pertence à Plat.");
+        throw new Error("Este estabelecimento não pertence à Plat ou não está disponível.");
       }
 
-      const orderRes = await axios.get(
-        `${apiBaseUrl}/order/list-by-entity-slug/${encodeURIComponent(est.slug)}`,
-        { headers }
+      let rawOrders = [];
+      try {
+        const orderRes = await axios.get(
+          `${apiBaseUrl}/order/list-by-entity-slug/${encodeURIComponent(est.slug)}`,
+          { headers }
+        );
+        rawOrders = Array.isArray(orderRes.data?.orders) ? orderRes.data.orders : [];
+      } catch (error) {
+        // Empty operation must be rendered as an empty state, not as a blocking error.
+        if (error?.response?.status !== 404) throw error;
+      }
+
+      const platOrders = rawOrders.filter(
+        (order) => order.app_id == null || Number(order.app_id) === Number(appId)
       );
 
       setEstablishment(est);
-      setOrders(Array.isArray(orderRes.data?.orders) ? orderRes.data.orders : []);
+      setOrders(platOrders);
     } catch (error) {
       console.error("[Plat] Falha ao listar pedidos", error);
+      setEstablishment(null);
       setOrders([]);
-      Swal.fire(
-        "Erro",
-        apiMessage(error, "Não foi possível carregar os pedidos."),
-        "error"
-      );
+      await Swal.fire({
+        icon: "error",
+        title: "Não foi possível carregar os pedidos",
+        text: apiMessage(error, "Tente novamente em instantes."),
+        confirmButtonText: "OK",
+      });
     } finally {
       setLoading(false);
     }
@@ -91,7 +105,6 @@ export default function OrderListPage() {
       const matchesStatus = !status || String(order.status || "") === status;
       if (!matchesStatus) return false;
       if (!term) return true;
-
       return [
         order.order_number,
         order.customer_name,
@@ -123,11 +136,7 @@ export default function OrderListPage() {
         )
       );
     } catch (error) {
-      Swal.fire(
-        "Erro",
-        apiMessage(error, "Não foi possível alterar o status do pedido."),
-        "error"
-      );
+      Swal.fire("Erro", apiMessage(error, "Não foi possível alterar o status do pedido."), "error");
     } finally {
       setUpdatingId(null);
     }
@@ -141,46 +150,36 @@ export default function OrderListPage() {
     <>
       <NavlogComponent />
       <main className="main-container plat-orders-page">
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-          <div className="d-flex align-items-center gap-3">
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 plat-page-head">
+          <div className="d-flex align-items-center gap-3 plat-page-head__identity">
             <img
               src={logo}
               alt=""
-              style={{ width: 58, height: 58, objectFit: "cover", borderRadius: 14 }}
-              onError={(event) => {
-                event.currentTarget.src = "/images/logo.png";
-              }}
+              className="plat-page-head__logo"
+              onError={(event) => { event.currentTarget.src = "/images/logo.png"; }}
             />
             <div>
-              <span className="text-muted">Operação</span>
+              <span className="text-muted">{establishment?.name || "Operação Plat"}</span>
               <h1 className="page-header mb-0">Pedidos</h1>
-              <div className="text-muted">{establishment?.name || "Estabelecimento"}</div>
             </div>
           </div>
 
-          <Link className="btn btn-primary" to={`/order/create/${entityId}`}>
-            + Novo pedido
-          </Link>
+          {establishment && (
+            <Link className="btn btn-primary" to={`/order/create/${entityId}`}>
+              + Novo pedido
+            </Link>
+          )}
         </div>
 
         <section className="card-container mb-4">
           <div className="row g-3 align-items-end">
             <div className="col-12 col-lg-7">
               <label className="form-label">Buscar pedido</label>
-              <input
-                className="form-control"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Cliente, número, origem ou pagamento"
-              />
+              <input className="form-control" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cliente, número, origem ou pagamento" />
             </div>
             <div className="col-12 col-lg-3">
               <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
-              >
+              <select className="form-select" value={status} onChange={(event) => setStatus(event.target.value)}>
                 <option value="">Todos</option>
                 <option value="pending">Pendente</option>
                 <option value="confirmed">Confirmado</option>
@@ -191,23 +190,19 @@ export default function OrderListPage() {
               </select>
             </div>
             <div className="col-12 col-lg-2">
-              <button type="button" className="btn btn-secondary w-100" onClick={load}>
-                Atualizar
-              </button>
+              <button type="button" className="btn btn-secondary w-100" onClick={load}>Atualizar</button>
             </div>
           </div>
         </section>
 
-        <section className="card-container mb-4">
-          <div className="d-flex justify-content-between flex-wrap gap-3">
-            <div>
-              <span className="text-muted">Pedidos exibidos</span>
-              <div className="h4 mb-0">{filteredOrders.length}</div>
-            </div>
-            <div className="text-end">
-              <span className="text-muted">Valor total</span>
-              <div className="h4 mb-0">{money(total)}</div>
-            </div>
+        <section className="card-container mb-4 plat-order-summary">
+          <div>
+            <span className="text-muted">Pedidos exibidos</span>
+            <strong>{filteredOrders.length}</strong>
+          </div>
+          <div>
+            <span className="text-muted">Valor total</span>
+            <strong>{money(total)}</strong>
           </div>
         </section>
 
@@ -216,32 +211,13 @@ export default function OrderListPage() {
         ) : filteredOrders.length === 0 ? (
           <section className="card-container text-center py-5">
             <h2 className="h5">Nenhum pedido encontrado</h2>
-            <p className="text-muted mb-3">
-              {orders.length
-                ? "Nenhum pedido corresponde aos filtros selecionados."
-                : "Crie o primeiro pedido deste estabelecimento."}
-            </p>
-            {!orders.length && (
-              <Link className="btn btn-primary" to={`/order/create/${entityId}`}>
-                Criar pedido
-              </Link>
-            )}
+            <p className="text-muted mb-3">{orders.length ? "Nenhum pedido corresponde aos filtros selecionados." : "Ainda não há pedidos neste estabelecimento."}</p>
+            {establishment && !orders.length && <Link className="btn btn-primary" to={`/order/create/${entityId}`}>Criar pedido</Link>}
           </section>
         ) : (
-          <section className="card-container table-responsive">
+          <section className="card-container table-responsive p-0">
             <table className="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Pedido</th>
-                  <th>Cliente</th>
-                  <th>Data</th>
-                  <th>Consumo</th>
-                  <th>Pagamento</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th className="text-end">Ações</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Consumo</th><th>Pagamento</th><th>Total</th><th>Status</th><th className="text-end">Ações</th></tr></thead>
               <tbody>
                 {filteredOrders.map((order) => (
                   <tr key={order.id}>
@@ -249,34 +225,14 @@ export default function OrderListPage() {
                     <td>{order.customer_name || "Não informado"}</td>
                     <td>{formatDate(order.order_datetime || order.created_at)}</td>
                     <td>{order.fulfillment || "—"}</td>
-                    <td>
-                      <div>{order.payment_method || "—"}</div>
-                      <small className="text-muted">{order.payment_status || "—"}</small>
-                    </td>
+                    <td><div>{order.payment_method || "—"}</div><small className="text-muted">{order.payment_status || "—"}</small></td>
                     <td>{money(order.total_price)}</td>
                     <td style={{ minWidth: 160 }}>
-                      <select
-                        className="form-select form-select-sm"
-                        value={order.status || "pending"}
-                        disabled={updatingId === order.id}
-                        onChange={(event) => updateStatus(order, event.target.value)}
-                      >
-                        <option value="pending">Pendente</option>
-                        <option value="confirmed">Confirmado</option>
-                        <option value="preparing">Em preparo</option>
-                        <option value="ready">Pronto</option>
-                        <option value="completed">Concluído</option>
-                        <option value="cancelled">Cancelado</option>
+                      <select className="form-select form-select-sm" value={order.status || "pending"} disabled={updatingId === order.id} onChange={(event) => updateStatus(order, event.target.value)}>
+                        <option value="pending">Pendente</option><option value="confirmed">Confirmado</option><option value="preparing">Em preparo</option><option value="ready">Pronto</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option>
                       </select>
                     </td>
-                    <td className="text-end">
-                      <Link
-                        className="btn btn-sm btn-secondary"
-                        to={`/order/edit/${entityId}/${order.id}`}
-                      >
-                        Editar
-                      </Link>
-                    </td>
+                    <td className="text-end"><Link className="btn btn-sm btn-secondary" to={`/order/edit/${entityId}/${order.id}`}>Editar</Link></td>
                   </tr>
                 ))}
               </tbody>
