@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 
+import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import EmailVerifyPage from "./pages/auth/EmailVerifyPage";
@@ -33,8 +34,6 @@ import EstablishmentListPage from "./pages/corp/establishment/EstablishmentListP
 import EstablishmentCreatePage from "./pages/establishment/EstablishmentCreatePage";
 import EstablishmentViewPage from "./pages/establishment/EstablishmentViewPage";
 import EstablishmentUpdatePage from "./pages/establishment/EstablishmentUpdatePage";
-import AppointmentListPage from "./pages/appointment/AppointmentListPage";
-import AppointmentCreatePage from "./pages/appointment/AppointmentCreatePage";
 import ServiceRecordListPage from "./pages/serviceRecord/ServiceRecordListPage";
 import ServiceRecordCreatePage from "./pages/serviceRecord/ServiceRecordCreatePage";
 import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
@@ -93,6 +92,7 @@ const App = () => {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <HomePage />} />
         <Route path="/establishment/view/:slug" element={<EstablishmentViewPage />} />
         <Route path="/register" element={restrictedRoute(<RegisterPage />)} />
         <Route path="/login" element={restrictedRoute(<LoginPage />)} />
@@ -101,39 +101,41 @@ const App = () => {
         <Route path="/email-verify" element={emailVerifiedRoute(<EmailVerifyPage />)} />
         <Route path="/password" element={protectedRoute(<PasswordPage />)} />
         <Route path="/logout" element={<LogoutPage />} />
+
         <Route path="/dashboard" element={protectedRoute(<DashboardPage />)} />
         <Route path="/order/list/:entityId" element={protectedRoute(<OrderListPage />)} />
         <Route path="/order/create/:entityId" element={protectedRoute(<OrderCreatePage />)} />
         <Route path="/order/edit/:entityId/:id" element={protectedRoute(<OrderEditPage />)} />
+
         <Route path="/user/update" element={protectedRoute(<UserUpdatePage />)} />
         <Route path="/user/list" element={protectedRoute(<UserListPage />)} />
         <Route path="/user/create" element={protectedRoute(<UserCreatePage />)} />
         <Route path="/user/:userName" element={protectedRoute(<UserViewPage />)} />
+
         <Route path="/profile/create" element={protectedRoute(<ProfileCreatePage />)} />
         <Route path="/profile/list" element={protectedRoute(<ProfileListPage />)} />
         <Route path="/profile/update/:id" element={protectedRoute(<ProfileUpdatePage />)} />
+
         <Route path="/item/list/:slug" element={protectedRoute(<ItemListPage />)} />
         <Route path="/item/create/:slug" element={protectedRoute(<ItemCreatePage />)} />
         <Route path="/item/update/:id" element={protectedRoute(<ItemUpdatePage />)} />
         <Route path="/item/view/:slug" element={protectedRoute(<ItemViewPage />)} />
+
         <Route path="/establishment" element={protectedRoute(<EstablishmentListPage />)} />
         <Route path="/establishment/create" element={protectedRoute(<EstablishmentCreatePage />)} />
         <Route path="/establishment/update/:id" element={protectedRoute(<EstablishmentUpdatePage />)} />
-        <Route path="/appointment/create/:slug" element={protectedRoute(<AppointmentCreatePage />)} />
-        <Route path="/appointment/my" element={protectedRoute(<AppointmentListPage />)} />
-        <Route path="/appointment/barbershop/:slug" element={protectedRoute(<AppointmentListPage />)} />
-        <Route path="/appointment/barber/:username" element={protectedRoute(<AppointmentListPage />)} />
+
         <Route path="/service-record/create/:slug" element={protectedRoute(<ServiceRecordCreatePage />)} />
         <Route path="/service-record/my" element={protectedRoute(<ServiceRecordListPage />)} />
-        <Route path="/service-record/barbershop/:slug" element={protectedRoute(<ServiceRecordListPage />)} />
-        <Route path="/service-record/barber/:username" element={protectedRoute(<ServiceRecordListPage />)} />
         <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage />)} />
+
         <Route path="/menu" element={protectedRoute(<MenuListPage />)} />
         <Route path="/menu/create" element={protectedRoute(<MenuCreatePage />)} />
         <Route path="/menu/update/:id" element={protectedRoute(<MenuUpdatePage />)} />
         <Route path="/menu/show/:id" element={<MenuShowPage />} />
+
         <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage />)} />
-        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
       </Routes>
     </Router>
   );
