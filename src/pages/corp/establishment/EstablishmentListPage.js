@@ -1,210 +1,131 @@
 import React, { useEffect, useState } from "react";
-import { Container, Row, Col, Card, Button } from "react-bootstrap";
+import { Link } from "react-router-dom";
+import axios from "axios";
 import Swal from "sweetalert2";
+import {
+  FiBarChart2,
+  FiEdit3,
+  FiExternalLink,
+  FiPackage,
+  FiPlus,
+  FiShoppingBag,
+} from "react-icons/fi";
 import NavlogComponent from "../../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../../components/ProcessingIndicatorComponent";
-import axios from "axios";
 import { apiBaseUrl, storageUrl } from "../../../config";
-import { Link } from "react-router-dom";
+import "../../establishment/Establishment.css";
 
-const BarbershopListPage = () => {
-  const [barbershops, setBarbershops] = useState([]);
+export default function EstablishmentListPage() {
+  const [establishments, setEstablishments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [messages, setMessages] = useState([]);
-
-  const fetchBarbershops = async () => {
-    setMessages(["Carregando barbearias..."]);
-    try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data",
-      };
-
-      const response = await axios.get(`${apiBaseUrl}/barbershop/user`, { headers });
-      if (response?.data?.barbershops) {
-        setBarbershops(response.data.barbershops.data);
-      } else {
-        setBarbershops([]);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar barbearias:", error.response?.data);
-      Swal.fire({
-        title: "Erro",
-        text:
-          error.response?.data?.error ||
-          "Não foi possível carregar as barbearias. Tente novamente mais tarde.",
-        icon: "error",
-        confirmButtonText: "OK",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
-      });
-      setBarbershops([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchBarbershops();
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setEstablishments(data.establishments || []);
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "Erro",
+          text:
+            error.response?.data?.message ||
+            "Não foi possível carregar seus estabelecimentos.",
+        });
+        setEstablishments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, []);
 
-  const handleDelete = async (id) => {
-    try {
-      const result = await Swal.fire({
-        title: "Você tem certeza?",
-        text: "Esta ação não pode ser desfeita!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Sim, deletar!",
-        cancelButtonText: "Cancelar",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
-      });
-
-      if (result.isConfirmed) {
-        const token = localStorage.getItem("token");
-        const headers = {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        };
-
-        await axios.delete(`${apiBaseUrl}/barbershop/${id}`, { headers });
-
-        Swal.fire({
-          title: "Deletado!",
-          text: "A barbearia foi deletada com sucesso.",
-          icon: "success",
-          customClass: {
-            popup: "custom-swal",
-            title: "custom-swal-title",
-            content: "custom-swal-text",
-          },
-        });
-
-        setBarbershops(barbershops.filter((barbershop) => barbershop.id !== id));
-      }
-    } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Erro",
-        text: "Erro ao deletar barbearia.",
-        customClass: {
-          popup: "custom-swal",
-          title: "custom-swal-title",
-          content: "custom-swal-text",
-        },
-      });
-    }
-  };
-
-  const handleBarbershopLogoError = (e) => {
-    e.target.src = "images/logo.png";
+  const handleLogoError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = "/images/logo.png";
   };
 
   return (
-    <>
+    <div className="establishment-root establishment-root--app">
       <NavlogComponent />
-      <p className="section-title text-center">Minhas Barbearias</p>
-      <Container className="main-container" fluid>
-        <Row className="section-row justify-content-center">
-          <Col xs={12} lg={10} className="section-col">
-            <Card className="card-component shadow-sm">
-              <Card.Body className="card-body">
-                <div className="mb-3 text-center">
-                  <Link to="/barbershop/create" className="link-component">
-                    <Button variant="primary" className="action-button">
-                      Cadastrar Nova Barbearia
-                    </Button>
+
+      <main className="establishment-list-page">
+        <header className="establishment-page-header">
+          <div>
+            <span className="establishment-eyebrow">Gestão</span>
+            <h1>Estabelecimentos</h1>
+            <p>Gerencie as operações vinculadas à sua conta Plat.</p>
+          </div>
+
+          <Link to="/establishment/create" className="establishment-primary-action">
+            <FiPlus />
+            Novo estabelecimento
+          </Link>
+        </header>
+
+        {isLoading ? (
+          <ProcessingIndicatorComponent
+            compact
+            messages={["Carregando estabelecimentos…", "Preparando sua operação…"]}
+          />
+        ) : establishments.length === 0 ? (
+          <section className="establishment-empty-state">
+            <div className="establishment-empty-state__icon">
+              <FiPackage />
+            </div>
+            <h2>Nenhum estabelecimento cadastrado</h2>
+            <p>Cadastre sua primeira operação para começar a criar itens e receber pedidos.</p>
+            <Link to="/establishment/create" className="establishment-primary-action">
+              <FiPlus />
+              Criar estabelecimento
+            </Link>
+          </section>
+        ) : (
+          <section className="establishment-grid">
+            {establishments.map((establishment) => (
+              <article className="establishment-card" key={establishment.id}>
+                <div className="establishment-card__identity">
+                  <img
+                    src={`${storageUrl}/${establishment.logo || "logo.png"}`}
+                    alt={establishment.name}
+                    onError={handleLogoError}
+                  />
+                  <div>
+                    <span className="establishment-card__status">Operação ativa</span>
+                    <h2>{establishment.name}</h2>
+                    <p>@{establishment.slug}</p>
+                  </div>
+                </div>
+
+                <div className="establishment-card__actions">
+                  <Link to={`/order/list/${establishment.id}`}>
+                    <FiShoppingBag />
+                    Pedidos
+                  </Link>
+                  <Link to={`/item/list/${establishment.slug}`}>
+                    <FiPackage />
+                    Itens
+                  </Link>
+                  <Link to={`/report/order/${establishment.id}`}>
+                    <FiBarChart2 />
+                    Relatórios
+                  </Link>
+                  <Link to={`/establishment/update/${establishment.id}`}>
+                    <FiEdit3 />
+                    Editar
+                  </Link>
+                  <Link to={`/establishment/view/${establishment.slug}`}>
+                    <FiExternalLink />
+                    Página pública
                   </Link>
                 </div>
-                {isLoading ? (
-                  <Col xs={12} className="loading-section">
-                    <ProcessingIndicatorComponent messages={messages} />
-                  </Col>
-                ) : (
-                  <>
-                    {barbershops.length > 0 ? (
-                      <Row className="inner-row">
-                        {barbershops.map((barbershop) => {
-                          const bgImage = `${storageUrl}/${barbershop.logo || "images/logo.png"}`;
-                          return (
-                            <Col key={barbershop.id}  md={12} className="inner-col m-4">
-                              <Card className="inner-card h-100">
-                              
-                                {/* Card Content Overlay */}
-                                <Card.Body className="inner-card-body d-flex flex-column justify-content-between">
-                                  <div className="text-center">
-                                    <Link to={`/barbershop/view/${barbershop.slug}`} className="link-component">
-                                      <img
-                                        src={bgImage}
-                                        className="img-component mb-3"
-                                        alt={barbershop.name}
-                                        onError={handleBarbershopLogoError}
-                                      />
-                                      <p className="item-title">{barbershop.name}</p>
-                                    </Link>
-                                  </div>
-                                  <div className="d-flex flex-wrap justify-content-center">
-                                    <Link to={`/service-record/barbershop/${barbershop.slug}`} className="link-component m-1">
-                                      <Button variant="secondary" className="action-button">
-                                        Atendimentos
-                                      </Button>
-                                    </Link>
-                                    <Link to={`/barber/include/${barbershop.slug}`} className="link-component m-1">
-                                      <Button variant="secondary" className="action-button">
-                                        Barbeiros
-                                      </Button>
-                                    </Link>
-                                    <Link to={`/item/list/${barbershop.slug}`} className="link-component m-1">
-                                      <Button variant="secondary" className="action-button">
-                                        Itens
-                                      </Button>
-                                    </Link>
-                                    <Link to={`/appointment/barbershop/${barbershop.slug}`} className="link-component m-1">
-                                      <Button variant="secondary" className="action-button">
-                                        Agendamentos
-                                      </Button>
-                                    </Link>
-                                    <Link to={`/barbershop/update/${barbershop.id}`} className="link-component m-1" style={{ textDecoration: "none" }}>
-                                      <Button variant="secondary" className="action-button">
-                                        Editar
-                                      </Button>
-                                    </Link>
-                                    <Button
-                                      variant="danger"
-                                      className="action-button m-1"
-                                      onClick={() => handleDelete(barbershop.id)}
-                                    >
-                                      Deletar
-                                    </Button>
-                                  </div>
-                                </Card.Body>
-                              </Card>
-                            </Col>
-                          );
-                        })}
-                      </Row>
-                    ) : (
-                      <Col xs={12} className="empty-section text-center">
-                        <p className="empty-text">Nenhuma barbearia encontrada.</p>
-                      </Col>
-                    )}
-                  </>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
-    </>
+              </article>
+            ))}
+          </section>
+        )}
+      </main>
+    </div>
   );
-};
-
-export default BarbershopListPage;
+}
