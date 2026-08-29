@@ -1,302 +1,102 @@
-// src/pages/item/ItemListPage.jsx
-import React, { useEffect, useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Spinner,
-  Badge,
-  Button,
-} from "react-bootstrap";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { Badge, Button, Card, Col, Container, Row } from "react-bootstrap";
 import axios from "axios";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
-import { apiBaseUrl, storageUrl } from "../../config";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
+import { apiBaseUrl, appId, storageUrl } from "../../config";
 import "./Item.css";
+
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
+const apiMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.response?.data?.error ||
+  (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join("\n") : "") || fallback;
+const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+const itemImage = (item) => {
+  const file = Array.isArray(item?.files) ? item.files.find((entry) => entry?.path) : null;
+  return file?.path ? `${storageUrl}/${file.path}` : item?.image ? `${storageUrl}/${item.image}` : "/images/itemimage.png";
+};
 
 export default function ItemListPage() {
   const { slug } = useParams();
-  const [establishment, setEstablishment] = useState({});
-  const [menu, setMenu] = useState([]);
+  const [establishment, setEstablishment] = useState(null);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const pdfRef = useRef();
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        const { data } = await axios.get(
-          `${apiBaseUrl}/establishment/view/${slug}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setEstablishment(data.establishment);
-        setMenu(data.items || []);
-        const cats = Array.from(
-          new Set((data.items || []).map((i) => i.category || "Sem categoria"))
-        );
-        setSelectedCategory(cats[0] || null);
-      } catch {
-        Swal.fire("Erro", "Não foi possível carregar o menu.", "error");
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const headers = authHeaders();
+      const [estRes, itemRes] = await Promise.all([
+        axios.get(`${apiBaseUrl}/establishment/view/${encodeURIComponent(slug)}`, { params: { app_id: appId }, headers }),
+        axios.get(`${apiBaseUrl}/item/list-by-entity/${encodeURIComponent(slug)}`, { headers }),
+      ]);
+      const est = estRes.data?.establishment || estRes.data;
+      if (!est?.id || Number(est.app_id) !== Number(appId)) throw new Error("Estabelecimento inválido para a Plat.");
+      setEstablishment(est);
+      setItems(Array.isArray(itemRes.data?.items) ? itemRes.data.items : []);
+    } catch (error) {
+      setItems([]);
+      Swal.fire("Erro", apiMessage(error, "Não foi possível carregar os itens."), "error");
+    } finally {
+      setLoading(false);
+    }
   }, [slug]);
 
-  const reloadItems = async () => {
-    const token = localStorage.getItem("token");
-    const { data } = await axios.get(
-      `${apiBaseUrl}/establishment/view/${slug}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setMenu(data.items || []);
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const handlePriceChange = async (type) => {
-    const { value: percentage } = await Swal.fire({
-      title: type === "increase" ? "Aumentar preços" : "Reduzir preços",
-      input: "number",
-      inputLabel: "Porcentagem (%)",
-      inputPlaceholder: "Ex: 10",
-      inputAttributes: { min: 0 },
-      showCancelButton: true,
-      confirmButtonText: "Aplicar",
-      cancelButtonText: "Cancelar",
-    });
+  const categories = useMemo(() => Array.from(new Set(items.map((item) => item.category || "Sem categoria"))), [items]);
+  const visibleItems = useMemo(() => selectedCategory === "all" ? items : items.filter((item) => (item.category || "Sem categoria") === selectedCategory), [items, selectedCategory]);
 
-    if (!percentage) return;
-
+  const changePrices = async (direction) => {
+    if (!establishment?.id) return;
+    const { value } = await Swal.fire({ title: direction === "increase" ? "Aumentar preços" : "Reduzir preços", input: "number", inputLabel: "Porcentagem (%)", inputAttributes: { min: 0, max: 100, step: 0.01 }, showCancelButton: true, confirmButtonText: "Aplicar" });
+    if (value === undefined || value === null || value === "") return;
     try {
-      const token = localStorage.getItem("token");
-
-      const endpoint =
-        type === "increase"
-          ? `${apiBaseUrl}/item/increase-prices`
-          : `${apiBaseUrl}/item/decrease-prices`;
-
-      await axios.post(
-        endpoint,
-        {
-          entity_id: establishment.id,
-          percentage: Number(percentage),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      await reloadItems();
-
-      Swal.fire(
-        "Sucesso",
-        `Preços ${
-          type === "increase" ? "aumentados" : "reduzidos"
-        } em ${percentage}%`,
-        "success"
-      );
-    } catch (e) {
-      Swal.fire(
-        "Erro",
-        e.response?.data?.error ||
-          "Não foi possível atualizar os preços.",
-        "error"
-      );
+      await axios.post(`${apiBaseUrl}/item/${direction === "increase" ? "increase-prices" : "decrease-prices"}`, { entity_id: establishment.id, percentage: Number(value) }, { headers: authHeaders() });
+      await load();
+      Swal.fire("Sucesso", "Preços atualizados.", "success");
+    } catch (error) {
+      Swal.fire("Erro", apiMessage(error, "Não foi possível atualizar os preços."), "error");
     }
   };
 
-  const handleExportPDF = async () => {
-    if (!pdfRef.current) return;
+  const removeItem = async (item) => {
+    const result = await Swal.fire({ title: "Excluir item?", text: `O item “${item.name}” será removido.`, icon: "warning", showCancelButton: true, confirmButtonText: "Excluir", cancelButtonText: "Cancelar" });
+    if (!result.isConfirmed) return;
     try {
-      const el = pdfRef.current;
-      const dpr = Math.max(2, window.devicePixelRatio || 1);
-
-      const canvas = await html2canvas(el, {
-        scale: dpr,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        width: el.scrollWidth,
-        height: el.scrollHeight,
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL("image/png", 1.0);
-
-      const widthMm = 80;
-      const heightMm = (canvas.height / canvas.width) * widthMm;
-
-      const pdf = new jsPDF({
-        orientation: "p",
-        unit: "mm",
-        format: [widthMm, Math.max(heightMm, 100)],
-      });
-
-      pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
-
-      const safeName = `${(establishment?.name || "menu")}_menu`
-        .replace(/[\\/:*?"<>|]+/g, "_")
-        .trim();
-
-      pdf.save(`${safeName}.pdf`);
-    } catch (e) {
-      Swal.fire("Erro", "Não foi possível gerar o PDF.", "error");
+      await axios.delete(`${apiBaseUrl}/item/${item.id}`, { headers: authHeaders() });
+      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      Swal.fire("Excluído", "Item removido com sucesso.", "success");
+    } catch (error) {
+      Swal.fire("Erro", apiMessage(error, "Não foi possível excluir o item."), "error");
     }
   };
-
-  if (loading) {
-    return (
-      <Container className="text-center mt-5">
-        <Spinner animation="border" /> Carregando itens...
-      </Container>
-    );
-  }
-
-  const categories = Array.from(
-    new Set(menu.map((i) => i.category || "Sem categoria"))
-  );
-  const itemsToShow = selectedCategory
-    ? menu.filter((i) => (i.category || "Sem categoria") === selectedCategory)
-    : menu;
 
   return (
     <>
       <NavlogComponent />
-      <Container className="mt-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h3>{establishment.name?.toUpperCase()}</h3>
-
-          <div>
-            <Button
-              variant="dark"
-              className="me-2"
-              onClick={() => handlePriceChange("increase")}
-            >
-              + Aumentar preços
-            </Button>
-
-            <Button
-              variant="outline-dark"
-              className="me-2"
-              onClick={() => handlePriceChange("decrease")}
-            >
-              - Reduzir preços
-            </Button>
-
-            <Link to={`/item/create/${establishment.slug}`}>
-              <Button variant="success" className="me-2">
-                Novo Item
-              </Button>
-            </Link>
-
-            <Button variant="primary" onClick={handleExportPDF} className="me-2">
-              Exportar PDF
-            </Button>
-
-            <Link to="/dashboard">
-              <Button variant="secondary">Voltar</Button>
-            </Link>
+      <Container className="main-container" fluid>
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <div><span className="text-muted">{establishment?.name || "Plat"}</span><h1 className="page-header mb-0">Itens</h1></div>
+          <div className="d-flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => changePrices("increase")}>Aumentar preços</Button>
+            <Button variant="secondary" onClick={() => changePrices("decrease")}>Reduzir preços</Button>
+            {establishment?.slug && <Button as={Link} to={`/item/create/${establishment.slug}`} variant="primary">+ Novo item</Button>}
           </div>
         </div>
 
-        <div className="mb-4">
-          {categories.map((cat) => (
-            <Button
-              key={cat}
-              variant={cat === selectedCategory ? "warning" : "outline-warning"}
-              className="me-2 mb-2"
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </Button>
-          ))}
-        </div>
+        {categories.length > 0 && <div className="d-flex flex-wrap gap-2 mb-4"><Button size="sm" variant={selectedCategory === "all" ? "warning" : "secondary"} onClick={() => setSelectedCategory("all")}>Todos</Button>{categories.map((category) => <Button key={category} size="sm" variant={selectedCategory === category ? "warning" : "secondary"} onClick={() => setSelectedCategory(category)}>{category}</Button>)}</div>}
 
-        <div ref={pdfRef}>
+        {loading ? <ProcessingIndicatorComponent compact messages={["Carregando itens…"]} /> : visibleItems.length === 0 ? (
+          <section className="card-container text-center py-5"><h2 className="h5">Nenhum item encontrado</h2><p className="text-muted">Cadastre produtos ou serviços para começar a receber pedidos.</p>{establishment?.slug && <Button as={Link} to={`/item/create/${establishment.slug}`}>Criar item</Button>}</section>
+        ) : (
           <Row className="g-4">
-            {itemsToShow.map((item) => (
-              <Col key={item.id} xs={12} sm={6} md={4} lg={3}>
-                <Card className="h-100 shadow-sm">
-                  {item.image ? (
-                    <Card.Img
-                      variant="top"
-                      src={`${storageUrl}/${item.image}`}
-                      alt={item.name}
-                      style={{ objectFit: "cover", height: 180 }}
-                    />
-                  ) : (
-                    <div style={{ height: 180 }} />
-                  )}
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title>{item.name}</Card.Title>
-                    <Card.Subtitle className="mb-2 text-muted">
-                      {item.brand || item.category || "—"}
-                    </Card.Subtitle>
-                    <Card.Text className="flex-grow-1">
-                      {item.description}
-                    </Card.Text>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span className="fw-bold">
-                        R${Number(item.price).toFixed(2).replace(".", ",")}
-                      </span>
-                      <Badge bg={item.status === 1 ? "success" : "secondary"}>
-                        {item.status === 1 ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </div>
-                  </Card.Body>
-                  <Card.Footer className="d-flex justify-content-between">
-                    <Link to={`/item/update/${item.id}`}>
-                      <Button size="sm" variant="warning">
-                        Editar
-                      </Button>
-                    </Link>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() =>
-                        Swal.fire({
-                          title: "Confirmar exclusão?",
-                          text: `Excluir ${item.name}?`,
-                          icon: "warning",
-                          showCancelButton: true,
-                          confirmButtonText: "Sim",
-                          cancelButtonText: "Não",
-                        }).then((res) => {
-                          if (res.isConfirmed) {
-                            axios
-                              .delete(`${apiBaseUrl}/item/${item.id}`, {
-                                headers: {
-                                  Authorization: `Bearer ${localStorage.getItem(
-                                    "token"
-                                  )}`,
-                                },
-                              })
-                              .then(() =>
-                                setMenu((prev) =>
-                                  prev.filter((i) => i.id !== item.id)
-                                )
-                              )
-                              .catch(() =>
-                                Swal.fire(
-                                  "Erro",
-                                  "Não foi possível excluir item.",
-                                  "error"
-                                )
-                              );
-                          }
-                        })
-                      }
-                    >
-                      Excluir
-                    </Button>
-                  </Card.Footer>
-                </Card>
-              </Col>
-            ))}
+            {visibleItems.map((item) => <Col key={item.id} xs={12} sm={6} lg={4} xl={3}><Card className="card-component h-100"><Card.Img variant="top" src={itemImage(item)} alt={item.name} style={{ height: 190, objectFit: "cover" }} onError={(e) => { e.currentTarget.src = "/images/itemimage.png"; }} /><Card.Body className="d-flex flex-column"><div className="d-flex justify-content-between gap-2"><Card.Title>{item.name}</Card.Title><Badge bg={item.status ? "success" : "secondary"}>{item.status ? "Ativo" : "Inativo"}</Badge></div><Card.Subtitle className="mb-2 text-muted">{item.category || item.type || "Item"}</Card.Subtitle><Card.Text className="flex-grow-1">{item.description || "Sem descrição."}</Card.Text><strong>{money(item.price)}</strong></Card.Body><Card.Footer className="d-flex gap-2"><Button as={Link} to={`/item/update/${item.id}`} size="sm" variant="secondary">Editar</Button><Button size="sm" variant="danger" onClick={() => removeItem(item)}>Excluir</Button></Card.Footer></Card></Col>)}
           </Row>
-        </div>
+        )}
       </Container>
     </>
   );
