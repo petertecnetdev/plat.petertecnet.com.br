@@ -16,7 +16,7 @@ import {
 } from "react-icons/fi";
 import NavlogComponent from "../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../components/ProcessingIndicatorComponent";
-import { apiBaseUrl, storageUrl } from "../config";
+import { apiBaseUrl, apiV1BaseUrl, appId, storageUrl } from "../config";
 import "./Dashboard.css";
 
 const money = (value) =>
@@ -36,9 +36,13 @@ export default function DashboardPage() {
       try {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
-        const { data } = await axios.get(`${apiBaseUrl}/auth/me`, { headers });
-        const ests = data.establishments || [];
-        setUser(data.user || null);
+        const { data: accountResponse } = await axios.get(`${apiV1BaseUrl}/me`, { headers });
+        const context = accountResponse?.data || {};
+        const ests = Array.isArray(context.establishments)
+          ? context.establishments.filter((est) => Number(est.app_id) === Number(appId))
+          : [];
+
+        setUser(context.user || null);
         setEstablishments(ests);
 
         const today = new Date().toLocaleDateString("en-CA", {
@@ -49,16 +53,17 @@ export default function DashboardPage() {
           ests.map(async (est) => {
             let rawOrders = [];
             try {
-              const response = await axios.get(`${apiBaseUrl}/order/listbyentity`, {
-                params: { app_id: 3, entity_name: "establishment", entity_id: est.id },
-                headers,
-              });
+              const response = await axios.get(
+                `${apiBaseUrl}/order/list-by-entity-slug/${encodeURIComponent(est.slug)}`,
+                { headers }
+              );
               rawOrders = Array.isArray(response.data?.orders) ? response.data.orders : [];
             } catch (error) {
               if (error.response?.status !== 404) throw error;
             }
 
             const orders = rawOrders.filter((order) => {
+              if (order.app_id != null && Number(order.app_id) !== Number(appId)) return false;
               if (!order.order_datetime) return false;
               return new Date(order.order_datetime).toLocaleDateString("en-CA", {
                 timeZone: "America/Sao_Paulo",
@@ -67,13 +72,7 @@ export default function DashboardPage() {
 
             const orderValue = (order) =>
               (order.items || []).reduce((sum, entry) => {
-                let subtotal = Number(entry.subtotal || 0);
-                (entry.modifiers || [])
-                  .filter((modifier) => modifier.type === "addition")
-                  .forEach((modifier) => {
-                    const product = data.items?.find((item) => item.id === modifier.modifier_id);
-                    subtotal += (product ? Number(product.price || 0) : 0) * (modifier.quantity || 1);
-                  });
+                const subtotal = Number(entry.subtotal ?? entry.total ?? 0);
                 return sum + subtotal;
               }, 0);
 
@@ -83,7 +82,7 @@ export default function DashboardPage() {
 
             orders.forEach((order) => {
               (order.items || []).forEach((entry) => {
-                const itemName = entry.item?.name || "Item";
+                const itemName = entry.item?.name || entry.name || "Item";
                 itemCounts[itemName] = (itemCounts[itemName] || 0) + Number(entry.quantity || 0);
               });
               const customer = order.customer_name || "Cliente";
@@ -106,11 +105,13 @@ export default function DashboardPage() {
 
         setMetrics(Object.fromEntries(results));
       } catch (error) {
-        console.error("Dashboard load error:", error);
+        console.error("[Plat] Dashboard load error:", error);
+        setEstablishments([]);
+        setMetrics({});
         Swal.fire({
           icon: "error",
           title: "Não foi possível carregar a operação",
-          text: "Tente novamente em instantes.",
+          text: error.response?.data?.message || "Tente novamente em instantes.",
         });
       } finally {
         setIsLoading(false);
@@ -146,7 +147,7 @@ export default function DashboardPage() {
           <div>
             <span className="dashboard-eyebrow">Visão geral</span>
             <h1>{greeting}{firstName ? `, ${firstName}` : ""}.</h1>
-            <p>Acompanhe o desempenho de hoje e acesse rapidamente sua operação.</p>
+            <p>Acompanhe exclusivamente o desempenho das suas operações na Plat.</p>
           </div>
           <div className="dashboard-hero__actions">
             <span className="dashboard-date">
@@ -159,11 +160,11 @@ export default function DashboardPage() {
         <section className="dashboard-kpis" aria-label="Indicadores de hoje">
           <article className="dashboard-kpi">
             <span className="dashboard-kpi__icon is-gold"><FiDollarSign /></span>
-            <div><span>Receita de hoje</span><strong>{money(totals.revenue)}</strong><small>Somando seus estabelecimentos</small></div>
+            <div><span>Receita de hoje</span><strong>{money(totals.revenue)}</strong><small>Somente operações da Plat</small></div>
           </article>
           <article className="dashboard-kpi">
             <span className="dashboard-kpi__icon is-blue"><FiShoppingBag /></span>
-            <div><span>Pedidos hoje</span><strong>{totals.totalOrders}</strong><small>Pedidos registrados hoje</small></div>
+            <div><span>Pedidos hoje</span><strong>{totals.totalOrders}</strong><small>Pedidos registrados na Plat</small></div>
           </article>
           <article className="dashboard-kpi">
             <span className="dashboard-kpi__icon is-green"><FiTrendingUp /></span>
@@ -171,7 +172,7 @@ export default function DashboardPage() {
           </article>
           <article className="dashboard-kpi">
             <span className="dashboard-kpi__icon is-purple"><FiBriefcase /></span>
-            <div><span>Estabelecimentos</span><strong>{totals.establishments}</strong><small>Vinculados à sua conta</small></div>
+            <div><span>Estabelecimentos</span><strong>{totals.establishments}</strong><small>Vinculados à Plat</small></div>
           </article>
         </section>
 
@@ -185,8 +186,8 @@ export default function DashboardPage() {
             {establishments.length === 0 ? (
               <div className="dashboard-empty">
                 <span><FiBriefcase /></span>
-                <h3>Sua operação começa aqui</h3>
-                <p>Cadastre seu primeiro estabelecimento para começar a gerenciar pedidos, itens e indicadores.</p>
+                <h3>Sua operação na Plat começa aqui</h3>
+                <p>Cadastre seu primeiro estabelecimento da Plat para começar a gerenciar pedidos, itens e indicadores.</p>
                 <Link to="/establishment/create"><FiPlus /> Criar estabelecimento</Link>
               </div>
             ) : (
@@ -256,7 +257,7 @@ export default function DashboardPage() {
               <div className="dashboard-summary__row"><span>Pedidos</span><strong>{totals.totalOrders}</strong></div>
               <div className="dashboard-summary__row"><span>Ticket médio</span><strong>{money(totals.avgTicket)}</strong></div>
               <div className="dashboard-summary__bar"><i style={{ width: totals.totalOrders ? "72%" : "8%" }} /></div>
-              <small>Indicadores calculados com os registros disponíveis para hoje.</small>
+              <small>Indicadores calculados somente com registros da Plat disponíveis para hoje.</small>
             </div>
           </aside>
         </section>
