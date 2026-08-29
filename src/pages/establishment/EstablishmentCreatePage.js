@@ -1,335 +1,135 @@
-// src/pages/establishment/EstablishmentCreatePage.js
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { apiBaseUrl } from "../../config";
+import { Button, Col, Form, Row } from "react-bootstrap";
+import { apiBaseUrl, appId } from "../../config";
 import NavlogComponent from "../../components/NavlogComponent";
-import { Button, Col, Row, Form } from "react-bootstrap";
 import "./Establishment.css";
 
 const categoryOptions = [
-  { value: "restaurante", label: "Restaurante" },
-  { value: "hamburgueria", label: "Hamburgueria" },
-  { value: "sorveteria", label: "Sorveteria" },
-  { value: "fast_food", label: "Fast Food" },
-  { value: "doceria", label: "Doceria" },
-  { value: "cafeteria", label: "Cafeteria" },
-  { value: "pizzaria", label: "Pizzaria" },
-  { value: "pub", label: "Pub" }
+  ["restaurante", "Restaurante"], ["hamburgueria", "Hamburgueria"],
+  ["sorveteria", "Sorveteria"], ["fast_food", "Fast Food"],
+  ["doceria", "Doceria"], ["cafeteria", "Cafeteria"],
+  ["pizzaria", "Pizzaria"], ["pub", "Pub"],
+];
+const segmentOptions = [
+  ["delivery", "Delivery"], ["retirada", "Retirada no local"],
+  ["presencial", "Consumo no local"], ["balcao", "Balcão"],
+  ["eventos", "Eventos"], ["catering", "Catering"],
 ];
 
-const segmentOptions = [
-  { value: "delivery", label: "Delivery" },
-  { value: "retirada", label: "Retirada no local" },
-  { value: "presencial", label: "Consumo no local" },
-  { value: "balcao", label: "Balcão" },
-  { value: "eventos", label: "Eventos" },
-  { value: "catering", label: "Catering" },
-  { value: "aniversarios", label: "Aniversários" },
-  { value: "infantil", label: "Infantil" }
-];
+const apiMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.response?.data?.error ||
+  (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join("\n") : "") || fallback;
 
 export default function EstablishmentCreatePage() {
   const navigate = useNavigate();
-  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm();
-
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm();
+  const [logo, setLogo] = useState(null);
+  const [background, setBackground] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [backgroundPreview, setBackgroundPreview] = useState(null);
   const [segments, setSegments] = useState([]);
-  const [files, setFiles] = useState({});
 
-  const handleResizeImage = (file, setPreview, width, height, key) => {
-    return new Promise((resolve, reject) => {
-      if (!file || !file.type.startsWith("image/")) {
-        Swal.fire("Formato inválido", "Selecione uma imagem válida.", "error");
-        reject();
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          const previewDataURL = canvas.toDataURL("image/png");
-          setPreview(previewDataURL);
-          canvas.toBlob(blob => {
-            const filename = file.name.replace(/\.[^/.]+$/, "") + ".png";
-            const resizedFile = new File([blob], filename, { type: "image/png" });
-            setFiles(prev => ({ ...prev, [key]: resizedFile }));
-            resolve(resizedFile);
-          }, "image/png", 0.95);
-        };
-        img.onerror = () => reject();
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleLogoChange = async e => {
-    const file = e.target.files[0];
-    await handleResizeImage(file, setLogoPreview, 150, 150, "logo");
-  };
-
-  const handleBackgroundChange = async e => {
-    const file = e.target.files[0];
-    await handleResizeImage(file, setBackgroundPreview, 1920, 600, "background");
-  };
-
-  const handleSegmentsChange = e => {
-    const { value, checked } = e.target;
-    const updated = checked
-      ? [...segments, value]
-      : segments.filter(s => s !== value);
-    setSegments(updated);
-    setValue("segments", updated);
-  };
-
-  const onSubmit = async dataInput => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      Swal.fire("Erro", "Você precisa estar autenticado.", "error");
+  const selectImage = (setter, previewSetter, maxMb) => (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > maxMb * 1024 * 1024) {
+      Swal.fire("Imagem inválida", `Selecione uma imagem válida de até ${maxMb} MB.`, "warning");
       return;
     }
-    const formData = new FormData();
-    Object.keys(dataInput).forEach(key => {
-      if (key === "segments") {
-        segments.forEach(seg => formData.append("segments[]", seg));
-      } else {
-        formData.append(key, dataInput[key] || "");
+    setter(file);
+    previewSetter(URL.createObjectURL(file));
+  };
+
+  const toggleSegment = (value) => {
+    setSegments((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+  };
+
+  const onSubmit = async (data) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      Swal.fire("Erro", "Sua sessão expirou. Entre novamente.", "error");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("app_id", String(appId));
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        payload.append(key, String(value).trim());
       }
     });
-    if (files.logo) formData.append("logo", files.logo);
-    if (files.background) formData.append("background", files.background);
+    segments.forEach((segment) => payload.append("segments[]", segment));
+    if (logo) payload.append("logo", logo);
+    if (background) payload.append("background", background);
 
     try {
-      const res = await axios.post(
-        `${apiBaseUrl}/establishment`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data"
-          }
-        }
-      );
-      Swal.fire("Sucesso", res.data.message, "success");
-      navigate(`/establishment/view/${res.data.establishment.slug}`);
-    } catch (err) {
-      const msg = err.response?.data?.error
-        || err.response?.data?.message
-        || "Ocorreu um erro ao criar o estabelecimento.";
-      Swal.fire("Erro", msg, "error");
+      const { data: response } = await axios.post(`${apiBaseUrl}/establishment`, payload, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+      });
+      await Swal.fire("Sucesso", response.message || "Estabelecimento criado com sucesso.", "success");
+      navigate("/establishment");
+    } catch (error) {
+      Swal.fire("Erro", apiMessage(error, "Não foi possível criar o estabelecimento."), error?.response?.status === 422 ? "warning" : "error");
     }
   };
 
   return (
-    <div className="establishment-root">
+    <div className="establishment-root establishment-root--app">
       <NavlogComponent />
-      <div className="establishment-create-page">
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h2 className="title">Criar Estabelecimento</h2>
-        </div>
-        <Form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
-          <Row>
-            <Col xs={12} className="text-center">
+      <main className="establishment-create-page">
+        <header className="establishment-page-header">
+          <div><span className="establishment-eyebrow">Configuração</span><h1>Novo estabelecimento</h1><p>Cadastre a operação que será gerenciada pela Plat.</p></div>
+          <Button variant="secondary" onClick={() => navigate("/establishment")}>Cancelar</Button>
+        </header>
+
+        <Form className="card-container" onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
+          <Row className="g-4">
+            <Col xs={12}>
               <div className="image-preview-container">
-                {backgroundPreview && (
-                  <label htmlFor="backgroundInput" style={{ cursor: "pointer" }}>
-                    <img
-                      src={backgroundPreview}
-                      alt="Background Preview"
-                      className="background-preview"
-                    />
-                  </label>
-                )}
-                {logoPreview && (
-                  <label htmlFor="logoInput" className="logo-preview-wrapper" style={{ cursor: "pointer" }}>
-                    <img
-                      src={logoPreview}
-                      alt="Logo Preview"
-                      className="logo-preview"
-                    />
-                  </label>
-                )}
+                {backgroundPreview ? <img src={backgroundPreview} alt="Capa" className="background-preview" /> : <div className="background-preview d-flex align-items-center justify-content-center text-muted">Capa do estabelecimento</div>}
+                {logoPreview ? <img src={logoPreview} alt="Logo" className="logo-preview" /> : <img src="/images/logo.png" alt="Plat" className="logo-preview" />}
               </div>
-              <div className="d-flex justify-content-center gap-3 mb-4">
-                <Button
-                  variant="secondary"
-                  className="action-button"
-                  onClick={() => document.getElementById("backgroundInput").click()}
-                >
-                  Alterar Background
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="action-button"
-                  onClick={() => document.getElementById("logoInput").click()}
-                >
-                  Alterar Logo
-                </Button>
+              <div className="d-flex flex-wrap justify-content-center gap-2 mt-3">
+                <Button type="button" variant="secondary" onClick={() => document.getElementById("estBackground").click()}>Selecionar capa</Button>
+                <Button type="button" variant="secondary" onClick={() => document.getElementById("estLogo").click()}>Selecionar logo</Button>
               </div>
-              <Form.Control
-                id="backgroundInput"
-                type="file"
-                accept="image/*"
-                onChange={handleBackgroundChange}
-                style={{ display: "none" }}
-              />
-              <Form.Control
-                id="logoInput"
-                type="file"
-                accept="image/*"
-                onChange={handleLogoChange}
-                style={{ display: "none" }}
-              />
+              <Form.Control id="estBackground" type="file" accept="image/*" onChange={selectImage(setBackground, setBackgroundPreview, 8)} style={{ display: "none" }} />
+              <Form.Control id="estLogo" type="file" accept="image/*" onChange={selectImage(setLogo, setLogoPreview, 4)} style={{ display: "none" }} />
+            </Col>
+
+            <Col md={6}><Form.Label>Nome *</Form.Label><Form.Control required {...register("name", { required: true })} /></Col>
+            <Col md={6}><Form.Label>Nome fantasia</Form.Label><Form.Control {...register("fantasy")} /></Col>
+            <Col md={4}><Form.Label>Categoria *</Form.Label><Form.Select required {...register("category", { required: true })}><option value="">Selecione</option>{categoryOptions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}</Form.Select></Col>
+            <Col md={4}><Form.Label>Tipo</Form.Label><Form.Control {...register("type")} placeholder="Ex.: restaurante, dark kitchen" /></Col>
+            <Col md={4}><Form.Label>CNPJ</Form.Label><Form.Control {...register("cnpj")} /></Col>
+            <Col md={6}><Form.Label>Telefone</Form.Label><Form.Control {...register("phone")} /></Col>
+            <Col md={6}><Form.Label>E-mail</Form.Label><Form.Control type="email" {...register("email")} /></Col>
+            <Col xs={12}><Form.Label>Descrição</Form.Label><Form.Control as="textarea" rows={3} {...register("description")} /></Col>
+            <Col md={6}><Form.Label>Endereço</Form.Label><Form.Control {...register("address")} /></Col>
+            <Col md={3}><Form.Label>Cidade</Form.Label><Form.Control {...register("city")} /></Col>
+            <Col md={1}><Form.Label>UF</Form.Label><Form.Control maxLength={2} {...register("uf")} /></Col>
+            <Col md={2}><Form.Label>CEP</Form.Label><Form.Control {...register("cep")} /></Col>
+            <Col xs={12}><Form.Label>Localização / Google Maps</Form.Label><Form.Control {...register("location")} /></Col>
+            <Col md={6}><Form.Label>Instagram</Form.Label><Form.Control type="url" {...register("instagram_url")} /></Col>
+            <Col md={6}><Form.Label>Site</Form.Label><Form.Control type="url" {...register("website_url")} /></Col>
+
+            <Col xs={12}>
+              <Form.Label>Formatos de operação</Form.Label>
+              <div className="segments-checkbox-grid">
+                {segmentOptions.map(([value,label]) => <label className="form-check segment-check" key={value}><input className="form-check-input" type="checkbox" checked={segments.includes(value)} onChange={() => toggleSegment(value)} /><span className="form-check-label">{label}</span></label>)}
+              </div>
+            </Col>
+
+            <Col xs={12} className="text-end">
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Criar estabelecimento"}</Button>
             </Col>
           </Row>
-          <div className="form">
-            <Row className="gy-3">
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Nome*</label>
-                  <input type="text" {...register("name", { required: true })} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Nome Fantasia</label>
-                  <input type="text" {...register("fantasy")} />
-                </div>
-              </Col>
-              <Col xs={6} md={3} lg={2}>
-                <div className="form-group">
-                  <label>CNPJ</label>
-                  <input type="text" {...register("cnpj")} />
-                </div>
-              </Col>
-              <Col xs={6} md={3} lg={2}>
-                <div className="form-group">
-                  <label>Tipo</label>
-                  <input type="text" {...register("type")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Categoria*</label>
-                  <select {...register("category", { required: true })} className="form-select">
-                    <option value="">Selecione...</option>
-                    {categoryOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Telefone</label>
-                  <input type="text" {...register("phone")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input type="email" {...register("email")} />
-                </div>
-              </Col>
-              <Col xs={12} md={12} lg={6}>
-                <div className="form-group">
-                  <label>Descrição</label>
-                  <textarea {...register("description")} />
-                </div>
-              </Col>
-              <Col xs={12} md={7} lg={4}>
-                <div className="form-group">
-                  <label>Endereço</label>
-                  <input type="text" {...register("address")} />
-                </div>
-              </Col>
-              <Col xs={6} md={3} lg={2}>
-                <div className="form-group">
-                  <label>Cidade</label>
-                  <input type="text" {...register("city")} />
-                </div>
-              </Col>
-              <Col xs={6} md={2} lg={2}>
-                <div className="form-group">
-                  <label>CEP</label>
-                  <input type="text" {...register("cep")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Localização (Google Maps)</label>
-                  <input type="text" {...register("location")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Instagram</label>
-                  <input type="url" {...register("instagram_url")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Facebook</label>
-                  <input type="url" {...register("facebook_url")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Twitter</label>
-                  <input type="url" {...register("twitter_url")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>YouTube</label>
-                  <input type="url" {...register("youtube_url")} />
-                </div>
-              </Col>
-              <Col xs={12} md={6} lg={4}>
-                <div className="form-group">
-                  <label>Site</label>
-                  <input type="url" {...register("website_url")} />
-                </div>
-              </Col>
-              <Col md={7} >
-                <div className="form-group">
-                  <label>Segmentos Atendidos</label>
-                  <div className="segments-checkbox-grid">
-                    {segmentOptions.map(opt => (
-                      <div className="form-check segment-check" key={opt.value}>
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id={`segment-${opt.value}`}
-                          value={opt.value}
-                          checked={segments.includes(opt.value)}
-                          onChange={handleSegmentsChange}
-                        />
-                        <label className="form-check-label mr-2" htmlFor={`segment-${opt.value}`}>{opt.label}</label>
-                      </div>
-                    ))}
-                  </div>
-                  <input type="hidden" {...register("segments")} value={segments} />
-                </div>
-              </Col>
-              <Col xs={12} className="text-end">
-                <button type="submit" className="submit-btn" disabled={isSubmitting}>
-                  {isSubmitting ? <> Salvando...</> : "Criar Estabelecimento"}
-                </button>
-              </Col>
-            </Row>
-          </div>
         </Form>
-      </div>
+      </main>
     </div>
   );
 }
