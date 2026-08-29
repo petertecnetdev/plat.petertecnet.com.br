@@ -1,114 +1,80 @@
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Card } from "react-bootstrap";
-import Swal from "sweetalert2"; // Importa o SweetAlert2
-import authService from "../../services/AuthService";
-import barbershopService from "../../services/BarbershopService"; // Importando o serviço de barbearias
+import React, { useEffect, useState } from "react";
+import { Card, Col, Container, Row } from "react-bootstrap";
+import Swal from "sweetalert2";
+import { useParams } from "react-router-dom";
 import NavlogComponent from "../../components/NavlogComponent";
+import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
+import userService from "../../services/UserService";
 import { storageUrl } from "../../config";
-import { Link } from "react-router-dom";
 
-const UserViewPage = () => {
+export default function UserViewPage() {
+  const { userName } = useParams();
   const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
-  const [barbershops, setBarbershops] = useState([]); // Estado para armazenar as barbearias
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    (async () => {
       try {
-        const userData = await authService.me();
-        setUser(userData);
-        
-        // Busca as barbearias se existirem IDs
-        if (userData.extra_info && userData.extra_info.barbershop) {
-          const barbershopPromises = userData.extra_info.barbershop.map(id => 
-            barbershopService.show(id) // Faz a chamada para obter as barbearias
-          );
-          const barbershopData = await Promise.all(barbershopPromises);
-          setBarbershops(barbershopData); // Armazena as barbearias no estado
-        }
+        const data = await userService.view(userName);
+        setUser(data.user || data);
       } catch (error) {
-        console.error(error);
-        setError("Erro ao carregar os dados do usuário. Por favor, tente novamente.");
+        Swal.fire({
+          icon: "error",
+          title: "Erro",
+          text: error?.message || "Não foi possível carregar o usuário.",
+        });
+      } finally {
+        setLoading(false);
       }
-    };
+    })();
+  }, [userName]);
 
-    fetchUserData();
-  }, []);
+  const avatar = user?.avatar ? `${storageUrl}/${user.avatar}` : "/images/user.png";
 
   return (
     <>
       <NavlogComponent />
-      <Container fluid>
-        <Row className="justify-content-left m-4">
-          <Col md={12}>
-            <Card>
-              <Card.Body>
-                {error && (
-                  Swal.fire({
-                    title: "Erro",
-                    text: error,
-                    icon: "error",
-                    customClass: {
-                      popup: "custom-swal",
-                      title: "custom-swal-title",
-                      content: "custom-swal-text",
-                    },
-                  }) // Alerta de erro SweetAlert
-                )}
-
-                {user && (
-                  <>
-                    <p className="labeltitle h4 text-center text-uppercase">{user.first_name}</p>
-                    
-                    <Row className="text-center">
-                      <Col xs={12} sm={6} md={4}>
-                        <Card className="card-barbershop-show">
-                          <div
-                            className="background-image"
-                            style={{
-                              backgroundImage: `url('${storageUrl}/${user.avatar}')`,
-                            }}
-                          />
-                          <Link
-                            to={`/user/${user.user_name}`}
-                            style={{ textDecoration: "none" }}
-                          >
-                        
-                          </Link>
-                          <Card.Body>
-                          <img
-                              src={`${storageUrl}/${user.avatar}`}
-                              className="rounded-circle img-logo-barbershop-show"
-                              style={{ margin: '0 auto', display: 'block' }}
-                              alt={user.first_name}
-                            />
-                          </Card.Body>
-                        </Card>
+      {loading ? (
+        <ProcessingIndicatorComponent messages={["Carregando perfil…"]} />
+      ) : (
+        <Container className="main-container" fluid>
+          <Row className="justify-content-center">
+            <Col xs={12} lg={9}>
+              <Card className="card-component">
+                <Card.Body>
+                  {user ? (
+                    <Row className="align-items-center gy-4">
+                      <Col xs={12} md={4} className="text-center">
+                        <img
+                          src={avatar}
+                          alt={user.first_name || user.user_name || "Usuário"}
+                          className="avatar-preview"
+                          onError={(event) => {
+                            event.currentTarget.src = "/images/user.png";
+                          }}
+                        />
                       </Col>
-
-                      <Col xs={12} sm={6} md={8}>
-                        <Card className="card-barbershop-show">
-                          <Card.Body>
-                            <p className="h6">Email: {user.email}</p>
-                            <p className="h6">Telefone: {user.phone}</p>
-                            <ul>
-                {barbershops.map(barbershop => (
-                    <li key={barbershop.id}>{barbershop.name}</li> // Supondo que `name` é um dos campos da barbearia
-                ))}
-            </ul>
-                          </Card.Body>
-                        </Card>
+                      <Col xs={12} md={8}>
+                        <h1 className="page-header mb-3">
+                          {user.first_name || "Usuário"} {user.last_name || ""}
+                        </h1>
+                        {user.user_name && <p><strong>Usuário:</strong> @{user.user_name}</p>}
+                        {user.email && <p><strong>Email:</strong> {user.email}</p>}
+                        {user.phone && <p><strong>Telefone:</strong> {user.phone}</p>}
+                        {user.city && <p><strong>Localização:</strong> {user.city}{user.uf ? ` - ${user.uf}` : ""}</p>}
+                        {user.occupation && <p><strong>Ocupação:</strong> {user.occupation}</p>}
+                        {user.about && <p><strong>Sobre:</strong> {user.about}</p>}
                       </Col>
                     </Row>
-                  </>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+                  ) : (
+                    <p className="empty-text mb-0">Usuário não encontrado.</p>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </Container>
+      )}
     </>
   );
-};
-
-export default UserViewPage;
+}
