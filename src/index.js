@@ -9,6 +9,7 @@ import "./LegacyTheme.css";
 import "./pages/establishment/Management.css";
 import "./Responsive.css";
 import "./PeterAppTheme.css";
+import "./PlatLayoutSystem.css";
 
 axios.defaults.headers.common["X-Peter-App"] = "plat";
 
