@@ -12,7 +12,7 @@ import {
 } from "react-icons/fi";
 import NavlogComponent from "../../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../../components/ProcessingIndicatorComponent";
-import { apiBaseUrl, storageUrl } from "../../../config";
+import { apiV1BaseUrl, appId, storageUrl } from "../../../config";
 import "../../establishment/Establishment.css";
 
 export default function EstablishmentListPage() {
@@ -23,17 +23,25 @@ export default function EstablishmentListPage() {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
+        const { data: response } = await axios.get(`${apiV1BaseUrl}/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setEstablishments(data.establishments || []);
+
+        const scopedEstablishments = Array.isArray(response?.data?.establishments)
+          ? response.data.establishments.filter(
+              (establishment) => Number(establishment.app_id) === Number(appId)
+            )
+          : [];
+
+        setEstablishments(scopedEstablishments);
       } catch (error) {
+        console.error("[Plat] Falha ao carregar estabelecimentos do contexto", error);
         Swal.fire({
           icon: "error",
           title: "Erro",
           text:
             error.response?.data?.message ||
-            "Não foi possível carregar seus estabelecimentos.",
+            "Não foi possível carregar seus estabelecimentos da Plat.",
         });
         setEstablishments([]);
       } finally {
@@ -56,7 +64,7 @@ export default function EstablishmentListPage() {
           <div>
             <span className="establishment-eyebrow">Gestão</span>
             <h1>Estabelecimentos</h1>
-            <p>Gerencie as operações vinculadas à sua conta Plat.</p>
+            <p>Gerencie exclusivamente as operações vinculadas à Plat.</p>
           </div>
 
           <Link to="/establishment/create" className="establishment-primary-action">
@@ -75,8 +83,8 @@ export default function EstablishmentListPage() {
             <div className="establishment-empty-state__icon">
               <FiPackage />
             </div>
-            <h2>Nenhum estabelecimento cadastrado</h2>
-            <p>Cadastre sua primeira operação para começar a criar itens e receber pedidos.</p>
+            <h2>Nenhum estabelecimento da Plat cadastrado</h2>
+            <p>Cadastre sua primeira operação na Plat para começar a criar itens e receber pedidos.</p>
             <Link to="/establishment/create" className="establishment-primary-action">
               <FiPlus />
               Criar estabelecimento
@@ -93,7 +101,7 @@ export default function EstablishmentListPage() {
                     onError={handleLogoError}
                   />
                   <div>
-                    <span className="establishment-card__status">Operação ativa</span>
+                    <span className="establishment-card__status">Operação Plat ativa</span>
                     <h2>{establishment.name}</h2>
                     <p>@{establishment.slug}</p>
                   </div>
