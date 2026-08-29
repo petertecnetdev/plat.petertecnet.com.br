@@ -1,112 +1,85 @@
 import axios from "axios";
 import { apiBaseUrl } from "../config";
 
-const apiServiceUrl = "item";
+const token = () => localStorage.getItem("token");
+const headers = () => ({ Authorization: `Bearer ${token() || ""}` });
+
+const normalizeError = (error) => ({
+  success: false,
+  message:
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    "Erro ao se conectar ao servidor.",
+  errors: error?.response?.data?.errors || null,
+  status: error?.response?.status || null,
+});
 
 const itemService = {
-  getToken: () => localStorage.getItem("token"),
-
   store: async (formData) => {
     try {
-      const response = await axios.post(
-        `${apiBaseUrl}/${apiServiceUrl}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${itemService.getToken()}`,
-          },
-        }
-      );
-      return response.data;
+      const { data } = await axios.post(`${apiBaseUrl}/item`, formData, {
+        headers: { ...headers(), "Content-Type": "multipart/form-data" },
+      });
+      return data;
     } catch (error) {
-      if (error.response) {
-        return error.response.data;
-      } else {
-        return { message: "Erro ao se conectar ao servidor." };
-      }
+      return normalizeError(error);
     }
   },
 
-  listByEvent: async (eventId) => {
+  listByEntity: async (identifier) => {
     try {
-      const response = await axios.get(
-        `${apiBaseUrl}/${apiServiceUrl}/event/${eventId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${itemService.getToken()}`,
-          },
-        }
+      const { data } = await axios.get(
+        `${apiBaseUrl}/item/list-by-entity/${identifier}`,
+        { headers: headers() }
       );
-      return response.data;
+      return data;
     } catch (error) {
-      if (error.response) {
-        return error.response.data;
-      } else {
-        return { message: "Erro ao se conectar ao servidor." };
-      }
+      return normalizeError(error);
     }
   },
 
   delete: async (id) => {
     try {
-      const response = await axios.delete(
-        `${apiBaseUrl}/${apiServiceUrl}/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${itemService.getToken()}`,
-          },
-        }
-      );
-      return response.data;
+      const { data } = await axios.delete(`${apiBaseUrl}/item/${id}`, {
+        headers: headers(),
+      });
+      return data;
     } catch (error) {
-      if (error.response) {
-        return error.response.data;
-      } else {
-        return { message: "Erro ao se conectar ao servidor." };
-      }
+      return normalizeError(error);
     }
   },
 
   show: async (id) => {
     try {
-      const response = await axios.get(
-        `${apiBaseUrl}/${apiServiceUrl}/show/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${itemService.getToken()}`,
-          },
-        }
-      );
-      return response.data;
+      const { data } = await axios.get(`${apiBaseUrl}/item/${id}`, {
+        headers: headers(),
+      });
+      return data;
     } catch (error) {
-      if (error.response) {
-        return error.response.data;
-      } else {
-        return { message: "Erro ao se conectar ao servidor." };
-      }
+      return normalizeError(error);
+    }
+  },
+
+  view: async (identifier) => {
+    try {
+      const { data } = await axios.get(`${apiBaseUrl}/item/view/${identifier}`, {
+        headers: headers(),
+      });
+      return data;
+    } catch (error) {
+      return normalizeError(error);
     }
   },
 
   update: async (id, formData) => {
     try {
-      const response = await axios.put(
-        `${apiBaseUrl}/${apiServiceUrl}/${id}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${itemService.getToken()}`,
-          },
-        }
-      );
-      return response.data;
+      // POST is intentionally supported by the API for multipart updates.
+      const { data } = await axios.post(`${apiBaseUrl}/item/${id}`, formData, {
+        headers: { ...headers(), "Content-Type": "multipart/form-data" },
+      });
+      return data;
     } catch (error) {
-      if (error.response) {
-        return error.response.data;
-      } else {
-        return { message: "Erro ao se conectar ao servidor." };
-      }
+      return normalizeError(error);
     }
   },
 };
