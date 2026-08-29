@@ -1,0 +1,431 @@
+/* Plat responsive foundation
+ * Loaded last so legacy/page styles cannot reintroduce fixed desktop layouts.
+ */
+:root {
+  --plat-sidebar-width: 248px;
+  --plat-page-gutter: clamp(16px, 3vw, 40px);
+  --plat-page-max: 1500px;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+#root,
+main,
+section,
+article,
+header,
+footer,
+nav,
+.row,
+[class*="container"] {
+  min-width: 0;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+/* Unifica a largura real do sidebar em todas as páginas autenticadas. */
+.main-container,
+.establishment-list-page,
+.establishment-create-page {
+  width: auto !important;
+  max-width: var(--plat-page-max) !important;
+  margin-left: var(--plat-sidebar-width) !important;
+  margin-right: auto !important;
+  padding-left: var(--plat-page-gutter) !important;
+  padding-right: var(--plat-page-gutter) !important;
+}
+
+.section-title {
+  margin-left: var(--plat-sidebar-width) !important;
+  padding-left: var(--plat-page-gutter) !important;
+  padding-right: var(--plat-page-gutter) !important;
+}
+
+/* Bootstrap/flex/grid children must be allowed to shrink. */
+.row > *,
+.d-flex > *,
+.dashboard-grid > *,
+.dashboard-kpis > *,
+.establishment-grid > *,
+.establishment-card > * {
+  min-width: 0;
+}
+
+.card-container,
+.card-component,
+.inner-card,
+.dashboard-panel,
+.establishment-card,
+.login-card {
+  max-width: 100%;
+}
+
+/* Tables scroll inside their own card instead of widening the whole page. */
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
+.table-responsive > .table,
+.table-responsive > table {
+  margin-bottom: 0;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+/* Keep long API/user content from breaking cards. */
+.card-container,
+.card-component,
+.inner-card,
+.dashboard-panel,
+.establishment-card,
+.modal-content,
+.swal2-popup {
+  overflow-wrap: anywhere;
+}
+
+pre,
+code {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Charts and media should follow the available column width. */
+canvas,
+.chart-container,
+[class*="chart"] {
+  max-width: 100% !important;
+}
+
+/* Modal sizing for every viewport. */
+.modal-dialog {
+  width: auto;
+  max-width: min(720px, calc(100vw - 32px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.modal-dialog.modal-lg {
+  max-width: min(960px, calc(100vw - 32px));
+}
+
+.modal-dialog.modal-xl {
+  max-width: min(1200px, calc(100vw - 32px));
+}
+
+/* Prevent fixed/inline widths used by old forms from overflowing. */
+.form-control,
+.form-select,
+.input-field,
+.input-username,
+.input-password,
+textarea,
+input:not([type="checkbox"]):not([type="radio"]),
+select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1199.98px) {
+  .establishment-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 991.98px) {
+  :root {
+    --plat-page-gutter: clamp(14px, 3vw, 22px);
+  }
+
+  .main-container,
+  .establishment-list-page,
+  .establishment-create-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-top: 78px !important;
+    padding-bottom: 32px !important;
+  }
+
+  .section-title {
+    margin-left: 0 !important;
+    padding-top: 78px !important;
+  }
+
+  .dashboard-main {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0 !important;
+    padding-left: var(--plat-page-gutter) !important;
+    padding-right: var(--plat-page-gutter) !important;
+  }
+
+  .plat-public-nav {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .modal-dialog,
+  .modal-dialog.modal-lg,
+  .modal-dialog.modal-xl {
+    max-width: calc(100vw - 24px);
+    margin: 12px auto;
+  }
+}
+
+@media (max-width: 767.98px) {
+  :root {
+    --plat-page-gutter: 14px;
+  }
+
+  body {
+    font-size: 15px;
+  }
+
+  .main-container,
+  .establishment-list-page,
+  .establishment-create-page,
+  .dashboard-main {
+    padding-bottom: 24px !important;
+  }
+
+  .section-title {
+    font-size: clamp(1.35rem, 7vw, 1.65rem) !important;
+  }
+
+  .page-header,
+  .dashboard-hero h1,
+  .establishment-page-header h1,
+  .establishment-create-page .title {
+    overflow-wrap: anywhere;
+  }
+
+  .card-container,
+  .establishment-card,
+  .dashboard-panel,
+  .establishment-create-page .form {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .dashboard-panel__header,
+  .establishment-page-header {
+    align-items: flex-start !important;
+  }
+
+  .main-container > .d-flex.justify-content-between,
+  .main-container > .d-flex.flex-wrap.justify-content-between,
+  .establishment-page-header,
+  .dashboard-hero {
+    flex-direction: column !important;
+  }
+
+  .main-container > .d-flex.justify-content-between > *,
+  .main-container > .d-flex.flex-wrap.justify-content-between > *,
+  .establishment-page-header > *,
+  .dashboard-hero > * {
+    width: 100%;
+  }
+
+  .main-container > .d-flex .btn,
+  .establishment-page-header .establishment-primary-action,
+  .dashboard-hero__actions .dashboard-primary-action {
+    justify-content: center;
+  }
+
+  .dashboard-kpis,
+  .dashboard-side,
+  .establishment-card__actions,
+  .establishment-create-page .segments-checkbox-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .table-responsive {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 14px !important;
+  }
+
+  .table-responsive .table {
+    min-width: 680px;
+  }
+
+  .swal2-popup {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    padding: 18px !important;
+  }
+
+  .swal2-actions {
+    width: 100%;
+  }
+
+  .swal2-actions .swal2-styled {
+    flex: 1 1 140px;
+    margin: 4px !important;
+  }
+
+  .login-container,
+  .page-row {
+    width: 100%;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .page-col,
+  .login-card {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .main-container,
+  .establishment-list-page,
+  .establishment-create-page,
+  .dashboard-main {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .card-container,
+  .establishment-card,
+  .dashboard-panel,
+  .establishment-create-page .form {
+    padding: 14px !important;
+  }
+
+  .btn,
+  .action-button,
+  .submit-btn {
+    white-space: normal;
+  }
+
+  .main-container > .d-flex.flex-wrap.justify-content-between .btn-primary,
+  .establishment-primary-action,
+  .dashboard-primary-action {
+    width: 100%;
+    text-align: center;
+  }
+
+  .establishment-card__identity {
+    align-items: flex-start;
+  }
+
+  .establishment-card__identity img {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+  }
+
+  .dashboard-establishment__head {
+    grid-template-columns: 42px minmax(0, 1fr) 32px !important;
+  }
+
+  .dashboard-establishment__numbers,
+  .dashboard-establishment__insights {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-establishment__numbers > div:last-child {
+    grid-column: auto !important;
+  }
+
+  .table-responsive .table {
+    min-width: 620px;
+  }
+
+  .modal-dialog,
+  .modal-dialog.modal-lg,
+  .modal-dialog.modal-xl {
+    max-width: calc(100vw - 16px);
+    margin: 8px auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .plat-mobile-trigger {
+    top: 10px;
+    left: 10px;
+  }
+
+  .plat-sidebar {
+    width: 92vw;
+  }
+
+  .main-container,
+  .establishment-list-page,
+  .establishment-create-page,
+  .dashboard-main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .card-container,
+  .establishment-card,
+  .dashboard-panel,
+  .establishment-create-page .form {
+    padding: 12px !important;
+  }
+}
+
+/* Respect device safe areas in installed/mobile builds. */
+@supports (padding: max(0px)) {
+  @media (max-width: 991.98px) {
+    .plat-mobile-trigger {
+      top: max(14px, env(safe-area-inset-top));
+      left: max(14px, env(safe-area-inset-left));
+    }
+
+    .main-container,
+    .establishment-list-page,
+    .establishment-create-page,
+    .dashboard-main {
+      padding-left: max(var(--plat-page-gutter), env(safe-area-inset-left)) !important;
+      padding-right: max(var(--plat-page-gutter), env(safe-area-inset-right)) !important;
+      padding-bottom: max(24px, env(safe-area-inset-bottom)) !important;
+    }
+  }
+}
