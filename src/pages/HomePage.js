@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { FiArrowRight, FiBarChart2, FiCheckCircle, FiClipboard, FiMapPin, FiPackage, FiSearch, FiShoppingBag, FiTrendingUp } from "react-icons/fi";
+import { FiArrowRight, FiBarChart2, FiCheckCircle, FiMapPin, FiSearch, FiShoppingBag, FiTrendingUp } from "react-icons/fi";
 import "./HomePage.css";
 
 const benefits = [
