@@ -1,0 +1,229 @@
+/* =========================================================
+   PLAT — Final alignment/polish layer
+   Loaded after all legacy/theme/page CSS.
+   ========================================================= */
+
+:root{
+  --plat-field-h:46px;
+  --plat-gap-xs:8px;
+  --plat-gap-sm:12px;
+  --plat-gap-md:18px;
+  --plat-gap-lg:24px;
+}
+
+/* Layout rhythm */
+.main-container,
+.dashboard-main,
+.establishment-list-page,
+.establishment-create-page{
+  box-sizing:border-box!important;
+}
+
+.main-container > .row,
+.card-container > .row,
+.form-row,
+.row.g-3,
+.row.g-4{
+  align-items:start;
+}
+
+.row.g-3{--bs-gutter-x:18px!important;--bs-gutter-y:18px!important}
+.row.g-4{--bs-gutter-x:20px!important;--bs-gutter-y:20px!important}
+.row > [class*="col-"]{min-width:0!important}
+
+/* Labels/fields: same baseline everywhere */
+.form-group,
+.mb-3,
+[class*="field"]{
+  min-width:0;
+}
+
+.form-label,
+.form-group label:not(.form-check-label),
+.establishment-create-page label:not(.segment-check),
+.account-grid label{
+  min-height:16px;
+  display:flex!important;
+  align-items:center;
+  margin:0 0 8px!important;
+  line-height:1.2!important;
+}
+
+.form-control,
+.form-select,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select{
+  height:var(--plat-field-h)!important;
+  min-height:var(--plat-field-h)!important;
+  line-height:1.25!important;
+  vertical-align:middle!important;
+}
+
+textarea.form-control,
+textarea{
+  height:auto!important;
+  min-height:104px!important;
+  line-height:1.45!important;
+}
+
+.form-select{padding-top:0!important;padding-bottom:0!important}
+
+/* Bootstrap check/radio normalization — prevents the negative-left checkbox seen in forms */
+.form-check{
+  padding-left:0!important;
+  margin:0!important;
+}
+.form-check-input{
+  float:none!important;
+  flex:0 0 18px!important;
+  width:18px!important;
+  height:18px!important;
+  min-width:18px!important;
+  min-height:18px!important;
+  margin:0!important;
+  padding:0!important;
+  vertical-align:middle!important;
+  position:static!important;
+}
+.form-check-label{
+  margin:0!important;
+  padding:0!important;
+  line-height:1.25!important;
+}
+
+.segments-checkbox-grid{
+  width:100%;
+  align-items:stretch!important;
+}
+.segment-check{
+  min-width:0!important;
+  min-height:46px!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:12px!important;
+  padding:12px 14px!important;
+  margin:0!important;
+  overflow:hidden;
+}
+.segment-check .form-check-input{
+  flex:0 0 18px!important;
+}
+.segment-check .form-check-label{
+  flex:1 1 auto;
+  min-width:0;
+  color:#d9dee5!important;
+  white-space:normal;
+}
+
+/* Buttons/actions */
+.btn,
+.action-button,
+.submit-btn,
+.dashboard-primary-action,
+.establishment-primary-action{
+  min-height:42px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1.1!important;
+  white-space:nowrap;
+}
+
+.text-end > .btn,
+.text-end > .action-button{
+  vertical-align:top;
+}
+
+/* Headers */
+.establishment-page-header,
+.dashboard-hero,
+.main-container > .row:first-child,
+.main-container > .d-flex:first-child{
+  gap:16px!important;
+}
+.establishment-page-header > div:first-child,
+.dashboard-hero > div:first-child,
+.main-container > .row:first-child > .col:first-child{
+  min-width:0;
+}
+
+/* Cards/panels have consistent internal clipping and spacing */
+.card-container,
+.card-component,
+.dashboard-panel,
+.dashboard-kpi,
+.dashboard-establishment,
+.establishment-card,
+.plat-create-preview-card,
+.plat-item-preview-card{
+  overflow:hidden;
+}
+
+.card-body{min-width:0}
+.card-header,.card-footer,.modal-header,.modal-footer{padding:14px 18px!important}
+
+/* Tables */
+.table-responsive{margin:0!important}
+.table th,.table td{line-height:1.35!important}
+.table td .btn{min-height:36px!important}
+
+/* Modal alignment */
+.modal-dialog{display:flex;align-items:center;min-height:calc(100% - 2rem)}
+.modal-content{width:100%;min-width:0}
+.modal-header,.modal-footer{gap:10px}
+.modal-footer{flex-wrap:wrap}
+
+/* Account/admin forms */
+.account-grid,
+[class*="profile"] .row,
+[class*="user"] .row{
+  align-items:start;
+}
+.account-actions{gap:10px!important;flex-wrap:wrap}
+
+/* Establishment create/update */
+.establishment-create-page .card-container{margin-top:0!important}
+.establishment-create-page .plat-create-preview-card{margin-bottom:22px!important}
+.establishment-create-page .segments-checkbox-grid{margin-top:2px}
+
+/* Item create/update */
+.plat-item-preview-card{margin-bottom:22px!important}
+.plat-item-preview-copy{min-width:0}
+
+/* SweetAlert */
+.swal2-actions{align-items:stretch!important;justify-content:center!important}
+.swal2-styled{display:inline-flex!important;align-items:center!important;justify-content:center!important}
+
+/* Sidebar: prevent text baseline clipping */
+.plat-sidebar__link,
+.plat-sidebar__admin-toggle{
+  display:flex!important;
+  align-items:center!important;
+  gap:11px!important;
+  line-height:1.2!important;
+}
+.plat-sidebar__link svg,
+.plat-sidebar__admin-toggle svg{flex:0 0 auto}
+.plat-sidebar__link span{min-width:0}
+
+/* Responsive polishing */
+@media(max-width:991.98px){
+  .main-container,.dashboard-main,.establishment-list-page,.establishment-create-page{overflow-x:hidden!important}
+}
+
+@media(max-width:767.98px){
+  .row.g-3,.row.g-4{--bs-gutter-x:14px!important;--bs-gutter-y:14px!important}
+  .establishment-page-header,.dashboard-hero,.main-container > .row:first-child,.main-container > .d-flex:first-child{gap:12px!important}
+  .establishment-page-header .btn,.dashboard-hero__actions .btn,.main-container > .row:first-child .text-end .btn{width:100%!important}
+  .text-end{text-align:left!important}
+  .segments-checkbox-grid{grid-template-columns:1fr!important}
+  .modal-dialog{margin:.75rem!important;min-height:calc(100% - 1.5rem)}
+}
+
+@media(max-width:575.98px){
+  .card-container{padding:16px!important}
+  .btn,.action-button,.submit-btn{white-space:normal;text-align:center}
+  .modal-footer .btn{flex:1 1 100%}
+}
