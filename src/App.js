@@ -36,7 +36,7 @@ import ServiceRecordListPage from "./pages/serviceRecord/ServiceRecordListPage";
 import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
 import ReportOrderPage from "./pages/report/ReportOrderPage";
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
-import { apiBaseUrl } from "./config";
+import { apiV1BaseUrl } from "./config";
 import "./index.css";
 
 const App = () => {
@@ -44,24 +44,60 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     (async () => {
       const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const { data } = await axios.get(`${apiBaseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-          setUser(data.user);
-        } catch {
+      if (!token) {
+        if (active) setLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await axios.get(`${apiV1BaseUrl}/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const context = data?.data || data || {};
+        if (active) setUser(context.user || null);
+      } catch (error) {
+        console.error("[Plat] Falha ao inicializar sessão", error);
+        if (error?.response?.status === 401) {
           localStorage.removeItem("token");
         }
+        if (active) setUser(null);
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
     })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  if (loading) return <ProcessingIndicatorComponent messages={["Carregando a Plat…", "Preparando sua experiência…"]} interval={2200} />;
+  if (loading) {
+    return (
+      <ProcessingIndicatorComponent
+        messages={["Carregando a Plat…", "Preparando sua experiência…"]}
+        interval={2200}
+      />
+    );
+  }
 
-  const protectedRoute = (element) => user ? user.email_verified_at ? element : <Navigate to="/email-verify" replace /> : <Navigate to="/login" replace />;
-  const emailVerifiedRoute = (element) => user ? !user.email_verified_at ? element : <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+  const protectedRoute = (element) =>
+    user
+      ? user.email_verified_at
+        ? element
+        : <Navigate to="/email-verify" replace />
+      : <Navigate to="/login" replace />;
+
+  const emailVerifiedRoute = (element) =>
+    user
+      ? !user.email_verified_at
+        ? element
+        : <Navigate to="/dashboard" replace />
+      : <Navigate to="/login" replace />;
+
   const restrictedRoute = (element) => user ? <Navigate to="/dashboard" replace /> : element;
 
   return (
