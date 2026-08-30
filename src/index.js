@@ -12,6 +12,7 @@ import "./pages/establishment/Management.css";
 import "./Responsive.css";
 import "./PeterAppTheme.css";
 import "./PlatLayoutSystem.css";
+import "./PlatPolish.css";
 
 startTelemetry({ apiBaseUrl, appSlug });
 
