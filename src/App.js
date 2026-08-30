@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import axios from "axios";
 
 import HomePage from "./pages/HomePage";
+import PublicRestaurantsPage from "./pages/public/PublicRestaurantsPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import EmailVerifyPage from "./pages/auth/EmailVerifyPage";
@@ -47,9 +48,7 @@ const App = () => {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const { data } = await axios.get(`${apiBaseUrl}/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const { data } = await axios.get(`${apiBaseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
           setUser(data.user);
         } catch {
           localStorage.removeItem("token");
@@ -59,36 +58,17 @@ const App = () => {
     })();
   }, []);
 
-  if (loading) {
-    return (
-      <ProcessingIndicatorComponent
-        messages={["Carregando a Plat…", "Preparando seu ambiente de gestão…"]}
-        interval={2200}
-      />
-    );
-  }
+  if (loading) return <ProcessingIndicatorComponent messages={["Carregando a Plat…", "Preparando sua experiência…"]} interval={2200} />;
 
-  const protectedRoute = (element) =>
-    user
-      ? user.email_verified_at
-        ? element
-        : <Navigate to="/email-verify" replace />
-      : <Navigate to="/login" replace />;
-
-  const emailVerifiedRoute = (element) =>
-    user
-      ? !user.email_verified_at
-        ? element
-        : <Navigate to="/dashboard" replace />
-      : <Navigate to="/login" replace />;
-
-  const restrictedRoute = (element) =>
-    user ? <Navigate to="/dashboard" replace /> : element;
+  const protectedRoute = (element) => user ? user.email_verified_at ? element : <Navigate to="/email-verify" replace /> : <Navigate to="/login" replace />;
+  const emailVerifiedRoute = (element) => user ? !user.email_verified_at ? element : <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+  const restrictedRoute = (element) => user ? <Navigate to="/dashboard" replace /> : element;
 
   return (
     <Router>
       <Routes>
-        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <HomePage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/restaurants" element={<PublicRestaurantsPage />} />
         <Route path="/establishment/view/:slug" element={<EstablishmentViewPage />} />
         <Route path="/register" element={restrictedRoute(<RegisterPage />)} />
         <Route path="/login" element={restrictedRoute(<LoginPage />)} />
@@ -98,35 +78,28 @@ const App = () => {
         <Route path="/password" element={protectedRoute(<PasswordPage />)} />
         <Route path="/invite-complete" element={restrictedRoute(<InviteCompletePage />)} />
         <Route path="/logout" element={<LogoutPage />} />
-
         <Route path="/dashboard" element={protectedRoute(<DashboardPage />)} />
         <Route path="/order/list/:entityId" element={protectedRoute(<OrderListPage />)} />
         <Route path="/order/create/:entityId" element={protectedRoute(<OrderCreatePage />)} />
         <Route path="/order/edit/:entityId/:id" element={protectedRoute(<OrderEditPage />)} />
-
         <Route path="/user/update" element={protectedRoute(<UserUpdatePage />)} />
         <Route path="/user/list" element={protectedRoute(<UserListPage />)} />
         <Route path="/user/create" element={protectedRoute(<UserCreatePage />)} />
         <Route path="/user/:userName" element={protectedRoute(<UserViewPage />)} />
-
         <Route path="/profile/create" element={protectedRoute(<ProfileCreatePage />)} />
         <Route path="/profile/list" element={protectedRoute(<ProfileListPage />)} />
         <Route path="/profile/update/:id" element={protectedRoute(<ProfileUpdatePage />)} />
-
         <Route path="/item/list/:slug" element={protectedRoute(<ItemListPage />)} />
         <Route path="/item/create/:slug" element={protectedRoute(<ItemCreatePage />)} />
         <Route path="/item/update/:id" element={protectedRoute(<ItemUpdatePage />)} />
         <Route path="/item/view/:slug" element={protectedRoute(<ItemViewPage />)} />
-
         <Route path="/establishment" element={protectedRoute(<EstablishmentListPage />)} />
         <Route path="/establishment/create" element={protectedRoute(<EstablishmentCreatePage />)} />
         <Route path="/establishment/update/:id" element={protectedRoute(<EstablishmentUpdatePage />)} />
-
         <Route path="/service-record/my" element={protectedRoute(<ServiceRecordListPage />)} />
         <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage />)} />
-
         <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage />)} />
-        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
