@@ -1,3 +1,5 @@
+import { startTelemetry } from "./telemetry";
+import { apiBaseUrl, appSlug } from "./config";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import axios from "axios";
@@ -10,6 +12,8 @@ import "./pages/establishment/Management.css";
 import "./Responsive.css";
 import "./PeterAppTheme.css";
 import "./PlatLayoutSystem.css";
+
+startTelemetry({ apiBaseUrl, appSlug });
 
 axios.defaults.headers.common["X-Peter-App"] = "plat";
 
