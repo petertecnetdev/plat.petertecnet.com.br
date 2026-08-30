@@ -16,7 +16,8 @@ import "./PlatPolish.css";
 
 startTelemetry({ apiBaseUrl, appSlug, appId });
 
-axios.defaults.headers.common["X-Peter-App"] = "plat";
+axios.defaults.headers.common["X-Peter-App"] = appSlug;
+axios.defaults.headers.common["X-App-ID"] = String(appId);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
