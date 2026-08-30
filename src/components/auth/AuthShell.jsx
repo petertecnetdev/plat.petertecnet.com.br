@@ -2,6 +2,8 @@ import React from "react";
 import PropTypes from "prop-types";
 import "../../pages/auth/Auth.css";
 
+const PLAT_LOGO = "/images/plat-logo.svg";
+
 export default function AuthShell({ eyebrow, title, description, children, footer, compact = false }) {
   return (
     <main className="plat-auth">
@@ -12,7 +14,7 @@ export default function AuthShell({ eyebrow, title, description, children, foote
         <aside className="plat-auth__brand-panel">
           <div className="plat-auth__brand">
             <div className="plat-auth__logo-wrap">
-              <img src="/images/logo.png" alt="Plat" className="plat-auth__logo" />
+              <img src={PLAT_LOGO} alt="Plat" className="plat-auth__logo" />
             </div>
             <div>
               <strong>PLAT</strong>
@@ -23,9 +25,7 @@ export default function AuthShell({ eyebrow, title, description, children, foote
           <div className="plat-auth__brand-copy">
             <span className="plat-auth__brand-kicker">Gestão conectada</span>
             <h2>Seu negócio em uma operação mais simples.</h2>
-            <p>
-              Acesse estabelecimentos, itens, pedidos, atendimentos e indicadores em uma experiência única.
-            </p>
+            <p>Acesse estabelecimentos, itens, pedidos, atendimentos e indicadores em uma experiência única.</p>
           </div>
 
           <div className="plat-auth__brand-footer">
@@ -36,7 +36,7 @@ export default function AuthShell({ eyebrow, title, description, children, foote
 
         <div className="plat-auth__content">
           <div className="plat-auth__mobile-brand">
-            <img src="/images/logo.png" alt="Plat" />
+            <img src={PLAT_LOGO} alt="Plat" />
             <div><strong>PLAT</strong><span>Peter Tecnet</span></div>
           </div>
 
