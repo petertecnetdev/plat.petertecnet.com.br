@@ -3,9 +3,20 @@ import { apiBaseUrl } from "../config";
 
 const apiServiceUrl = "auth";
 
+const remoteLogout = async (token) => {
+  if (!token) return true;
+  try {
+    await axios.post(`${apiBaseUrl}/${apiServiceUrl}/logout`, {}, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (error) {
+    if (error?.response?.status !== 401) console.warn("[Plat] Falha ao encerrar sessão remota:", error);
+  }
+  return true;
+};
+
 const authService = {
   getToken: () => localStorage.getItem("token"),
   setToken: (token) => localStorage.setItem("token", token),
+  logoutWithToken: remoteLogout,
 
   login: async (email, password) => {
     try {
@@ -37,29 +48,12 @@ const authService = {
     }
   },
 
-  logout: async () => {
-    const token = authService.getToken();
-    if (!token) return true;
-
-    try {
-      await axios.post(`${apiBaseUrl}/${apiServiceUrl}/logout`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch (error) {
-      // Logout local deve sempre funcionar. 401 significa apenas que a sessão
-      // no servidor já não é válida; não é motivo para bloquear a saída.
-      if (error?.response?.status !== 401) console.warn("[Plat] Falha ao encerrar sessão remota:", error);
-    }
-    return true;
-  },
+  logout: async () => remoteLogout(authService.getToken()),
 
   emailVerify: async (verificationCode) => {
     const headers = { Authorization: `Bearer ${authService.getToken()}` };
     const response = await axios.post(`${apiBaseUrl}/${apiServiceUrl}/email-verify`, { verification_code: verificationCode }, { headers });
-    if (response.status === 200) {
-      window.location.replace("/dashboard");
-      return true;
-    }
+    if (response.status === 200) { window.location.replace("/dashboard"); return true; }
     return false;
   },
 
@@ -69,10 +63,7 @@ const authService = {
     try {
       const response = await axios.post(`${apiBaseUrl}/${apiServiceUrl}/change-password`, { current_password, new_password, confirm_password }, { headers: { Authorization: `Bearer ${token}` } });
       return response.status === 200;
-    } catch (error) {
-      console.error(error);
-      throw new Error("Erro ao alterar a senha. Por favor, tente novamente.");
-    }
+    } catch (error) { console.error(error); throw new Error("Erro ao alterar a senha. Por favor, tente novamente."); }
   },
 
   me: async () => {
@@ -81,41 +72,24 @@ const authService = {
     try {
       const response = await axios.get(`${apiBaseUrl}/${apiServiceUrl}/me`, { headers: { Authorization: `Bearer ${token}` } });
       return response.data;
-    } catch (error) {
-      console.error("Erro ao obter os dados do usuário:", error);
-      throw new Error("Erro ao obter os dados do usuário.");
-    }
+    } catch (error) { console.error("Erro ao obter os dados do usuário:", error); throw new Error("Erro ao obter os dados do usuário."); }
   },
 
   passwordEmail: async (email) => {
-    try {
-      const response = await axios.post(`${apiBaseUrl}/${apiServiceUrl}/password-email`, { email });
-      return response.data;
-    } catch (error) {
-      if (!error.response) throw new Error("Houve uma falha na comunicação com o servidor. Por favor, tente novamente.");
-      return error.response.data;
-    }
+    try { return (await axios.post(`${apiBaseUrl}/${apiServiceUrl}/password-email`, { email })).data; }
+    catch (error) { if (!error.response) throw new Error("Houve uma falha na comunicação com o servidor. Por favor, tente novamente."); return error.response.data; }
   },
 
   passwordReset: async (email, resetCode, newPassword) => {
-    try {
-      return await axios.post(`${apiBaseUrl}/${apiServiceUrl}/password-reset`, { email, reset_password_code: resetCode, password: newPassword });
-    } catch (error) {
-      if (error.response) throw new Error(`${error.response.data.message || "Erro durante a redefinição de senha."} (Status: ${error.response.status})`);
-      throw new Error("Erro durante a redefinição de senha. Por favor, tente novamente.");
-    }
+    try { return await axios.post(`${apiBaseUrl}/${apiServiceUrl}/password-reset`, { email, reset_password_code: resetCode, password: newPassword }); }
+    catch (error) { if (error.response) throw new Error(`${error.response.data.message || "Erro durante a redefinição de senha."} (Status: ${error.response.status})`); throw new Error("Erro durante a redefinição de senha. Por favor, tente novamente."); }
   },
 
   resendCodeEmailVerification: async () => {
     const token = authService.getToken();
     if (!token) throw new Error("Usuário não autenticado.");
-    try {
-      const response = await axios.post(`${apiBaseUrl}/${apiServiceUrl}/resend-code-email-verification`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      return response.status === 200;
-    } catch (error) {
-      console.error(error);
-      throw new Error("Erro ao reenviar o código de verificação. Por favor, tente novamente.");
-    }
+    try { return (await axios.post(`${apiBaseUrl}/${apiServiceUrl}/resend-code-email-verification`, {}, { headers: { Authorization: `Bearer ${token}` } })).status === 200; }
+    catch (error) { console.error(error); throw new Error("Erro ao reenviar o código de verificação. Por favor, tente novamente."); }
   },
 };
 
