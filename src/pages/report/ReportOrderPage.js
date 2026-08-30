@@ -100,8 +100,6 @@ export default function ReportOrderPage() {
 
   useEffect(() => {
     loadReport(filters);
-    // carregamento inicial apenas; alterações de filtros são aplicadas pelo botão
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadReport]);
 
   const metrics = useMemo(() => {
