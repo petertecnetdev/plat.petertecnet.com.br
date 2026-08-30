@@ -11,6 +11,7 @@ import LogoutPage from "./pages/auth/LogoutPage";
 import PasswordEmailPage from "./pages/auth/PasswordEmailPage";
 import PasswordResetPage from "./pages/auth/PasswordResetPage";
 import PasswordPage from "./pages/auth/PasswordPage";
+import InviteCompletePage from "./pages/auth/InviteCompletePage";
 import DashboardPage from "./pages/DashboardPage";
 import OrderCreatePage from "./pages/order/OrderCreatePage";
 import OrderListPage from "./pages/order/OrderListPage";
@@ -95,6 +96,7 @@ const App = () => {
         <Route path="/password-reset" element={restrictedRoute(<PasswordResetPage />)} />
         <Route path="/email-verify" element={emailVerifiedRoute(<EmailVerifyPage />)} />
         <Route path="/password" element={protectedRoute(<PasswordPage />)} />
+        <Route path="/invite-complete" element={restrictedRoute(<InviteCompletePage />)} />
         <Route path="/logout" element={<LogoutPage />} />
 
         <Route path="/dashboard" element={protectedRoute(<DashboardPage />)} />
