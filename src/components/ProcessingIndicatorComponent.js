@@ -5,7 +5,7 @@ import "./ProcessingIndicatorComponent.css";
 export default function ProcessingIndicatorComponent({
   messages = ["Carregando a Plat…", "Preparando sua operação…"],
   interval = 2200,
-  logoSrc = "/images/logo.png",
+  logoSrc = "/images/plat-logo.svg",
   compact = false,
 }) {
   const messageIndex = useRef(0);
