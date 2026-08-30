@@ -1,173 +1,30 @@
-// src/pages/establishment/EstablishmentViewPage.js
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { apiBaseUrl, storageUrl } from "../../config";
-import NavlogComponent from "../../components/NavlogComponent";
-import { Badge, Spinner } from "react-bootstrap";
-import { FaInstagram, FaMapMarkerAlt, FaWhatsapp } from "react-icons/fa";
-import "./Establishment.css";
+import React,{useEffect,useMemo,useState}from"react";
+import{Link,useNavigate,useParams}from"react-router-dom";
+import axios from"axios";
+import Swal from"sweetalert2";
+import{Badge,Spinner}from"react-bootstrap";
+import{FaInstagram,FaMapMarkerAlt,FaWhatsapp}from"react-icons/fa";
+import{FiArrowLeft,FiMinus,FiPlus,FiShoppingBag}from"react-icons/fi";
+import{apiBaseUrl,appId,storageUrl}from"../../config";
+import NavlogComponent from"../../components/NavlogComponent";
+import"./Establishment.css";
+import"../public/PublicRestaurantsPage.css";
 
-  export default function EstablishmentViewPage() {
-    const { slug } = useParams();
-    const navigate = useNavigate();
-    const [establishment, setEstablishment] = useState(null);
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
+const initials=v=>String(v||"PL").trim().split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+const resolveImage=img=>!img?null:(String(img).startsWith("http")?img:`${storageUrl}/${String(img).replace(/^\//,"")}`);
+const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await axios.get(`${apiBaseUrl}/establishment/view/${slug}`);
-        setEstablishment(res.data.establishment);
-        setItems(res.data.items || []);
-      } catch {
-        navigate("/404");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-    // eslint-disable-next-line
-  }, [slug]);
-
-  if (loading) {
-    return (
-      <div className="establishment-root">
-        <NavlogComponent />
-        <div className="establishment-create-page d-flex justify-content-center align-items-center" style={{ minHeight: 400 }}>
-          <Spinner animation="border" variant="warning" />
-        </div>
-      </div>
-    );
-  }
-
-    if (!establishment) return null;
-
-  // Imagem helper
-  const resolveImage = (img) => {
-    if (!img) return null;
-    if (img.startsWith("http")) return img;
-    return `${storageUrl || apiBaseUrl.replace("/api", "")}/${img.replace(/^\//, "")}`;
-  };
-
-  // Agrupar produtos por categoria
-  const groupByCategory = (arr) =>
-    arr.reduce((acc, item) => {
-      const cat = item.category || "Outros";
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {});
-
-  const cardapio = groupByCategory(items.filter((i) => i.status === 1 && i.type !== "modifier"));
-
-  // Links úteis
-  const phoneLink = establishment.phone ? `https://wa.me/55${establishment.phone.replace(/\D/g, "")}` : null;
-
-    return (
-      <div className="establishment-page-vitrine">
-        <NavlogComponent />
-
-      {/* Banner */}
-      <div className="estab-hero" style={{
-        background: `linear-gradient(90deg, rgba(18,18,18,0.87) 55%, rgba(36,36,36,0.70)), url('${resolveImage(establishment.background)}') center/cover no-repeat`
-      }}>
-        <div className="estab-hero-inner">
-          <div className="estab-logo-bubble">
-            {establishment.logo && (
-              <img src={resolveImage(establishment.logo)} alt="Logo" className="estab-logo" />
-            )}
-          </div>
-          <div className="estab-info-block">
-            <h1 className="estab-title">{establishment.name}</h1>
-            {establishment.description && (
-              <div className="estab-description">{establishment.description}</div>
-            )}
-            <div className="estab-actions">
-              {establishment.instagram_url && (
-                <a href={establishment.instagram_url} target="_blank" rel="noopener noreferrer" className="estab-link">
-                  <FaInstagram /> Instagram
-                </a>
-              )}
-              {phoneLink && (
-                <a href={phoneLink} target="_blank" rel="noopener noreferrer" className="estab-link">
-                  <FaWhatsapp /> WhatsApp
-                </a>
-              )}
-              {establishment.location && (
-                <a href={establishment.location} target="_blank" rel="noopener noreferrer" className="estab-link">
-                  <FaMapMarkerAlt /> Como Chegar
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Segmentos/Endereço */}
-      <div className="estab-details-row">
-        <div>
-          <b>Endereço: </b>
-          {establishment.address
-            ? `${establishment.address}${establishment.city ? " - " + establishment.city : ""}`
-            : "–"
-          }
-        </div>
-        <div>
-          <b>Atende: </b>
-          {(Array.isArray(establishment.segments)
-            ? establishment.segments
-            : establishment.segments
-            ? JSON.parse(establishment.segments)
-            : []
-          ).map(seg => (
-            <Badge key={seg} bg="warning" text="dark" className="me-1">{seg}</Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* Cardápio */}
-      <section className="estab-cardapio-section">
-        <h2 className="estab-cardapio-title">🍔 Cardápio Buddy’s Royale</h2>
-        {Object.keys(cardapio).length === 0 ? (
-          <div className="estab-vazio">Nenhum item disponível no momento.</div>
-        ) : (
-          Object.entries(cardapio).map(([cat, prods]) => (
-            <div key={cat} className="estab-cardapio-bloco">
-              <h3 className="estab-cat-title">{cat}</h3>
-              <div className="estab-items-grid">
-                {prods.map((item) => (
-                  <div className={`estab-cardapio-card ${item.stock < 1 ? "estab-esgotado" : ""}`} key={item.id}>
-                    {item.image && (
-                      <img src={resolveImage(item.image)} alt={item.name} className="estab-item-img" />
-                    )}
-                    <div className="estab-item-info">
-                      <div className="estab-item-row">
-                        <span className="estab-item-title">{item.name}</span>
-                        {item.is_featured ? (
-                          <Badge bg="warning" text="dark" className="ms-1">Destaque</Badge>
-                        ) : null}
-                      </div>
-                      <div className="estab-item-desc">{item.description || <i>Sem descrição</i>}</div>
-                      <div className="estab-item-bottom-row">
-                        <span className="estab-item-preco">
-                          {Number(item.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
-                        {item.stock > 0 ? (
-                          <span className="estab-item-disponivel">Disponível</span>
-                        ) : (
-                          <span className="estab-item-indisponivel">Esgotado</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        )}
-      </section>
-    </div>
-  );
+export default function EstablishmentViewPage(){
+ const{slug}=useParams();const navigate=useNavigate();const[establishment,setEstablishment]=useState(null);const[items,setItems]=useState([]);const[loading,setLoading]=useState(true);const[submitting,setSubmitting]=useState(false);const[cart,setCart]=useState(()=>{try{return JSON.parse(localStorage.getItem(`plat-cart:${slug}`)||"{}")||{};}catch{return {};}});
+ useEffect(()=>{let active=true;(async()=>{try{const[{data:estRes},{data:itemRes}]=await Promise.all([axios.get(`${apiBaseUrl}/establishment/view/${encodeURIComponent(slug)}?app_id=${appId}`),axios.get(`${apiBaseUrl}/item/list-by-entity/${encodeURIComponent(slug)}`)]);const est=estRes?.establishment;if(!est||Number(est.app_id)!==Number(appId))throw new Error("Restaurante não encontrado.");if(active){setEstablishment(est);setItems(Array.isArray(itemRes?.items)?itemRes.items.filter(i=>Number(i.app_id)===Number(appId)):[]);}}catch(error){console.error("[Plat] public restaurant",error);if(active)navigate("/restaurants",{replace:true});}finally{if(active)setLoading(false);}})();return()=>{active=false};},[slug,navigate]);
+ useEffect(()=>{localStorage.setItem(`plat-cart:${slug}`,JSON.stringify(cart));},[cart,slug]);
+ const availableItems=useMemo(()=>items.filter(i=>Number(i.status)===1&&i.type!=="modifier"),[items]);
+ const grouped=useMemo(()=>availableItems.reduce((acc,item)=>{const key=item.category||"Outros";(acc[key]||(acc[key]=[])).push(item);return acc;},{}),[availableItems]);
+ const qty=id=>Number(cart[id]||0);const change=(id,delta)=>setCart(current=>{const next={...current};const value=Math.max(0,Number(next[id]||0)+delta);if(value)next[id]=value;else delete next[id];return next;});
+ const cartLines=useMemo(()=>availableItems.filter(i=>qty(i.id)>0).map(i=>({...i,quantity:qty(i.id)})),[availableItems,cart]);
+ const cartCount=cartLines.reduce((s,i)=>s+i.quantity,0);const total=cartLines.reduce((s,i)=>s+i.quantity*Number(i.price||0),0);
+ const checkout=async()=>{if(!cartLines.length)return;const token=localStorage.getItem("token");if(!token){window.location.href=`/login?redirect=${encodeURIComponent(`/establishment/view/${slug}`)}`;return;}setSubmitting(true);try{const headers={Authorization:`Bearer ${token}`};const[{data:meRes},{data:empRes}]=await Promise.all([axios.get(`${apiBaseUrl}/auth/me`,{headers}),axios.get(`${apiBaseUrl}/employer/list-by-entity/${establishment.id}`,{headers})]);const me=meRes?.user||meRes;const employers=Array.isArray(empRes?.employers)?empRes.employers:Array.isArray(empRes)?empRes:[];const attendant=employers.find(e=>Number(e.user_id)!==Number(me?.id))||employers[0];if(!attendant?.id)throw new Error("Este restaurante ainda não está recebendo pedidos online.");await axios.post(`${apiBaseUrl}/order`,{mode:"direct",app_id:appId,entity_name:"establishment",entity_id:Number(establishment.id),attendant_id:Number(attendant.id),client_id:Number(me.id),customer_name:[me.first_name,me.last_name].filter(Boolean).join(" ")||me.user_name||"Cliente",origin:"Online",fulfillment:"delivery",payment_status:"pending",payment_method:"A combinar",items:cartLines.map(i=>({item_id:Number(i.id),quantity:i.quantity})),notes:null},{headers});setCart({});await Swal.fire("Pedido enviado","Seu pedido foi registrado na Plat.","success");}catch(error){Swal.fire("Não foi possível concluir",error?.response?.data?.message||error.message||"Tente novamente.","error");}finally{setSubmitting(false);}};
+ if(loading)return <div className="establishment-page-vitrine"><NavlogComponent/><div className="d-flex justify-content-center align-items-center" style={{minHeight:420}}><Spinner animation="border" variant="warning"/></div></div>;if(!establishment)return null;
+ let segments=[];try{segments=Array.isArray(establishment.segments)?establishment.segments:JSON.parse(establishment.segments||"[]");}catch{segments=[];}const phoneLink=establishment.phone?`https://wa.me/55${establishment.phone.replace(/\D/g,"")}`:null;
+ return <div className="establishment-page-vitrine"><NavlogComponent/><div style={{width:"min(1380px,100%)",margin:"0 auto",padding:"20px clamp(14px,4vw,38px) 0"}}><Link to="/restaurants" className="estab-link"><FiArrowLeft/> Restaurantes</Link></div><div className="estab-hero" style={resolveImage(establishment.background)?{background:`linear-gradient(90deg,rgba(10,13,18,.92) 44%,rgba(10,13,18,.62)),url('${resolveImage(establishment.background)}') center/cover no-repeat`}:undefined}><div className="estab-hero-inner"><div className="estab-logo-bubble">{resolveImage(establishment.logo)?<img src={resolveImage(establishment.logo)} alt="" className="estab-logo"/>:<span style={{fontSize:"1.6rem",fontWeight:900,color:"#efd89d"}}>{initials(establishment.name)}</span>}</div><div className="estab-info-block"><h1 className="estab-title">{establishment.fantasy||establishment.name}</h1>{establishment.description&&<div className="estab-description">{establishment.description}</div>}<div className="estab-actions">{establishment.instagram_url&&<a href={establishment.instagram_url} target="_blank" rel="noreferrer" className="estab-link"><FaInstagram/> Instagram</a>}{phoneLink&&<a href={phoneLink} target="_blank" rel="noreferrer" className="estab-link"><FaWhatsapp/> WhatsApp</a>}{establishment.location&&<a href={establishment.location} target="_blank" rel="noreferrer" className="estab-link"><FaMapMarkerAlt/> Como chegar</a>}</div></div></div></div><div className="estab-details-row"><div><b>Endereço: </b>{establishment.address?`${establishment.address}${establishment.city?` - ${establishment.city}`:""}`:"Não informado"}</div><div><b>Atende: </b>{segments.length?segments.map(seg=><Badge key={seg} bg="warning" text="dark" className="me-1">{seg}</Badge>):"Consulte o restaurante"}</div></div><section className="estab-cardapio-section"><div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"end",marginBottom:18}}><div><span style={{color:"#efd89d",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:1.4}}>Cardápio</span><h2 className="estab-cardapio-title" style={{margin:0}}>{establishment.fantasy||establishment.name}</h2></div><span style={{color:"#9ca6b4"}}>{availableItems.length} itens</span></div>{Object.keys(grouped).length===0?<div className="estab-vazio">Nenhum item disponível no momento.</div>:Object.entries(grouped).map(([cat,prods])=><div key={cat} className="estab-cardapio-bloco"><h3 className="estab-cat-title">{cat}</h3><div className="estab-items-grid">{prods.map(item=><article className={`estab-cardapio-card ${Number(item.stock)<1?"estab-esgotado":""}`} key={item.id}>{resolveImage(item.image)&&<img src={resolveImage(item.image)} alt={item.name} className="estab-item-img"/>}<div className="estab-item-info"><div className="estab-item-row"><span className="estab-item-title">{item.name}</span>{item.is_featured?<Badge bg="warning" text="dark">Destaque</Badge>:null}</div><div className="estab-item-desc">{item.description||"Sem descrição"}</div><div className="estab-item-bottom-row"><span className="estab-item-preco">{money(item.price)}</span>{Number(item.stock)>0?(qty(item.id)?<span className="plat-cart-count"><button onClick={()=>change(item.id,-1)} aria-label="Remover"><FiMinus/></button><b>{qty(item.id)}</b><button onClick={()=>change(item.id,1)} aria-label="Adicionar"><FiPlus/></button></span>:<button className="plat-item-add" onClick={()=>change(item.id,1)} aria-label={`Adicionar ${item.name}`}><FiPlus/></button>):<span className="estab-item-indisponivel">Esgotado</span>}</div></div></article>)}</div></div>)}</section>{cartCount>0&&<><div className="plat-cart-panel"><div><strong>{cartCount} {cartCount===1?"item":"itens"}</strong><span> • {money(total)}</span></div><div className="plat-cart-checkout"><button className="plat-customer-cta" disabled={submitting} onClick={checkout}><FiShoppingBag/>{submitting?"Enviando…":localStorage.getItem("token")?"Finalizar pedido":"Entrar para pedir"}</button></div></div><p className="plat-cart-note">O carrinho fica salvo neste dispositivo até você finalizar o pedido.</p></>}</div>;
 }
