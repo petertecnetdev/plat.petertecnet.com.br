@@ -12,7 +12,7 @@ const PUBLIC = (path) => {
   return null;
 };
 
-const PRIVATE = ["/dashboard", "/order/", "/user/", "/profile/", "/item/", "/establishment/create", "/establishment/update", "/establishment", "/service-record/", "/report/", "/login", "/register", "/password", "/email-verify", "/logout"];
+const PRIVATE = ["/dashboard", "/order/", "/user/", "/profile/", "/item/", "/establishment/create", "/establishment/update", "/service-record/", "/report/", "/login", "/register", "/password", "/email-verify", "/logout"];
 
 function meta(selector, attrs) {
   let el = document.head.querySelector(selector);
