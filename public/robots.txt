@@ -7,7 +7,6 @@ Disallow: /profile/
 Disallow: /item/
 Disallow: /establishment/create
 Disallow: /establishment/update/
-Disallow: /establishment
 Disallow: /service-record/
 Disallow: /report/
 Disallow: /login
