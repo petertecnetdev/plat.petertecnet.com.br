@@ -1,3 +1,19 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /dashboard
+Disallow: /order/
+Disallow: /user/
+Disallow: /profile/
+Disallow: /item/
+Disallow: /establishment/create
+Disallow: /establishment/update/
+Disallow: /establishment
+Disallow: /service-record/
+Disallow: /report/
+Disallow: /login
+Disallow: /register
+Disallow: /password
+Disallow: /email-verify
+Disallow: /logout
+
+Sitemap: https://plat.petertecnet.com.br/sitemap.xml
