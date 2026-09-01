@@ -36,6 +36,7 @@ import ServiceRecordListPage from "./pages/serviceRecord/ServiceRecordListPage";
 import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
 import ReportOrderPage from "./pages/report/ReportOrderPage";
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
+import SeoManager from "./components/SeoManager";
 import { apiV1BaseUrl } from "./config";
 import "./index.css";
 
@@ -102,6 +103,7 @@ const App = () => {
 
   return (
     <Router>
+      <SeoManager />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/restaurants" element={<PublicRestaurantsPage />} />
