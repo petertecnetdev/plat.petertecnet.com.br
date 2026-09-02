@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Form, Button } from "react-bootstrap";
 import { GoogleLogin } from "@react-oauth/google";
+import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import ProcessingIndicatorComponent from "../ProcessingIndicatorComponent";
 import useLogin from "../../hooks/useLogin";
@@ -12,65 +13,54 @@ export default function LoginFormComponent({ onSuccess, redirectTo }) {
 
   const { loading, login, loginGoogle } = useLogin(onSuccess, redirectTo);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    login(username, password);
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    login(username.trim(), password);
   };
 
-  const handleGoogleSuccess = ({ credential }) => {
-    loginGoogle(credential);
-  };
+  const handleGoogleSuccess = ({ credential }) => loginGoogle(credential);
 
   return (
     <>
-      {loading && (
-        <ProcessingIndicatorComponent
-          messages={["Autenticando...", "Aguarde..."]}
-        />
-      )}
-
+      {loading && <ProcessingIndicatorComponent messages={["Autenticando...", "Aguarde..."]} />}
       {!loading && (
         <Form onSubmit={handleSubmit} className="login-form-component mt-4">
+          <Form.Label htmlFor="plat-login-identifier" className="visually-hidden">E-mail, CPF, usuário ou telefone</Form.Label>
           <Form.Control
+            id="plat-login-identifier"
             type="text"
-            placeholder="Usuário ou e-mail"
+            placeholder="E-mail, CPF, usuário ou telefone"
+            aria-label="E-mail, CPF, usuário ou telefone"
+            autoComplete="username"
             className="neon-input mb-3"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(event) => setUsername(event.target.value)}
             required
           />
 
+          <Form.Label htmlFor="plat-login-password" className="visually-hidden">Senha</Form.Label>
           <Form.Control
+            id="plat-login-password"
             type="password"
             placeholder="Senha"
+            aria-label="Senha"
+            autoComplete="current-password"
             className="neon-input mb-4"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             required
           />
 
-          <Button type="submit" className="neon-button w-100 mb-3">
-            Entrar
-          </Button>
+          <Button type="submit" className="neon-button w-100 mb-3">Entrar</Button>
 
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => loginGoogle(null)}
-            render={(renderProps) => (
-              <Button
-                onClick={renderProps.onClick}
-                disabled={renderProps.disabled}
-                className="google-button w-100 mb-3"
-              >
-                Continuar com Google
-              </Button>
-            )}
-          />
+          <div className="plat-google-login" aria-label="Login com Google">
+            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => loginGoogle(null)} useOneTap={false}/>
+          </div>
 
           <div className="login-links">
-            <a href="/register">Registrar-se</a>
-            <span className="sep">|</span>
-            <a href="/password-email">Recuperar senha</a>
+            <Link to="/register">Registrar-se</Link>
+            <span className="sep" aria-hidden="true">|</span>
+            <Link to="/password-email">Recuperar senha</Link>
           </div>
         </Form>
       )}
