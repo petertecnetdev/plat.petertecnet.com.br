@@ -1,8 +1,8 @@
 {
-  "name": "razoio",
+  "name": "plat",
   "version": "1.0.0",
-  "description": "We are using Laravel 9 for jwt authentication based login and \r signup API. We use react.js on the frontend.",
-  "main": "index.js",
+  "private": true,
+  "description": "Frontend React da Plat, plataforma Peter Tecnet para restaurantes, cardápios e pedidos.",
   "homepage": "/",
   "scripts": {
     "start": "react-scripts start",
@@ -10,8 +10,6 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "@capacitor/android": "^7.3.0",
@@ -26,11 +24,8 @@
     "axios": "^1.6.8",
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.4",
-    "dotenv": "^17.2.1",
-    "express": "^4.19.2",
     "framer-motion": "^12.4.2",
     "html2canvas": "^1.4.1",
-    "jquery": "^3.7.1",
     "jspdf": "^3.0.1",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
@@ -48,8 +43,7 @@
     "reactstrap": "^9.2.2",
     "recharts": "^2.12.7",
     "scichart": "^3.5.782",
-    "sweetalert2": "^11.14.1",
-    "web-vitals": "^3.5.2"
+    "sweetalert2": "^11.14.1"
   },
   "browserslist": {
     "production": [
