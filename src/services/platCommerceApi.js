@@ -28,6 +28,11 @@ export const getMyOrder = async (id) => {
   return data?.data || null;
 };
 
+export const getMyOrderPayment = async (id) => {
+  const { data } = await axios.get(`${apiV1BaseUrl}/me/orders/${id}/payment`, { headers: headers() });
+  return data?.data || null;
+};
+
 export const getEstablishmentOrders = async (establishmentId, params = {}) => {
   const { data } = await axios.get(`${apiV1BaseUrl}/establishments/${establishmentId}/orders`, { headers: headers(), params });
   return data?.data || { data: [] };
