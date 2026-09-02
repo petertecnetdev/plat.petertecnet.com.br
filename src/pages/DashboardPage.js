@@ -1,267 +1,36 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
 import Swal from "sweetalert2";
-import {
-  FiArrowRight,
-  FiBarChart2,
-  FiBriefcase,
-  FiClipboard,
-  FiDollarSign,
-  FiEdit3,
-  FiExternalLink,
-  FiPlus,
-  FiShoppingBag,
-  FiTrendingUp,
-} from "react-icons/fi";
+import { FiArrowRight, FiBarChart2, FiBriefcase, FiClipboard, FiDollarSign, FiEdit3, FiPlus, FiSettings, FiShoppingBag, FiTrendingUp } from "react-icons/fi";
 import NavlogComponent from "../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../components/ProcessingIndicatorComponent";
-import { apiBaseUrl, apiV1BaseUrl, appId, storageUrl } from "../config";
+import { apiErrorMessage, getDashboardSummary } from "../services/platCommerceApi";
+import { storageUrl } from "../config";
 import "./Dashboard.css";
 
-const money = (value) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(value || 0));
+const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 
 export default function DashboardPage() {
-  const [user, setUser] = useState(null);
-  const [establishments, setEstablishments] = useState([]);
-  const [metrics, setMetrics] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState({ totals: {}, establishments: [] });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-        const { data: accountResponse } = await axios.get(`${apiV1BaseUrl}/me`, { headers });
-        const context = accountResponse?.data || {};
-        const ests = Array.isArray(context.establishments)
-          ? context.establishments.filter((est) => Number(est.app_id) === Number(appId))
-          : [];
-
-        setUser(context.user || null);
-        setEstablishments(ests);
-
-        const today = new Date().toLocaleDateString("en-CA", {
-          timeZone: "America/Sao_Paulo",
-        });
-
-        const results = await Promise.all(
-          ests.map(async (est) => {
-            let rawOrders = [];
-            try {
-              const response = await axios.get(
-                `${apiBaseUrl}/order/list-by-entity-slug/${encodeURIComponent(est.slug)}`,
-                { headers }
-              );
-              rawOrders = Array.isArray(response.data?.orders) ? response.data.orders : [];
-            } catch (error) {
-              if (error.response?.status !== 404) throw error;
-            }
-
-            const orders = rawOrders.filter((order) => {
-              if (order.app_id != null && Number(order.app_id) !== Number(appId)) return false;
-              if (!order.order_datetime) return false;
-              return new Date(order.order_datetime).toLocaleDateString("en-CA", {
-                timeZone: "America/Sao_Paulo",
-              }) === today;
-            });
-
-            const orderValue = (order) =>
-              (order.items || []).reduce((sum, entry) => {
-                const subtotal = Number(entry.subtotal ?? entry.total ?? 0);
-                return sum + subtotal;
-              }, 0);
-
-            const totalValue = orders.reduce((sum, order) => sum + orderValue(order), 0);
-            const itemCounts = {};
-            const customerSums = {};
-
-            orders.forEach((order) => {
-              (order.items || []).forEach((entry) => {
-                const itemName = entry.item?.name || entry.name || "Item";
-                itemCounts[itemName] = (itemCounts[itemName] || 0) + Number(entry.quantity || 0);
-              });
-              const customer = order.customer_name || "Cliente";
-              customerSums[customer] = (customerSums[customer] || 0) + orderValue(order);
-            });
-
-            const mostOrderedItem = Object.entries(itemCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-            const topCustomer = Object.entries(customerSums).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-            const totalOrders = orders.length;
-
-            return [est.id, {
-              totalOrders,
-              totalValue,
-              avgTicket: totalOrders ? totalValue / totalOrders : 0,
-              mostOrderedItem,
-              topCustomer,
-            }];
-          })
-        );
-
-        setMetrics(Object.fromEntries(results));
-      } catch (error) {
-        console.error("[Plat] Dashboard load error:", error);
-        setEstablishments([]);
-        setMetrics({});
-        Swal.fire({
-          icon: "error",
-          title: "Não foi possível carregar a operação",
-          text: error.response?.data?.message || "Tente novamente em instantes.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    let active = true;
+    getDashboardSummary().then((result) => { if (active) setData(result); })
+      .catch((error) => Swal.fire({ icon: "error", title: "Não foi possível carregar a operação", text: apiErrorMessage(error, "Tente novamente em instantes.") }))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
-  const totals = useMemo(() => {
-    const values = Object.values(metrics);
-    const totalOrders = values.reduce((sum, metric) => sum + Number(metric.totalOrders || 0), 0);
-    const revenue = values.reduce((sum, metric) => sum + Number(metric.totalValue || 0), 0);
-    return {
-      totalOrders,
-      revenue,
-      avgTicket: totalOrders ? revenue / totalOrders : 0,
-      establishments: establishments.length,
-    };
-  }, [metrics, establishments.length]);
+  if (loading) return <ProcessingIndicatorComponent messages={["Carregando sua operação…", "Calculando indicadores na API…"]}/>;
+  const totals = data.totals || {};
+  const rows = Array.isArray(data.establishments) ? data.establishments : [];
 
-  const firstEstablishment = establishments[0];
-  const firstName = user?.first_name || user?.name?.split(" ")?.[0] || "";
-  const greeting = new Date().getHours() < 12 ? "Bom dia" : new Date().getHours() < 18 ? "Boa tarde" : "Boa noite";
-
-  if (isLoading) {
-    return <ProcessingIndicatorComponent messages={["Carregando sua operação…", "Organizando os indicadores de hoje…"]} />;
-  }
-
-  return (
-    <div className="dashboard-root">
-      <NavlogComponent />
-      <main className="dashboard-main">
-        <header className="dashboard-hero">
-          <div>
-            <span className="dashboard-eyebrow">Visão geral</span>
-            <h1>{greeting}{firstName ? `, ${firstName}` : ""}.</h1>
-            <p>Acompanhe exclusivamente o desempenho das suas operações na Plat.</p>
-          </div>
-          <div className="dashboard-hero__actions">
-            <span className="dashboard-date">
-              {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date())}
-            </span>
-            <Link to="/establishment/create" className="dashboard-primary-action"><FiPlus /> Novo estabelecimento</Link>
-          </div>
-        </header>
-
-        <section className="dashboard-kpis" aria-label="Indicadores de hoje">
-          <article className="dashboard-kpi">
-            <span className="dashboard-kpi__icon is-gold"><FiDollarSign /></span>
-            <div><span>Receita de hoje</span><strong>{money(totals.revenue)}</strong><small>Somente operações da Plat</small></div>
-          </article>
-          <article className="dashboard-kpi">
-            <span className="dashboard-kpi__icon is-blue"><FiShoppingBag /></span>
-            <div><span>Pedidos hoje</span><strong>{totals.totalOrders}</strong><small>Pedidos registrados na Plat</small></div>
-          </article>
-          <article className="dashboard-kpi">
-            <span className="dashboard-kpi__icon is-green"><FiTrendingUp /></span>
-            <div><span>Ticket médio</span><strong>{money(totals.avgTicket)}</strong><small>Média dos pedidos de hoje</small></div>
-          </article>
-          <article className="dashboard-kpi">
-            <span className="dashboard-kpi__icon is-purple"><FiBriefcase /></span>
-            <div><span>Estabelecimentos</span><strong>{totals.establishments}</strong><small>Vinculados à Plat</small></div>
-          </article>
-        </section>
-
-        <section className="dashboard-grid">
-          <div className="dashboard-panel dashboard-panel--establishments">
-            <div className="dashboard-panel__header">
-              <div><span className="dashboard-eyebrow">Operação</span><h2>Estabelecimentos</h2></div>
-              <Link to="/establishment">Ver todos <FiArrowRight /></Link>
-            </div>
-
-            {establishments.length === 0 ? (
-              <div className="dashboard-empty">
-                <span><FiBriefcase /></span>
-                <h3>Sua operação na Plat começa aqui</h3>
-                <p>Cadastre seu primeiro estabelecimento da Plat para começar a gerenciar pedidos, itens e indicadores.</p>
-                <Link to="/establishment/create"><FiPlus /> Criar estabelecimento</Link>
-              </div>
-            ) : (
-              <div className="dashboard-establishments">
-                {establishments.map((est) => {
-                  const metric = metrics[est.id] || {};
-                  return (
-                    <article className="dashboard-establishment" key={est.id}>
-                      <div className="dashboard-establishment__head">
-                        <img
-                          src={`${storageUrl}/${est.logo || "logo.png"}`}
-                          alt=""
-                          onError={(event) => { event.currentTarget.src = "/images/logo.png"; }}
-                        />
-                        <div>
-                          <h3>{est.name}</h3>
-                          <span>@{est.slug}</span>
-                        </div>
-                        <Link to={`/establishment/view/${est.slug}`} aria-label={`Abrir página de ${est.name}`}><FiExternalLink /></Link>
-                      </div>
-
-                      <div className="dashboard-establishment__numbers">
-                        <div><span>Pedidos hoje</span><strong>{metric.totalOrders || 0}</strong></div>
-                        <div><span>Receita hoje</span><strong>{money(metric.totalValue)}</strong></div>
-                        <div><span>Ticket médio</span><strong>{money(metric.avgTicket)}</strong></div>
-                      </div>
-
-                      <div className="dashboard-establishment__insights">
-                        <span><small>Mais pedido</small><strong>{metric.mostOrderedItem || "—"}</strong></span>
-                        <span><small>Cliente destaque</small><strong>{metric.topCustomer || "—"}</strong></span>
-                      </div>
-
-                      <div className="dashboard-establishment__actions">
-                        <Link to={`/order/create/${est.id}`}><FiPlus /> Pedido</Link>
-                        <Link to={`/order/list/${est.id}`}><FiShoppingBag /> Pedidos</Link>
-                        <Link to={`/item/list/${est.slug}`}><FiClipboard /> Itens</Link>
-                        <Link to={`/report/order/${est.id}`}><FiBarChart2 /> Relatório</Link>
-                        <Link to={`/establishment/update/${est.id}`}><FiEdit3 /> Editar</Link>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <aside className="dashboard-side">
-            <div className="dashboard-panel">
-              <div className="dashboard-panel__header"><div><span className="dashboard-eyebrow">Atalhos</span><h2>Ações rápidas</h2></div></div>
-              <div className="dashboard-quick-actions">
-                {firstEstablishment ? (
-                  <>
-                    <Link to={`/order/create/${firstEstablishment.id}`}><span><FiShoppingBag /></span><div><strong>Novo pedido</strong><small>Registrar uma nova venda</small></div><FiArrowRight /></Link>
-                    <Link to={`/item/list/${firstEstablishment.slug}`}><span><FiClipboard /></span><div><strong>Gerenciar itens</strong><small>Produtos e serviços</small></div><FiArrowRight /></Link>
-                    <Link to={`/report/order/${firstEstablishment.id}`}><span><FiBarChart2 /></span><div><strong>Relatório de pedidos</strong><small>Veja o desempenho</small></div><FiArrowRight /></Link>
-                  </>
-                ) : (
-                  <Link to="/establishment/create"><span><FiBriefcase /></span><div><strong>Criar estabelecimento</strong><small>Configure sua primeira operação</small></div><FiArrowRight /></Link>
-                )}
-              </div>
-            </div>
-
-            <div className="dashboard-panel dashboard-summary">
-              <span className="dashboard-eyebrow">Resumo do dia</span>
-              <h2>Operação de hoje</h2>
-              <div className="dashboard-summary__row"><span>Receita</span><strong>{money(totals.revenue)}</strong></div>
-              <div className="dashboard-summary__row"><span>Pedidos</span><strong>{totals.totalOrders}</strong></div>
-              <div className="dashboard-summary__row"><span>Ticket médio</span><strong>{money(totals.avgTicket)}</strong></div>
-              <div className="dashboard-summary__bar"><i style={{ width: totals.totalOrders ? "72%" : "8%" }} /></div>
-              <small>Indicadores calculados somente com registros da Plat disponíveis para hoje.</small>
-            </div>
-          </aside>
-        </section>
-      </main>
-    </div>
-  );
+  return <div className="dashboard-root"><NavlogComponent/><main className="dashboard-main">
+    <header className="dashboard-hero"><div><span className="dashboard-eyebrow">Visão geral</span><h1>Operação Plat.</h1><p>Pedidos e receita calculados no servidor, exclusivamente para seus restaurantes da Plat.</p></div><div className="dashboard-hero__actions"><span className="dashboard-date">{new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"long",year:"numeric"}).format(new Date())}</span><Link to="/establishment/create" className="dashboard-primary-action"><FiPlus/> Novo estabelecimento</Link></div></header>
+    <section className="dashboard-kpis"><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-gold"><FiDollarSign/></span><div><span>Receita de hoje</span><strong>{money(totals.revenue)}</strong><small>Pedidos não cancelados</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-blue"><FiShoppingBag/></span><div><span>Pedidos hoje</span><strong>{totals.orders || 0}</strong><small>Atualizados pela API</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-green"><FiTrendingUp/></span><div><span>Ticket médio</span><strong>{money(totals.average_ticket)}</strong><small>Média de hoje</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-purple"><FiBriefcase/></span><div><span>Estabelecimentos</span><strong>{totals.establishments || 0}</strong><small>Vinculados à Plat</small></div></article></section>
+    <section className="dashboard-grid"><div className="dashboard-panel dashboard-panel--establishments"><div className="dashboard-panel__header"><div><span className="dashboard-eyebrow">Operação</span><h2>Estabelecimentos</h2></div><Link to="/establishment">Ver todos <FiArrowRight/></Link></div>
+      {rows.length===0 ? <div className="dashboard-empty"><span><FiBriefcase/></span><h3>Sua operação na Plat começa aqui</h3><p>Cadastre seu primeiro restaurante para começar a vender.</p><Link to="/establishment/create"><FiPlus/> Criar estabelecimento</Link></div> : <div className="dashboard-establishments">{rows.map((row)=>{const est=row.establishment||{};return <article className="dashboard-establishment" key={est.id}><div className="dashboard-establishment__head"><img src={est.logo?`${storageUrl}/${est.logo}`:"/images/logo.png"} alt="" onError={(e)=>{e.currentTarget.src="/images/logo.png"}}/><div><h3>{est.fantasy||est.name}</h3><span>@{est.slug}</span></div></div><div className="dashboard-establishment__numbers"><div><span>Pedidos hoje</span><strong>{row.orders||0}</strong></div><div><span>Receita hoje</span><strong>{money(row.revenue)}</strong></div><div><span>Ticket médio</span><strong>{money(row.average_ticket)}</strong></div></div><div className="dashboard-establishment__actions"><Link to={`/order/list/${est.id}`}><FiShoppingBag/> Pedidos</Link><Link to={`/item/list/${est.slug}`}><FiClipboard/> Itens</Link><Link to={`/report/order/${est.id}`}><FiBarChart2/> Relatório</Link><Link to={`/establishment/${est.id}/ordering-settings`}><FiSettings/> Operação</Link><Link to={`/establishment/update/${est.id}`}><FiEdit3/> Editar</Link></div></article>})}</div>}
+    </div><aside className="dashboard-side"><div className="dashboard-panel dashboard-summary"><span className="dashboard-eyebrow">Produção</span><h2>Fluxo essencial</h2><p>Cardápio → pedido → pagamento → preparo → conclusão. A tela de pedidos atualiza automaticamente.</p></div></aside></section>
+  </main></div>;
 }
