@@ -1,9 +1,7 @@
 import axios from "axios";
 import { apiV1BaseUrl } from "../config";
 
-const headers = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-});
+const headers = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
 
 export const getRestaurants = async (params = {}) => {
   const { data } = await axios.get(`${apiV1BaseUrl}/establishments`, { params });
@@ -31,10 +29,7 @@ export const getMyOrder = async (id) => {
 };
 
 export const getEstablishmentOrders = async (establishmentId, params = {}) => {
-  const { data } = await axios.get(`${apiV1BaseUrl}/establishments/${establishmentId}/orders`, {
-    headers: headers(),
-    params,
-  });
+  const { data } = await axios.get(`${apiV1BaseUrl}/establishments/${establishmentId}/orders`, { headers: headers(), params });
   return data?.data || { data: [] };
 };
 
@@ -48,8 +43,13 @@ export const getDashboardSummary = async () => {
   return data?.data || { totals: {}, establishments: [] };
 };
 
+export const getOrderingSettings = async (establishmentId) => {
+  const { data } = await axios.get(`${apiV1BaseUrl}/establishments/${establishmentId}/ordering-settings`, { headers: headers() });
+  return data?.data || null;
+};
+
 export const updateOrderingSettings = async (establishmentId, payload) => {
-  const { data } = await axios.patch(`${apiV1BaseUrl}/establishments/${establishmentId}/ordering`, payload, { headers: headers() });
+  const { data } = await axios.patch(`${apiV1BaseUrl}/establishments/${establishmentId}/ordering-settings`, payload, { headers: headers() });
   return data?.data || null;
 };
 
