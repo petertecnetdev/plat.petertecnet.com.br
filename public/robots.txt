@@ -1,18 +1,25 @@
 User-agent: *
 Allow: /
+Allow: /restaurants
+Allow: /establishment/view/
 Disallow: /dashboard
+Disallow: /my-orders
 Disallow: /order/
 Disallow: /user/
 Disallow: /profile/
 Disallow: /item/
 Disallow: /establishment/create
 Disallow: /establishment/update/
+Disallow: /establishment/*/ordering-settings
 Disallow: /service-record/
 Disallow: /report/
 Disallow: /login
 Disallow: /register
 Disallow: /password
+Disallow: /password-email
+Disallow: /password-reset
 Disallow: /email-verify
+Disallow: /invite-complete
 Disallow: /logout
 
 Sitemap: https://plat.petertecnet.com.br/sitemap.xml

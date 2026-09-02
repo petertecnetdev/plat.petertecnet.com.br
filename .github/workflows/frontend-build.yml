@@ -1,4 +1,4 @@
-name: Plat frontend build
+name: Plat frontend production gate
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,5 +22,15 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build
+      - name: Runtime security gate
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Tests
+        env:
+          CI: true
+        run: npm test -- --watchAll=false --runInBand
+
+      - name: Production build
+        env:
+          CI: true
         run: npm run build

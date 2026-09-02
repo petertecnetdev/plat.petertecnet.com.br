@@ -2,6 +2,7 @@ import axios from "axios";
 import { apiV1BaseUrl } from "../config";
 
 const headers = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
+const orderingRequests = new Map();
 
 export const getRestaurants = async (params = {}) => {
   const { data } = await axios.get(`${apiV1BaseUrl}/establishments`, { params });
@@ -9,8 +10,20 @@ export const getRestaurants = async (params = {}) => {
 };
 
 export const getOrdering = async (slug) => {
-  const { data } = await axios.get(`${apiV1BaseUrl}/establishments/${encodeURIComponent(slug)}/ordering`);
-  return data?.data || {};
+  const key = String(slug || "").trim();
+  const cached = orderingRequests.get(key);
+  if (cached && Date.now() - cached.createdAt < 5000) return cached.promise;
+
+  const promise = axios
+    .get(`${apiV1BaseUrl}/establishments/${encodeURIComponent(key)}/ordering`)
+    .then(({ data }) => data?.data || {})
+    .catch((error) => {
+      orderingRequests.delete(key);
+      throw error;
+    });
+
+  orderingRequests.set(key, { createdAt: Date.now(), promise });
+  return promise;
 };
 
 export const createCheckout = async (payload) => {
