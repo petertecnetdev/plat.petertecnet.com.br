@@ -1,10 +1,10 @@
-// src/App.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 
 import HomePage from "./pages/HomePage";
 import PublicRestaurantsPage from "./pages/public/PublicRestaurantsPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import EmailVerifyPage from "./pages/auth/EmailVerifyPage";
@@ -43,6 +43,8 @@ import SeoManager from "./components/SeoManager";
 import { apiV1BaseUrl } from "./config";
 import "./index.css";
 
+const currentTarget = () => `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`;
+
 const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,6 @@ const App = () => {
         const context = data?.data || data || {};
         if (active) setUser(context.user || null);
       } catch (error) {
-        console.error("[Plat] Falha ao inicializar sessão", error);
         if (error?.response?.status === 401) localStorage.removeItem("token");
         if (active) setUser(null);
       } finally { if (active) setLoading(false); }
@@ -67,7 +68,9 @@ const App = () => {
 
   if (loading) return <ProcessingIndicatorComponent messages={["Carregando a Plat…", "Preparando sua experiência…"]} interval={2200}/>;
 
-  const protectedRoute = (element) => user ? (user.email_verified_at ? element : <Navigate to="/email-verify" replace />) : <Navigate to={`/login?redirect=${encodeURIComponent(window.location.pathname)}`} replace />;
+  const protectedRoute = (element) => user
+    ? (user.email_verified_at ? element : <Navigate to="/email-verify" replace />)
+    : <Navigate to={`/login?redirect=${encodeURIComponent(currentTarget())}`} replace />;
   const emailVerifiedRoute = (element) => user ? (!user.email_verified_at ? element : <Navigate to="/dashboard" replace />) : <Navigate to="/login" replace />;
   const restrictedRoute = (element) => user ? <Navigate to="/dashboard" replace /> : element;
 
@@ -107,7 +110,7 @@ const App = () => {
     <Route path="/service-record/my" element={protectedRoute(<ServiceRecordListPage/>)}/>
     <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage/>)}/>
     <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage/>)}/>
-    <Route path="*" element={<Navigate to="/" replace/>}/>
+    <Route path="*" element={<NotFoundPage/>}/>
   </Routes></Router>;
 };
 
