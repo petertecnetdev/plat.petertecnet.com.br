@@ -39,7 +39,7 @@
     "production": [
       ">0.2%",
       "not dead",
-      "not op_mini all"
+      "not_op_mini all"
     ],
     "development": [
       "last 1 chrome version",
@@ -51,6 +51,8 @@
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@babel/plugin-transform-private-property-in-object": "^7.24.7",
     "@capacitor/cli": "^7.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "react-scripts": "^5.0.1",
     "sass": "^1.72.0",
     "source-map-loader": "^5.0.0"
