@@ -34,6 +34,7 @@ import EstablishmentListPage from "./pages/corp/establishment/EstablishmentListP
 import EstablishmentCreatePage from "./pages/establishment/EstablishmentCreatePage";
 import EstablishmentViewPage from "./pages/establishment/EstablishmentViewPage";
 import EstablishmentUpdatePage from "./pages/establishment/EstablishmentUpdatePage";
+import OrderingSettingsPage from "./pages/establishment/OrderingSettingsPage";
 import ServiceRecordListPage from "./pages/serviceRecord/ServiceRecordListPage";
 import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
 import ReportOrderPage from "./pages/report/ReportOrderPage";
@@ -102,6 +103,7 @@ const App = () => {
     <Route path="/establishment" element={protectedRoute(<EstablishmentListPage/>)}/>
     <Route path="/establishment/create" element={protectedRoute(<EstablishmentCreatePage/>)}/>
     <Route path="/establishment/update/:id" element={protectedRoute(<EstablishmentUpdatePage/>)}/>
+    <Route path="/establishment/:id/ordering-settings" element={protectedRoute(<OrderingSettingsPage/>)}/>
     <Route path="/service-record/my" element={protectedRoute(<ServiceRecordListPage/>)}/>
     <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage/>)}/>
     <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage/>)}/>
