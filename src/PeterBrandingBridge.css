@@ -1,0 +1,20 @@
+:root {
+  --pt-accent: var(--peter-brand-primary, #d6b56c) !important;
+  --pt-accent-2: var(--peter-brand-secondary, #f0d99d) !important;
+  --pt-accent-deep: var(--peter-brand-accent, #9d7a36) !important;
+  --pt-border: rgba(var(--peter-brand-primary-rgb, 214, 181, 108), .16) !important;
+  --pt-focus: 0 0 0 4px rgba(var(--peter-brand-primary-rgb, 214, 181, 108), .12) !important;
+}
+
+.btn-primary,
+.submit-btn,
+.action-button.primary,
+.establishment-primary-action,
+.dashboard-primary-action {
+  background: var(--peter-brand-gradient, linear-gradient(135deg, var(--pt-accent-2), var(--pt-accent))) !important;
+  border-color: rgba(var(--peter-brand-primary-rgb, 214, 181, 108), .36) !important;
+}
+
+.plat-sidebar__link.is-active {
+  box-shadow: inset 2px 0 0 var(--pt-accent) !important;
+}
