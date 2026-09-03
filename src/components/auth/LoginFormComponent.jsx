@@ -10,6 +10,7 @@ import "./LoginFormComponent.css";
 export default function LoginFormComponent({ onSuccess, redirectTo }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const { loading, login, loginGoogle } = useLogin(onSuccess, redirectTo);
 
@@ -39,17 +40,28 @@ export default function LoginFormComponent({ onSuccess, redirectTo }) {
           />
 
           <Form.Label htmlFor="plat-login-password" className="visually-hidden">Senha</Form.Label>
-          <Form.Control
-            id="plat-login-password"
-            type="password"
-            placeholder="Senha"
-            aria-label="Senha"
-            autoComplete="current-password"
-            className="neon-input mb-4"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
+          <div className="plat-password-field mb-4">
+            <Form.Control
+              id="plat-login-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Senha"
+              aria-label="Senha"
+              autoComplete="current-password"
+              className="neon-input"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="plat-password-toggle"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
 
           <Button type="submit" className="neon-button w-100 mb-3">Entrar</Button>
 
