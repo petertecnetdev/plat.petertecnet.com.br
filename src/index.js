@@ -1,5 +1,6 @@
 import { startTelemetry } from "./telemetry";
 import { apiBaseUrl, appId, appSlug } from "./config";
+import { installGlobalImageFallbacks } from "./utils/imageFallback";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import axios from "axios";
@@ -17,6 +18,7 @@ import "./PlatPolish.css";
 import "./Responsive.css";
 import "./ProductionReady.css";
 
+installGlobalImageFallbacks();
 startTelemetry({ apiBaseUrl, appSlug, appId });
 
 axios.defaults.headers.common["X-Peter-App"] = appSlug;
