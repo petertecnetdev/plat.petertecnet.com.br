@@ -23,6 +23,46 @@
   box-shadow: 0 0 0 3px rgba(214,181,108,.07) !important;
 }
 
+.plat-password-field {
+  position: relative;
+  width: 100%;
+}
+
+.login-form-component .plat-password-field .neon-input {
+  padding-right: 5.7rem;
+}
+
+.plat-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  z-index: 3;
+  min-width: 68px;
+  min-height: 34px;
+  padding: 0 9px;
+  transform: translateY(-50%);
+  border: 1px solid rgba(214,181,108,.22);
+  border-radius: 9px;
+  background: rgba(17,22,29,.94);
+  color: #c9d0da;
+  font-size: .74rem;
+  font-weight: 680;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
+}
+
+.plat-password-toggle:hover {
+  border-color: rgba(214,181,108,.52);
+  background: rgba(214,181,108,.08);
+  color: var(--plat-primary-2);
+}
+
+.plat-password-toggle:focus-visible {
+  outline: 2px solid rgba(214,181,108,.72);
+  outline-offset: 2px;
+}
+
 .login-form-component .neon-button {
   min-height: 48px;
   color: #17130c !important;
@@ -68,6 +108,8 @@
 .login-links .sep { color: #3d4652; }
 
 @media (max-width: 480px) {
+  .login-form-component .plat-password-field .neon-input { padding-right: 5.35rem; }
+  .plat-password-toggle { min-width: 64px; right: 7px; padding-inline: 8px; font-size: .71rem; }
   .login-links { flex-direction: column; gap: 7px; }
   .login-links .sep { display: none; }
 }
