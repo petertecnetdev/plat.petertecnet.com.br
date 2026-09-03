@@ -62,6 +62,7 @@ export default function PeterAccountGateway({ apiBaseUrl, appSlug, children }) {
     let active = true;
     const host = hostRef.current;
 
+    // Insights is optional: its availability must never block ecosystem navigation.
     loadInsights().catch((error) => console.error("[Peter Tecnet Insights]", error));
     loadSdk().then(() => {
       if (!active || !host) return;
