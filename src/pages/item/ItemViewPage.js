@@ -17,6 +17,8 @@ import Swal from "sweetalert2";
 import { FaWhatsapp, FaEye } from "react-icons/fa";
 import { apiBaseUrl, storageUrl } from "../../config";
 import NavlogComponent from "../../components/NavlogComponent";
+import GlobalWhatsappButton from "../../components/GlobalWhatsappButton";
+import useWhatsappLink from "../../hooks/useWhatsappLink";
 import "./ItemViewPage.css";
 
 export default function ItemViewPage() {
@@ -32,13 +34,15 @@ export default function ItemViewPage() {
   const [showInteractions, setShowInteractions] = useState(false);
 
   const token = useMemo(() => localStorage.getItem("token"), []);
+  const whatsappLink = useWhatsappLink(establishment);
+  const whatsappMessage = `Olá, gostaria de saber mais informações sobre o item "${item?.name || item?.title || "selecionado"}". Você poderia me ajudar?`;
 
   useEffect(() => {
     const fetchItem = async () => {
       try {
-       const response = await axios.get(`${apiBaseUrl}/item/view/${slug}`, {
-  headers: { Authorization: `Bearer ${token}` },
-});
+        const response = await axios.get(`${apiBaseUrl}/item/view/${slug}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         const data = response.data;
         setItem(data.item);
@@ -130,12 +134,13 @@ export default function ItemViewPage() {
                       </p>
                     </div>
 
-                    {establishment?.whatsapp_url && (
+                    {whatsappLink && (
                       <Button
                         variant="success"
                         className="mt-3"
-                        href={establishment.whatsapp_url}
+                        href={whatsappLink}
                         target="_blank"
+                        rel="noreferrer"
                       >
                         <FaWhatsapp className="me-2" />
                         Falar no WhatsApp
@@ -235,6 +240,8 @@ export default function ItemViewPage() {
           )}
         </Container>
       </div>
+
+      <GlobalWhatsappButton link={whatsappLink} message={whatsappMessage} />
 
       {/* MODAL DE INTERAÇÕES */}
       <Modal
