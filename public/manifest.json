@@ -12,5 +12,13 @@
   "scope": "/",
   "display": "standalone",
   "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://plat.petertecnet.com.br/manifest.json",
+      "id": "/"
+    }
+  ]
 }
