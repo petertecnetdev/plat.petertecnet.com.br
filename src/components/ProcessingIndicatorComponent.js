@@ -1,26 +1,38 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import "./ProcessingIndicatorComponent.css";
 
+const DEFAULT_MESSAGES = [
+  "Preparando sua operação…",
+  "Sincronizando pedidos e atendimentos…",
+  "Organizando dados para a próxima tela…",
+  "Quase lá — sua operação está chegando.",
+];
+
 export default function ProcessingIndicatorComponent({
-  messages = ["Carregando a Plat…", "Preparando sua operação…"],
-  interval = 2200,
+  messages = DEFAULT_MESSAGES,
+  interval = 2600,
   logoSrc = "/images/plat-logo.svg",
   compact = false,
 }) {
-  const messageIndex = useRef(0);
-  const [currentMessage, setCurrentMessage] = useState(messages[0] || "Carregando…");
+  const safeMessages = useMemo(
+    () => (Array.isArray(messages) && messages.filter(Boolean).length ? messages.filter(Boolean) : DEFAULT_MESSAGES),
+    [messages],
+  );
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    if (!messages?.length || messages.length === 1) return undefined;
+    setIndex(0);
+    if (safeMessages.length < 2) return undefined;
 
     const timer = window.setInterval(() => {
-      messageIndex.current = (messageIndex.current + 1) % messages.length;
-      setCurrentMessage(messages[messageIndex.current]);
+      setIndex((current) => (current + 1) % safeMessages.length);
     }, interval);
 
     return () => window.clearInterval(timer);
-  }, [messages, interval]);
+  }, [interval, safeMessages]);
+
+  const currentMessage = safeMessages[index] || safeMessages[0] || "Carregando…";
 
   return (
     <div
@@ -28,24 +40,32 @@ export default function ProcessingIndicatorComponent({
       role="status"
       aria-live="polite"
       aria-busy="true"
+      aria-label={currentMessage}
     >
-      <div className="plat-processing__loader" aria-hidden="true">
-        <div className="plat-processing__orbit plat-processing__orbit--outer" />
-        <div className="plat-processing__orbit plat-processing__orbit--inner" />
-        <span className="plat-processing__pulse" />
-        <div className="plat-processing__logo-shell">
-          <img src={logoSrc} alt="" className="plat-processing__logo" draggable={false} />
-        </div>
+      <div className="plat-processing__ambient" aria-hidden="true">
+        <i className="plat-processing__spark plat-processing__spark--one" />
+        <i className="plat-processing__spark plat-processing__spark--two" />
+        <i className="plat-processing__spark plat-processing__spark--three" />
       </div>
 
-      <div className="plat-processing__copy">
-        <strong>PLAT</strong>
-        <span>{currentMessage}</span>
-        <div className="plat-processing__dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
+      <div className="plat-processing__card">
+        <div className="plat-processing__loader" aria-hidden="true">
+          <div className="plat-processing__orbit plat-processing__orbit--outer" />
+          <div className="plat-processing__orbit plat-processing__orbit--inner" />
+          <span className="plat-processing__pulse" />
+          <div className="plat-processing__logo-shell">
+            <img src={logoSrc} alt="" className="plat-processing__logo" draggable={false} />
+          </div>
         </div>
+
+        <div className="plat-processing__copy">
+          <span className="plat-processing__kicker">Peter Tecnet</span>
+          <strong>PLAT</strong>
+          <span className="plat-processing__message" key={currentMessage}>{currentMessage}</span>
+        </div>
+
+        <div className="plat-processing__progress" aria-hidden="true"><span /></div>
+        <div className="plat-processing__beat" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       </div>
     </div>
   );
