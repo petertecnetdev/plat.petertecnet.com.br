@@ -63,8 +63,7 @@ function loadSdk() {
 }
 
 function dockLauncherInNavbar(launcher) {
-  const selectors = [
-    "[data-peter-ecosystem-slot]",
+  const fallbackSelectors = [
     ".cut-navbar__inner",
     ".navlog__navbar .container",
     ".globalnav__header .navbar",
@@ -72,26 +71,43 @@ function dockLauncherInNavbar(launcher) {
     ".navbar .container-fluid",
     ".navbar",
     "header nav",
-    "nav[role='navigation']",
-    "nav",
   ];
-  const findTarget = () => selectors.map((selector) => document.querySelector(selector)).find(Boolean) || null;
+
+  const findTarget = () => {
+    const compact = window.matchMedia("(max-width: 991px)").matches;
+    const preferredSlots = compact
+      ? ["mobile", "public", "desktop"]
+      : ["desktop", "public", "mobile"];
+    for (const slot of preferredSlots) {
+      const target = document.querySelector(`[data-peter-ecosystem-slot="${slot}"]`);
+      if (target) return target;
+    }
+    return fallbackSelectors.map((selector) => document.querySelector(selector)).find(Boolean) || null;
+  };
+
   const applyDockedLayout = () => {
     if (!launcher?.isConnected || !launcher.shadowRoot) return;
     const shell = launcher.shadowRoot.querySelector(".launcher");
     const button = launcher.shadowRoot.querySelector(".launcher-button");
     const panel = launcher.shadowRoot.querySelector(".panel");
+    const slot = launcher.parentElement?.dataset?.peterEcosystemSlot;
+    const desktopSlot = slot === "desktop";
+
     if (shell) Object.assign(shell.style, { position: "relative", right: "auto", top: "auto", bottom: "auto", zIndex: "2147483000", display: "inline-flex", alignItems: "center" });
     if (button) Object.assign(button.style, { width: "42px", height: "42px", flex: "0 0 auto", boxShadow: "none" });
-    if (panel) Object.assign(panel.style, { position: "fixed", right: "12px", left: "auto", top: "calc(env(safe-area-inset-top) + 68px)", bottom: "auto", width: "min(370px, calc(100vw - 24px))", maxHeight: "calc(100vh - 92px)" });
+    if (panel) Object.assign(panel.style, desktopSlot
+      ? { position: "fixed", left: "260px", right: "auto", top: "16px", bottom: "auto", width: "min(370px, calc(100vw - 284px))", maxHeight: "calc(100vh - 32px)" }
+      : { position: "fixed", right: "12px", left: "auto", top: "calc(env(safe-area-inset-top) + 68px)", bottom: "auto", width: "min(370px, calc(100vw - 24px))", maxHeight: "calc(100vh - 92px)" }
+    );
   };
+
   const mount = () => {
     const target = findTarget();
     if (!target) return false;
     const toggle = target.querySelector?.(".navbar-toggler");
     if (toggle && toggle.parentElement === target) target.insertBefore(launcher, toggle);
     else if (launcher.parentElement !== target) target.appendChild(launcher);
-    Object.assign(launcher.style, { display: "inline-flex", alignItems: "center", marginLeft: "8px", flex: "0 0 auto" });
+    Object.assign(launcher.style, { display: "inline-flex", alignItems: "center", marginLeft: target.hasAttribute?.("data-peter-ecosystem-slot") ? "0" : "8px", flex: "0 0 auto" });
     launcher.setAttribute("data-peter-navbar-docked", "true");
     applyDockedLayout();
     return true;
