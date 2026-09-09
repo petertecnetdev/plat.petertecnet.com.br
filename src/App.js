@@ -14,6 +14,7 @@ import PasswordResetPage from "./pages/auth/PasswordResetPage";
 import PasswordPage from "./pages/auth/PasswordPage";
 import InviteCompletePage from "./pages/auth/InviteCompletePage";
 import DashboardPage from "./pages/DashboardPage";
+import SubscriptionPlansPage from "./pages/SubscriptionPlansPage";
 import OrderCreatePage from "./pages/order/OrderCreatePage";
 import OrderListPage from "./pages/order/OrderListPage";
 import OrderEditPage from "./pages/order/OrderEditPage";
@@ -76,6 +77,7 @@ const App = () => {
 
   return <Router><SeoManager/><Routes>
     <Route path="/" element={<HomePage/>}/>
+    <Route path="/planos" element={<SubscriptionPlansPage/>}/>
     <Route path="/restaurants" element={<PublicRestaurantsPage/>}/>
     <Route path="/establishment/view/:slug" element={<EstablishmentViewPage/>}/>
     <Route path="/register" element={restrictedRoute(<RegisterPage/>)}/>
