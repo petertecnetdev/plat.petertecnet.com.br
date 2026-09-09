@@ -3,7 +3,7 @@ import Swal from "sweetalert2";
 import PropTypes from "prop-types";
 import "./ItemModalComponent.css";
 
-export default function ItemModalComponent({ products, onSelect }) {
+export default function ItemModalComponent({ products, onSelect, onClose }) {
   const executed = useRef(false);
 
   useEffect(() => {
@@ -152,13 +152,16 @@ export default function ItemModalComponent({ products, onSelect }) {
             const prod = products.find((p) => p.id === id);
             if (!prod) return;
 
-            onSelect(prod); // <-- dispara uma vez
+            onSelect(prod);
             Swal.close();
           }
         });
       },
+      didClose: () => {
+        onClose?.();
+      },
     });
-  }, [products, onSelect]);
+  }, [products, onSelect, onClose]);
 
   return null;
 }
@@ -166,4 +169,5 @@ export default function ItemModalComponent({ products, onSelect }) {
 ItemModalComponent.propTypes = {
   products: PropTypes.array.isRequired,
   onSelect: PropTypes.func.isRequired,
+  onClose: PropTypes.func,
 };
