@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
 import Swal from "sweetalert2";
 import {
   FiBarChart2,
@@ -12,7 +11,8 @@ import {
 } from "react-icons/fi";
 import NavlogComponent from "../../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../../components/ProcessingIndicatorComponent";
-import { apiV1BaseUrl, appId, storageUrl } from "../../../config";
+import { storageUrl } from "../../../config";
+import { getMyEstablishments } from "../../../services/platCommerceApi";
 import "../../establishment/Establishment.css";
 
 export default function EstablishmentListPage() {
@@ -20,22 +20,15 @@ export default function EstablishmentListPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     (async () => {
       try {
-        const token = localStorage.getItem("token");
-        const { data: response } = await axios.get(`${apiV1BaseUrl}/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const scopedEstablishments = Array.isArray(response?.data?.establishments)
-          ? response.data.establishments.filter(
-              (establishment) => Number(establishment.app_id) === Number(appId)
-            )
-          : [];
-
-        setEstablishments(scopedEstablishments);
+        const scopedEstablishments = await getMyEstablishments();
+        if (active) setEstablishments(scopedEstablishments);
       } catch (error) {
         console.error("[Plat] Falha ao carregar estabelecimentos do contexto", error);
+        if (!active) return;
         Swal.fire({
           icon: "error",
           title: "Erro",
@@ -45,9 +38,13 @@ export default function EstablishmentListPage() {
         });
         setEstablishments([]);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleLogoError = (event) => {
@@ -101,7 +98,9 @@ export default function EstablishmentListPage() {
                     onError={handleLogoError}
                   />
                   <div>
-                    <span className="establishment-card__status">Operação Plat ativa</span>
+                    <span className="establishment-card__status">
+                      {establishment.is_published ? "Operação Plat ativa" : "Operação em preparação"}
+                    </span>
                     <h2>{establishment.name}</h2>
                     <p>@{establishment.slug}</p>
                   </div>
@@ -126,7 +125,7 @@ export default function EstablishmentListPage() {
                   </Link>
                   <Link to={`/establishment/view/${establishment.slug}`}>
                     <FiExternalLink />
-                    Página pública
+                    {establishment.is_published ? "Página pública" : "Pré-visualizar página"}
                   </Link>
                 </div>
               </article>
