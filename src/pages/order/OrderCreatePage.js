@@ -58,14 +58,14 @@ export default function OrderCreatePage() {
         <OrderSummary formattedTotal={formattedTotal} />
 
         <OrderItemsList
-  orderLines={orderLines}
-  products={products}
-  onRemove={handleRemoveLine}
-  onQty={(i, type) => handleQuantity(i, type)}
-  onModifiers={(i, type) =>
-    type === "additions" ? openAdditionsModal(i) : openRemovalsModal(i)
-  }
-/>
+          orderLines={orderLines}
+          products={products}
+          onRemove={handleRemoveLine}
+          onQty={(i, type) => handleQuantity(i, type)}
+          onModifiers={(i, type) =>
+            type === "additions" ? openAdditionsModal(i) : openRemovalsModal(i)
+          }
+        />
 
         <OrderForm
           form={form}
@@ -75,9 +75,6 @@ export default function OrderCreatePage() {
         />
       </div>
 
-      {/* ============================================================
-            MODAL: ADICIONAR ITEM (Item principal)
-      ============================================================ */}
       {modalOpen && modalMode === "add" && (
         <ItemModalComponent
           products={modalItems}
@@ -87,12 +84,10 @@ export default function OrderCreatePage() {
               quantity: 1,
             })
           }
+          onClose={closeModal}
         />
       )}
 
-      {/* ============================================================
-            MODAL: ADICIONAIS (usa o mesmo do Edit)
-      ============================================================ */}
       {modalOpen && modalMode === "additions" && (
         <ModifiersModalComponent
           products={products}
@@ -104,9 +99,6 @@ export default function OrderCreatePage() {
         />
       )}
 
-      {/* ============================================================
-            MODAL: REMOÇÕES (usa o mesmo do Edit)
-      ============================================================ */}
       {modalOpen && modalMode === "removals" && (
         <ModifiersModalComponent
           products={products}
