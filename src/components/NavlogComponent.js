@@ -66,46 +66,141 @@ export default function NavlogComponent() {
   const displayName = user?.first_name || user?.name || "Conta";
   const avatar = user?.avatar ? `${storageUrl}/${user.avatar}` : "/images/user.png";
 
-  const navItems = useMemo(() => {
-    const items = [
-      { to: "/dashboard", label: "Visão geral", icon: FiHome },
-      { to: "/my-orders", label: "Meus pedidos", icon: FiShoppingBag },
-      { to: "/establishment", label: "Estabelecimentos", icon: FiBriefcase },
-    ];
-    if (firstEstablishment) {
-      items.push(
-        { to: `/order/list/${firstEstablishment.id}`, label: "Pedidos", icon: FiShoppingBag },
-        { to: `/establishment/${firstEstablishment.id}/ordering-settings`, label: "Operação de pedidos", icon: FiSettings },
-        { to: "/service-record/my", label: "Atendimentos presenciais", icon: FiActivity },
-        { to: `/item/list/${firstEstablishment.slug}`, label: "Itens", icon: FiClipboard }
-      );
-    } else {
-      items.push({ to: "/service-record/my", label: "Atendimentos presenciais", icon: FiActivity });
+  const primaryItems = useMemo(() => [
+    { to: "/dashboard", label: "Visão geral", icon: FiHome },
+    { to: "/establishment", label: "Estabelecimentos", icon: FiBriefcase },
+    { to: "/my-orders", label: "Minhas compras", icon: FiShoppingBag },
+  ], []);
+
+  const operationItems = useMemo(() => {
+    if (!firstEstablishment) {
+      return [{ to: "/service-record/my", label: "Atendimentos", icon: FiActivity }];
     }
-    return items;
+    return [
+      { to: `/order/list/${firstEstablishment.id}`, label: "Pedidos recebidos", icon: FiShoppingBag },
+      { to: `/item/list/${firstEstablishment.slug}`, label: "Itens do catálogo", icon: FiClipboard },
+      { to: "/service-record/my", label: "Atendimentos", icon: FiActivity },
+      { to: `/establishment/${firstEstablishment.id}/ordering-settings`, label: "Configurar pedidos", icon: FiSettings },
+    ];
   }, [firstEstablishment]);
 
   const active = (to) => location.pathname === to || (to !== "/dashboard" && location.pathname.startsWith(`${to}/`));
+  const renderNavItem = ({ to, label, icon: Icon }) => (
+    <Link
+      key={to}
+      to={to}
+      aria-current={active(to) ? "page" : undefined}
+      className={`plat-sidebar__link${active(to) ? " is-active" : ""}`}
+    >
+      <Icon />
+      <span>{label}</span>
+    </Link>
+  );
 
   if (isPublicView) {
     const authenticated = Boolean(localStorage.getItem("token"));
-    return <header className="plat-public-nav"><Link to="/" className="plat-public-nav__brand" aria-label="Plat - página inicial"><img src={PLAT_LOGO} alt=""/><span>PLAT</span></Link><nav className="plat-public-nav__actions" aria-label="Navegação do restaurante"><Link to="/restaurants">Restaurantes</Link>{authenticated ? <><Link to="/my-orders">Meus pedidos</Link><Link className="plat-public-nav__primary" to="/dashboard">Minha conta</Link></> : <Link className="plat-public-nav__primary" to={`/login?redirect=${encodeURIComponent(location.pathname)}`}>Entrar</Link>}</nav></header>;
+    return (
+      <header className="plat-public-nav">
+        <Link to="/" className="plat-public-nav__brand" aria-label="Plat - página inicial">
+          <img src={PLAT_LOGO} alt="" />
+          <span>PLAT</span>
+        </Link>
+        <nav className="plat-public-nav__actions" aria-label="Navegação do restaurante">
+          <span className="plat-public-nav__ecosystem-slot" data-peter-ecosystem-slot="public" title="Navegar pelo ecossistema Peter Tecnet" />
+          <Link to="/restaurants">Restaurantes</Link>
+          {authenticated ? (
+            <>
+              <Link to="/my-orders">Minhas compras</Link>
+              <Link className="plat-public-nav__primary" to="/dashboard">Minha conta</Link>
+            </>
+          ) : (
+            <Link className="plat-public-nav__primary" to={`/login?redirect=${encodeURIComponent(location.pathname)}`}>Entrar</Link>
+          )}
+        </nav>
+      </header>
+    );
   }
 
-  return <>
-    <button className="plat-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="Abrir navegação" aria-expanded={mobileOpen} aria-controls="plat-sidebar"><FiMenu/></button>
-    {mobileOpen && <button type="button" className="plat-nav-backdrop" onClick={() => setMobileOpen(false)} aria-label="Fechar menu"/>}
-    <aside id="plat-sidebar" className={`plat-sidebar${mobileOpen ? " plat-sidebar--open" : ""}`} aria-label="Menu da Plat">
-      <div className="plat-sidebar__top"><Link to="/dashboard" className="plat-sidebar__brand"><img src={PLAT_LOGO} alt=""/><div><strong>PLAT</strong><span>Gestão inteligente</span></div></Link><button type="button" className="plat-sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Fechar navegação"><FiX/></button></div>
-      <nav className="plat-sidebar__nav" aria-label="Navegação principal">
-        <span className="plat-sidebar__eyebrow">Operação</span>
-        {navItems.map(({to,label,icon:Icon})=><Link key={to} to={to} aria-current={active(to) ? "page" : undefined} className={`plat-sidebar__link${active(to)?" is-active":""}`}><Icon/><span>{label}</span></Link>)}
-        <span className="plat-sidebar__eyebrow plat-sidebar__eyebrow--spaced">Gestão</span>
-        <Link to="/establishment/create" className={`plat-sidebar__link${active("/establishment/create")?" is-active":""}`}><FiPlusCircle/><span>Novo estabelecimento</span></Link>
-        <Link to="/user/update" className={`plat-sidebar__link${active("/user/update")?" is-active":""}`}><FiSettings/><span>Minha conta</span></Link>
-        {isAdmin && <div className="plat-sidebar__admin"><button type="button" className="plat-sidebar__link plat-sidebar__admin-toggle" onClick={()=>setAdminOpen((value)=>!value)} aria-expanded={adminOpen} aria-controls="plat-admin-submenu"><FiUsers/><span>Administrativo</span><FiChevronDown className={adminOpen?"is-rotated":""}/></button>{adminOpen && <div id="plat-admin-submenu" className="plat-sidebar__submenu"><Link to="/user/list">Usuários</Link><Link to="/profile/list">Perfis</Link></div>}</div>}
-      </nav>
-      <div className="plat-sidebar__footer">{loading ? <span className="plat-sidebar__loading">Carregando conta…</span> : user ? <>{firstEstablishment && <div className="plat-sidebar__context"><span>Operação principal</span><strong>{firstEstablishment.fantasy || firstEstablishment.name}</strong></div>}<div className="plat-sidebar__account"><img src={avatar} alt="" onError={(event)=>{event.currentTarget.src="/images/user.png"}}/><div><strong>{displayName}</strong><span>{user?.profile?.name||"Usuário"}</span></div><Link to="/logout" aria-label="Sair" className="plat-sidebar__logout"><FiLogOut/></Link></div></> : <Link to="/login" className="plat-sidebar__link"><FiUser/><span>Entrar</span></Link>}</div>
-    </aside>
-  </>;
+  return (
+    <>
+      <header className="plat-mobile-bar" aria-label="Barra de navegação da Plat">
+        <Link to="/dashboard" className="plat-mobile-bar__brand" aria-label="Plat - visão geral">
+          <img src={PLAT_LOGO} alt="" />
+          <div><strong>PLAT</strong><span>Gestão inteligente</span></div>
+        </Link>
+        <div className="plat-mobile-bar__actions">
+          <span className="plat-ecosystem-slot plat-ecosystem-slot--mobile" data-peter-ecosystem-slot="mobile" title="Navegar pelo ecossistema Peter Tecnet" />
+          <button className="plat-mobile-trigger" type="button" onClick={() => setMobileOpen(true)} aria-label="Abrir menu" aria-expanded={mobileOpen} aria-controls="plat-sidebar"><FiMenu /></button>
+        </div>
+      </header>
+
+      {mobileOpen && <button type="button" className="plat-nav-backdrop" onClick={() => setMobileOpen(false)} aria-label="Fechar menu" />}
+
+      <aside id="plat-sidebar" className={`plat-sidebar${mobileOpen ? " plat-sidebar--open" : ""}`} aria-label="Menu da Plat">
+        <div className="plat-sidebar__top">
+          <Link to="/dashboard" className="plat-sidebar__brand">
+            <img src={PLAT_LOGO} alt="" />
+            <div><strong>PLAT</strong><span>Gestão inteligente</span></div>
+          </Link>
+          <div className="plat-sidebar__top-actions">
+            <span className="plat-ecosystem-slot plat-ecosystem-slot--desktop" data-peter-ecosystem-slot="desktop" title="Navegar pelo ecossistema Peter Tecnet" />
+            <button type="button" className="plat-sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Fechar menu"><FiX /></button>
+          </div>
+        </div>
+
+        {firstEstablishment && (
+          <Link to="/establishment" className="plat-sidebar__active-establishment" title="Ver meus estabelecimentos">
+            <span>Estabelecimento ativo</span>
+            <strong>{firstEstablishment.fantasy || firstEstablishment.name}</strong>
+          </Link>
+        )}
+
+        <nav className="plat-sidebar__nav" aria-label="Navegação principal">
+          <div className="plat-sidebar__group">
+            <span className="plat-sidebar__eyebrow">Principal</span>
+            {primaryItems.map(renderNavItem)}
+          </div>
+
+          <div className="plat-sidebar__group">
+            <span className="plat-sidebar__eyebrow">{firstEstablishment ? "Operação" : "Atendimento"}</span>
+            {operationItems.map(renderNavItem)}
+          </div>
+
+          <div className="plat-sidebar__group">
+            <span className="plat-sidebar__eyebrow">Gestão</span>
+            <Link to="/establishment/create" className={`plat-sidebar__link${active("/establishment/create") ? " is-active" : ""}`}><FiPlusCircle /><span>Novo estabelecimento</span></Link>
+            <Link to="/user/update" className={`plat-sidebar__link${active("/user/update") ? " is-active" : ""}`}><FiSettings /><span>Minha conta</span></Link>
+          </div>
+
+          {isAdmin && (
+            <div className="plat-sidebar__group plat-sidebar__admin">
+              <button type="button" className="plat-sidebar__link plat-sidebar__admin-toggle" onClick={() => setAdminOpen((value) => !value)} aria-expanded={adminOpen} aria-controls="plat-admin-submenu">
+                <FiUsers /><span>Administrativo</span><FiChevronDown className={adminOpen ? "is-rotated" : ""} />
+              </button>
+              {adminOpen && (
+                <div id="plat-admin-submenu" className="plat-sidebar__submenu">
+                  <Link className={active("/user/list") ? "is-active" : ""} to="/user/list">Usuários</Link>
+                  <Link className={active("/profile/list") ? "is-active" : ""} to="/profile/list">Perfis</Link>
+                </div>
+              )}
+            </div>
+          )}
+        </nav>
+
+        <div className="plat-sidebar__footer">
+          {loading ? (
+            <span className="plat-sidebar__loading">Carregando conta…</span>
+          ) : user ? (
+            <div className="plat-sidebar__account">
+              <img src={avatar} alt="" onError={(event) => { event.currentTarget.src = "/images/user.png"; }} />
+              <div><strong>{displayName}</strong><span>{user?.profile?.name || "Usuário"}</span></div>
+              <Link to="/logout" aria-label="Sair" className="plat-sidebar__logout"><FiLogOut /></Link>
+            </div>
+          ) : (
+            <Link to="/login" className="plat-sidebar__link"><FiUser /><span>Entrar</span></Link>
+          )}
+        </div>
+      </aside>
+    </>
+  );
 }
