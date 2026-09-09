@@ -3,6 +3,14 @@ import Swal from "sweetalert2";
 import PropTypes from "prop-types";
 import "./ItemModalComponent.css";
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
 export default function ItemModalComponent({ products, onSelect, onClose }) {
   const executed = useRef(false);
 
@@ -27,12 +35,12 @@ export default function ItemModalComponent({ products, onSelect, onClose }) {
         <div class="col-12 col-sm-6 col-md-3 mb-3">
           <div class="order-modal__item">
             <div class="order-modal__item-info">
-              <span class="order-modal__item-name">${p.name}</span>
+              <span class="order-modal__item-name">${escapeHtml(p.name)}</span>
               <span class="order-modal__item-price">R$ ${Number(p.price)
                 .toFixed(2)
                 .replace(".", ",")}</span>
             </div>
-            <button class="order-modal__item-add" data-id="${p.id}">Adicionar</button>
+            <button class="order-modal__item-add" data-id="${Number(p.id)}">Adicionar</button>
           </div>
         </div>
       `
@@ -56,7 +64,7 @@ export default function ItemModalComponent({ products, onSelect, onClose }) {
 
           ${
             isMobile
-              ? `<div class="order-modal__category-title">${currentCat}</div>`
+              ? `<div class="order-modal__category-title">${escapeHtml(currentCat)}</div>`
               : `
                 <nav class="order-modal__tabs">
                   ${categories
@@ -67,7 +75,7 @@ export default function ItemModalComponent({ products, onSelect, onClose }) {
                             idx === currentIndex ? " order-modal__tab--active" : ""
                           }"
                           data-cat-index="${idx}"
-                        >${cat}</button>
+                        >${escapeHtml(cat)}</button>
                       `
                     )
                     .join("")}
@@ -149,7 +157,7 @@ export default function ItemModalComponent({ products, onSelect, onClose }) {
           const addBtn = e.target.closest(".order-modal__item-add");
           if (addBtn) {
             const id = Number(addBtn.dataset.id);
-            const prod = products.find((p) => p.id === id);
+            const prod = products.find((p) => Number(p.id) === id);
             if (!prod) return;
 
             onSelect(prod);
