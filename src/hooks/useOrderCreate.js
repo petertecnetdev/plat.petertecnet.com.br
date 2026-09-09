@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { apiBaseUrl, appId } from "../config";
@@ -19,6 +19,7 @@ const apiMessage = (error, fallback) =>
 export default function useOrderCreate() {
   const { entityId } = useParams();
   const navigate = useNavigate();
+  const submittingRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
@@ -232,6 +233,8 @@ export default function useOrderCreate() {
   const handleSubmit = async (event) => {
     event?.preventDefault?.();
 
+    if (submittingRef.current) return;
+
     if (!estId) {
       Swal.fire("Erro", "Estabelecimento não identificado.", "error");
       return;
@@ -257,6 +260,7 @@ export default function useOrderCreate() {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const payload = {
@@ -287,6 +291,7 @@ export default function useOrderCreate() {
       console.error("[Plat] Falha ao criar pedido", error);
       Swal.fire("Erro", apiMessage(error, "Erro ao criar pedido."), "error");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
