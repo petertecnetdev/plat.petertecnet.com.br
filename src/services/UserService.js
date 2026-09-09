@@ -1,5 +1,5 @@
 import axios from "axios";
-import { apiBaseUrl } from "../config";
+import { apiBaseUrl, appId } from "../config";
 
 const apiServiceUrl = "user";
 
@@ -8,9 +8,13 @@ const userService = {
 
   handleError: (error, defaultMessage) => {
     console.error(error);
+    const validationMessage = Object.values(error?.response?.data?.errors || {})
+      .flat()
+      .find(Boolean);
     const message =
       error?.response?.data?.message ||
       error?.response?.data?.error ||
+      validationMessage ||
       defaultMessage;
     throw new Error(message);
   },
@@ -64,6 +68,25 @@ const userService = {
       return data;
     } catch (error) {
       userService.handleError(error, "Erro ao criar o usuário.");
+    }
+  },
+
+  invite: async ({ first_name, email }) => {
+    try {
+      const token = userService.getToken();
+      userService.checkAuth(token);
+      const { data } = await axios.post(
+        `${apiBaseUrl}/invite`,
+        {
+          first_name: first_name.trim(),
+          email: email.trim().toLowerCase(),
+          app_id: appId,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return data;
+    } catch (error) {
+      userService.handleError(error, "Não foi possível criar o usuário e enviar o convite.");
     }
   },
 
