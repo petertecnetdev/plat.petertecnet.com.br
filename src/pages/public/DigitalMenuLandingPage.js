@@ -10,16 +10,43 @@ const benefits = [
   { icon: FiTrendingUp, title: "Estrutura para crescer", text: "Organize catálogo, operação e indicadores em uma base preparada para ampliar vendas sem trocar de sistema." },
 ];
 
+const ATTRIBUTION_KEYS = [
+  "source",
+  "ref",
+  "referral",
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+];
+const MAX_ATTRIBUTION_LENGTH = 120;
+
+const buildConversionTarget = (path) => {
+  const incoming = new URLSearchParams(window.location.search);
+  const outgoing = new URLSearchParams();
+
+  ATTRIBUTION_KEYS.forEach((key) => {
+    const value = String(incoming.get(key) || "").trim().slice(0, MAX_ATTRIBUTION_LENGTH);
+    if (value) outgoing.set(key, value);
+  });
+
+  if (!outgoing.has("source")) outgoing.set("source", "cardapio-digital");
+
+  return `${path}?${outgoing.toString()}`;
+};
+
 export default function DigitalMenuLandingPage() {
+  const registerTarget = buildConversionTarget("/register");
+  const plansTarget = buildConversionTarget("/planos");
+
   return (
     <div className="plat-home">
       <header className="plat-home-nav">
         <Link to="/" className="plat-home-brand"><img src="/images/plat-logo.svg" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
         <nav>
           <Link to="/restaurants">Ver restaurantes</Link>
-          <Link to="/planos">Planos</Link>
+          <Link to={plansTarget}>Planos</Link>
           <Link to="/login" className="plat-home-login">Entrar</Link>
-          <Link to="/register?source=cardapio-digital" className="plat-home-cta">Criar cardápio</Link>
+          <Link to={registerTarget} className="plat-home-cta">Criar cardápio</Link>
         </nav>
       </header>
 
@@ -30,8 +57,8 @@ export default function DigitalMenuLandingPage() {
             <h1>Seu cardápio online, pronto para <em>receber pedidos.</em></h1>
             <p>Cadastre seu estabelecimento na Plat, organize os itens e publique uma página que seus clientes podem abrir pelo celular. Uma base simples para sair do cardápio estático e evoluir para pedidos e gestão.</p>
             <div className="plat-home-hero__actions">
-              <Link to="/register?source=cardapio-digital" className="plat-home-primary">Criar meu cardápio <FiArrowRight /></Link>
-              <Link to="/planos?source=cardapio-digital" className="plat-home-secondary">Ver planos</Link>
+              <Link to={registerTarget} className="plat-home-primary">Criar meu cardápio <FiArrowRight /></Link>
+              <Link to={plansTarget} className="plat-home-secondary">Ver planos</Link>
             </div>
             <div className="plat-home-trust">
               <span><FiCheckCircle /> Página pública</span>
@@ -77,7 +104,7 @@ export default function DigitalMenuLandingPage() {
           <span>PLAT • PETER TECNET</span>
           <h2>Coloque seu cardápio online e transforme acesso em oportunidade de venda.</h2>
           <p>Crie sua conta ou consulte os planos disponíveis para sua operação.</p>
-          <div className="plat-home-hero__actions"><Link to="/register?source=cardapio-digital" className="plat-home-primary">Criar cardápio <FiArrowRight /></Link><Link to="/planos?source=cardapio-digital" className="plat-home-secondary">Ver planos</Link></div>
+          <div className="plat-home-hero__actions"><Link to={registerTarget} className="plat-home-primary">Criar cardápio <FiArrowRight /></Link><Link to={plansTarget} className="plat-home-secondary">Ver planos</Link></div>
         </section>
       </main>
       <footer className="plat-home-footer"><span>© 2026 Peter Tecnet. Plat — cardápios, pedidos e gestão conectados.</span><Link to="/">Conhecer a Plat</Link></footer>
