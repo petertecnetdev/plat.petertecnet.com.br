@@ -4,6 +4,7 @@ import axios from "axios";
 
 import HomePage from "./pages/HomePage";
 import PublicRestaurantsPage from "./pages/public/PublicRestaurantsPage";
+import DigitalMenuLandingPage from "./pages/public/DigitalMenuLandingPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -78,6 +79,7 @@ const App = () => {
   return <Router><SeoManager/><Routes>
     <Route path="/" element={<HomePage/>}/>
     <Route path="/planos" element={<SubscriptionPlansPage/>}/>
+    <Route path="/cardapio-digital" element={<DigitalMenuLandingPage/>}/>
     <Route path="/restaurants" element={<PublicRestaurantsPage/>}/>
     <Route path="/establishment/view/:slug" element={<EstablishmentViewPage/>}/>
     <Route path="/register" element={restrictedRoute(<RegisterPage/>)}/>
