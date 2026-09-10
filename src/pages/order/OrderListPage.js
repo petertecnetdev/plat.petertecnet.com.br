@@ -54,6 +54,10 @@ export default function OrderListPage() {
 
   const changeStatus = async (order, nextStatus) => {
     if (!order?.id || !nextStatus || nextStatus === order.status) return;
+    if (nextStatus === "cancelled" && order.payment_status === "paid") {
+      Swal.fire("Estorno necessário", "Este pedido já foi pago. Faça o estorno antes de cancelar para manter pagamento e estoque consistentes.", "info");
+      return;
+    }
     setUpdatingId(order.id);
     try {
       const updated = await updateOrderStatus(order.id, nextStatus);
