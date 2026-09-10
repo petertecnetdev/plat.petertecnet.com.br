@@ -10,12 +10,12 @@ const storageKey = (planCode) =>
   `subscription_intent_idempotency:${APPLICATION}:${planCode}`;
 
 const createKey = () => {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
 const wait = (milliseconds) =>
-  new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 const shouldRetry = (error) => {
   const status = Number(error?.response?.status || 0);
