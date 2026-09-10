@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Swal from "sweetalert2";
 import { FiArrowRight, FiBarChart2, FiBriefcase, FiClipboard, FiDollarSign, FiEdit3, FiPlus, FiSettings, FiShoppingBag, FiTrendingUp } from "react-icons/fi";
 import NavlogComponent from "../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, getDashboardSummary } from "../services/platCommerceApi";
+import { createSubscriptionIntent } from "../services/subscriptionIntent";
 import { storageUrl } from "../config";
 import "./Dashboard.css";
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 
 export default function DashboardPage() {
+  const [searchParams] = useSearchParams();
+  const planCode = String(searchParams.get("plan") || "").trim();
   const [data, setData] = useState({ totals: {}, establishments: [] });
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +24,46 @@ export default function DashboardPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!/^[a-z0-9_-]{1,80}$/i.test(planCode)) return;
+
+    let pending = null;
+    try {
+      pending = JSON.parse(localStorage.getItem("pending_subscription_plan") || "null");
+    } catch {
+      return;
+    }
+
+    const selectedAt = pending?.selected_at ? Date.parse(pending.selected_at) : NaN;
+    const isFresh = Number.isFinite(selectedAt) && Date.now() - selectedAt <= 7 * 24 * 60 * 60 * 1000;
+    if (pending?.application !== "plat" || pending?.plan !== planCode || !isFresh) return;
+    if (pending?.intent_id) return;
+
+    let active = true;
+    createSubscriptionIntent({
+      planCode,
+      priceCents: pending.price_cents ?? null,
+      currency: pending.currency || "BRL",
+      source: pending.source || "subscription_plans",
+      handoff: pending.handoff || "app",
+      page: window.location.pathname,
+    }).then((intent) => {
+      if (!active || !intent?.id) return;
+      localStorage.setItem(
+        "pending_subscription_plan",
+        JSON.stringify({
+          ...pending,
+          intent_id: intent.id,
+          intent_status: intent.status,
+          price_cents: intent.price_cents ?? pending.price_cents ?? null,
+          currency: intent.currency || pending.currency || "BRL",
+        })
+      );
+    });
+
+    return () => { active = false; };
+  }, [planCode]);
 
   if (loading) return <ProcessingIndicatorComponent messages={["Carregando sua operação…", "Calculando indicadores na API…"]}/>;
   const totals = data.totals || {};
