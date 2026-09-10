@@ -5,6 +5,19 @@ import { apiBaseUrl } from "../config";
 const APP_SLUG = "plat";
 const FALLBACK_ORIGIN = "https://plat.petertecnet.com.br";
 
+const ENTITLEMENT_UPGRADE_PLAN = Object.freeze({
+  "tables.management": "pro",
+  "tabs.management": "pro",
+  "staff.management": "pro",
+  "analytics.reports": "pro",
+  "automation.rules": "pro",
+  "establishments.max": "business",
+  "establishments.multiple": "business",
+  "management.advanced": "business",
+  "features.premium": "business",
+  "integration.nexus": "business",
+});
+
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || apiBaseUrl,
   headers: {
@@ -40,7 +53,9 @@ function redirectUpgradeRequired(error) {
   const entitlement = String(payload?.upgrade?.entitlement || "").trim();
 
   if (error?.response?.status !== 402 || payload?.error !== "upgrade_required") return false;
-  if (entitlement !== "establishments.max") return false;
+
+  const targetPlan = ENTITLEMENT_UPGRADE_PLAN[entitlement];
+  if (!targetPlan) return false;
   if (window.location.pathname === "/planos") return false;
 
   const upgradeContext = {
@@ -49,7 +64,7 @@ function redirectUpgradeRequired(error) {
     current: payload?.upgrade?.current ?? null,
     limit: payload?.upgrade?.limit ?? null,
     current_plan: payload?.upgrade?.plan_code || null,
-    target_plan: "business",
+    target_plan: targetPlan,
     captured_at: new Date().toISOString(),
   };
 
@@ -60,7 +75,7 @@ function redirectUpgradeRequired(error) {
   }
 
   const params = new URLSearchParams({
-    plan: "business",
+    plan: targetPlan,
     resume: "1",
     source: "upgrade_required",
     entitlement,
