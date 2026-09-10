@@ -49,7 +49,7 @@ export default function PublicRestaurantsPage() {
 
   return <div className="plat-discovery">
     <header className="plat-discovery__nav">
-      <Link to="/" className="plat-discovery__brand" aria-label="Plat - página inicial"><img src="/images/plat-logo.svg" alt=""/><div><strong>PLAT</strong><span>Restaurantes & pedidos</span></div></Link>
+      <Link to="/" className="plat-discovery__brand" aria-label="Plat - página inicial"><img src="/images/logo.png" alt=""/><div><strong>PLAT</strong><span>Restaurantes & pedidos</span></div></Link>
       <nav className="plat-discovery__nav-actions" aria-label="Navegação principal"><Link to="/">Início</Link>{authenticated && <Link to="/my-orders">Meus pedidos</Link>}<Link to={authenticated ? "/dashboard" : "/login"}>{authenticated ? "Minha conta" : "Entrar"}</Link><Link className="plat-discovery__manage" to={authenticated ? "/establishment" : "/register"}>Sou restaurante</Link></nav>
     </header>
     <main className="plat-discovery__main" id="conteudo-principal">

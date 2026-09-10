@@ -14,7 +14,7 @@ export default function HomePage() {
   return (
     <div className="plat-home">
       <header className="plat-home-nav">
-        <Link to="/" className="plat-home-brand"><img src="/images/plat-logo.svg" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
+        <Link to="/" className="plat-home-brand"><img src="/images/logo.png" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
         <nav>
           <Link to="/restaurants">Restaurantes</Link>
           <a href="#beneficios">Como funciona</a>
@@ -78,7 +78,7 @@ export default function HomePage() {
         </section>
 
         <section className="plat-home-final">
-          <img src="/images/plat-logo.svg" alt="Plat" />
+          <img src="/images/logo.png" alt="Plat" />
           <span>PLAT • PETER TECNET</span>
           <h2>Quer pedir ou quer vender? A Plat conecta os dois lados.</h2>
           <p>Explore restaurantes ou cadastre sua operação para começar.</p>

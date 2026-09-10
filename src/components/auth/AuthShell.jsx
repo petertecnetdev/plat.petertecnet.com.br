@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import "../../pages/auth/Auth.css";
 
-const PLAT_LOGO = "/images/plat-logo.svg";
+const PLAT_LOGO = "/images/logo.png";
 
 export default function AuthShell({ eyebrow, title, description, children, footer, compact = false }) {
   return (

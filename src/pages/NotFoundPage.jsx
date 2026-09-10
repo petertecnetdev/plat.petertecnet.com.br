@@ -6,7 +6,7 @@ import "./NotFoundPage.css";
 export default function NotFoundPage() {
   return <main className="plat-not-found">
     <div className="plat-not-found__card">
-      <img src="/images/plat-logo.svg" alt="" className="plat-not-found__logo"/>
+      <img src="/images/logo.png" alt="" className="plat-not-found__logo"/>
       <span className="plat-not-found__code">404</span>
       <h1>Essa página não existe.</h1>
       <p>O endereço pode ter mudado ou estar incorreto. Você pode voltar para a Plat ou continuar procurando um restaurante.</p>

@@ -20,7 +20,7 @@ export default class AppErrorBoundary extends React.Component {
     if (!this.state.hasError) return this.props.children;
     return <main className="plat-fatal-error" role="alert">
       <div className="plat-fatal-error__card">
-        <img src="/images/plat-logo.svg" alt=""/>
+        <img src="/images/logo.png" alt=""/>
         <span>PLAT</span>
         <h1>Não foi possível exibir esta tela.</h1>
         <p>Seu pedido ou cadastro não foi apagado. Recarregue a Plat para tentar novamente.</p>

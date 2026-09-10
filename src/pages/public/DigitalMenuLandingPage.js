@@ -41,7 +41,7 @@ export default function DigitalMenuLandingPage() {
   return (
     <div className="plat-home">
       <header className="plat-home-nav">
-        <Link to="/" className="plat-home-brand"><img src="/images/plat-logo.svg" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
+        <Link to="/" className="plat-home-brand"><img src="/images/logo.png" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
         <nav>
           <Link to="/restaurants">Ver restaurantes</Link>
           <Link to={plansTarget}>Planos</Link>
@@ -100,7 +100,7 @@ export default function DigitalMenuLandingPage() {
         </section>
 
         <section className="plat-home-final">
-          <img src="/images/plat-logo.svg" alt="Plat" />
+          <img src="/images/logo.png" alt="Plat" />
           <span>PLAT • PETER TECNET</span>
           <h2>Coloque seu cardápio online e transforme acesso em oportunidade de venda.</h2>
           <p>Crie sua conta ou consulte os planos disponíveis para sua operação.</p>

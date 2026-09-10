@@ -12,7 +12,7 @@ const DEFAULT_MESSAGES = [
 export default function ProcessingIndicatorComponent({
   messages = DEFAULT_MESSAGES,
   interval = 2600,
-  logoSrc = "/images/plat-logo.svg",
+  logoSrc = "/images/logo.png",
   compact = false,
 }) {
   const safeMessages = useMemo(

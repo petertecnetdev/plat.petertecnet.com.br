@@ -19,7 +19,7 @@ import {
 import { storageUrl, apiV1BaseUrl } from "../config";
 import "./NavlogComponent.css";
 
-const PLAT_LOGO = "/images/plat-logo.svg";
+const PLAT_LOGO = "/images/logo.png";
 
 export default function NavlogComponent() {
   const location = useLocation();
