@@ -10,6 +10,7 @@ const DEFAULT_DESCRIPTION = "Descubra restaurantes, consulte cardápios, faça p
 
 const ROUTES = [
   { test: (p) => p === "/", index: true, title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
+  { test: (p) => p === "/cardapio-digital", index: true, title: "Cardápio digital e QR Code para restaurantes | Plat", description: "Crie um cardápio digital para restaurante ou bar, publique seus itens em uma página mobile e compartilhe por link ou QR Code com a Plat." },
   { test: (p) => p === "/restaurants", index: true, title: "Restaurantes e cardápios | Plat", description: "Encontre restaurantes na Plat, consulte cardápios e escolha onde fazer seu próximo pedido." },
   { test: (p) => p.startsWith("/establishment/view/"), index: true, title: "Restaurante e cardápio | Plat", description: "Veja o cardápio, informações e opções de pedido deste restaurante na Plat." },
   { test: (p) => p === "/login", title: "Entrar | Plat" },
@@ -96,6 +97,16 @@ export default function SeoManager() {
     const path = location.pathname.replace(/\/+$/, "") || "/";
     const route = ROUTES.find(({ test }) => test(path));
     const url = `${SITE_URL}${path === "/" ? "/" : path}`;
+    const digitalMenuJsonLd = path === "/cardapio-digital" ? {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Plat",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url,
+      description: route.description,
+      publisher: { "@type": "Organization", name: "Peter Tecnet", url: "https://petertecnet.com.br" },
+    } : null;
 
     applySeo({
       title: route?.title || DEFAULT_TITLE,
@@ -109,7 +120,7 @@ export default function SeoManager() {
         url: SITE_URL,
         description: DEFAULT_DESCRIPTION,
         publisher: { "@type": "Organization", name: "Peter Tecnet", url: "https://petertecnet.com.br" },
-      } : null,
+      } : digitalMenuJsonLd,
     });
 
     if (!path.startsWith("/establishment/view/")) return () => { active = false; };
