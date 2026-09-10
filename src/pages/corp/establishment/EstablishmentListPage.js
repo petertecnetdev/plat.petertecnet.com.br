@@ -16,6 +16,21 @@ import { storageUrl } from "../../../config";
 import { getMyEstablishments } from "../../../services/platCommerceApi";
 import "../../establishment/Establishment.css";
 
+const publicMenuUrl = (establishment, { attributed = false } = {}) => {
+  const path = `/establishment/view/${encodeURIComponent(establishment.slug)}`;
+  if (!attributed) return `${window.location.origin}${path}`;
+
+  const query = new URLSearchParams({
+    source: "shared-menu",
+    ref: String(establishment.slug),
+    utm_source: "plat",
+    utm_medium: "product_share",
+    utm_campaign: "menu_distribution",
+  });
+
+  return `${window.location.origin}${path}?${query.toString()}`;
+};
+
 export default function EstablishmentListPage() {
   const [establishments, setEstablishments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +70,7 @@ export default function EstablishmentListPage() {
 
   const handleShare = async (establishment) => {
     const name = establishment.fantasy || establishment.name || "Cardápio";
-    const url = `${window.location.origin}/establishment/view/${encodeURIComponent(establishment.slug)}`;
+    const url = publicMenuUrl(establishment, { attributed: true });
     const shareData = {
       title: `${name} na Plat`,
       text: `Veja o cardápio de ${name} e faça seu pedido online pela Plat.`,
