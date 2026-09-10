@@ -65,6 +65,14 @@ export default function PublicRestaurantsPage() {
         : error ? <section className="plat-discovery__empty" role="alert"><div><FiAlertCircle/></div><h2>Não foi possível carregar os restaurantes</h2><p>{error}</p><button type="button" onClick={()=>setRetryKey((value)=>value+1)}><FiRefreshCw/> Tentar novamente</button></section>
         : filtered.length === 0 ? <section className="plat-discovery__empty"><div><FiSearch/></div><h2>Nenhum restaurante encontrado</h2><p>Tente outro nome, cidade ou categoria.</p>{hasFilters && <button type="button" onClick={clearFilters}>Limpar filtros</button>}</section>
         : <section className="plat-discovery__grid">{filtered.map((r)=>{const cover=imageUrl(r.background);const logo=imageUrl(r.logo);const name=restaurantName(r);const location=[r.city,r.uf].filter(Boolean).join(" • ");return <Link to={`/establishment/view/${r.slug}`} className="plat-restaurant-card" key={r.id} aria-label={`${name}${location ? `, ${location}` : ""}. Ver cardápio`}><div className={`plat-restaurant-card__cover${cover?" has-image":""}`} style={cover?{backgroundImage:`url("${cover.replace(/"/g, "%22")}")`}:undefined}><span className="plat-restaurant-card__category">{categoryName(r)}</span><span className="plat-restaurant-card__open-label">Ver cardápio</span></div><div className="plat-restaurant-card__identity"><div className="plat-restaurant-card__logo">{logo?<img src={logo} alt="" loading="lazy" decoding="async"/>:<span>{initials(name)}</span>}</div><div className="plat-restaurant-card__title"><h2>{name}</h2><p>{r.name && r.name!==name?r.name:categoryName(r)}</p></div></div><div className="plat-restaurant-card__body"><div className="plat-restaurant-card__location"><FiMapPin/><span>{location||"Localização não informada"}</span></div><div className="plat-restaurant-card__footer"><span><FiShoppingBag/> Pedir pela Plat</span><i><FiArrowRight/></i></div></div></Link>})}</section>}
+      <section className="plat-discovery__hero" style={{marginTop:"36px",minHeight:"220px"}} aria-labelledby="plat-growth-title">
+        <div className="plat-discovery__hero-copy">
+          <span className="plat-discovery__eyebrow"><FiShoppingBag/> Powered by Plat</span>
+          <h2 id="plat-growth-title" style={{margin:"12px 0",fontSize:"clamp(1.8rem,4vw,3.2rem)",letterSpacing:"-.045em"}}>Tem um bar, restaurante ou negócio de alimentação?</h2>
+          <p>Crie seu cardápio digital, organize seus itens e comece a receber pedidos pela Plat. Conheça os planos e coloque seu negócio online sem depender de catálogo manual no WhatsApp.</p>
+        </div>
+        <Link className="plat-discovery__manage" style={{position:"relative",zIndex:1,textDecoration:"none",display:"inline-flex",alignItems:"center",gap:"8px",justifyContent:"center"}} to="/planos?source=restaurant-discovery">Conhecer a Plat <FiArrowRight/></Link>
+      </section>
     </main>
   </div>;
 }
