@@ -227,3 +227,33 @@ textarea{
   .btn,.action-button,.submit-btn{white-space:normal;text-align:center}
   .modal-footer .btn{flex:1 1 100%}
 }
+
+/* Plat brand logo: always circular */
+.plat-sidebar__brand img,
+.plat-mobile-bar__brand img,
+.plat-public-nav__brand img,
+.plat-home-brand img,
+.plat-home-final img,
+.plat-auth__logo,
+.plat-auth__logo-wrap,
+.plat-auth__mobile-brand img,
+.plat-discovery__brand img,
+.plat-not-found__logo,
+.plat-processing__logo {
+  border-radius:50%!important;
+}
+
+.plat-sidebar__brand img,
+.plat-mobile-bar__brand img,
+.plat-public-nav__brand img,
+.plat-home-brand img,
+.plat-home-final img,
+.plat-auth__logo,
+.plat-auth__mobile-brand img,
+.plat-discovery__brand img,
+.plat-not-found__logo,
+.plat-processing__logo {
+  clip-path:circle(50% at 50% 50%);
+  object-fit:cover!important;
+  background:transparent!important;
+}
