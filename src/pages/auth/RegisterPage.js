@@ -6,6 +6,31 @@ import { apiBaseUrl } from "../../config";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import AuthShell from "../../components/auth/AuthShell";
 
+const safeInternalPath = (value) => {
+  if (!value || typeof value !== "string") return "";
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "";
+  try {
+    const parsed = new URL(value, window.location.origin);
+    return parsed.origin === window.location.origin ? `${parsed.pathname}${parsed.search}${parsed.hash}` : "";
+  } catch {
+    return "";
+  }
+};
+
+const postRegisterLoginTarget = () => {
+  const params = new URLSearchParams(window.location.search);
+  const explicitRedirect = safeInternalPath(params.get("redirect"));
+  if (explicitRedirect) return `/login?redirect=${encodeURIComponent(explicitRedirect)}`;
+
+  const plan = String(params.get("plan") || "").trim();
+  if (/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(plan)) {
+    const resumePath = `/planos?plan=${encodeURIComponent(plan)}&resume=1`;
+    return `/login?redirect=${encodeURIComponent(resumePath)}`;
+  }
+
+  return "/login";
+};
+
 class RegisterPage extends Component {
   constructor(props) {
     super(props);
@@ -52,7 +77,7 @@ class RegisterPage extends Component {
         confirmButtonText: "Ok",
         iconColor: "#28a745",
         customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" },
-      }).then(() => { window.location.href = "/login"; });
+      }).then(() => { window.location.href = postRegisterLoginTarget(); });
     } catch (error) {
       let errorMessages = "";
       if (error.response?.data?.errors) {
