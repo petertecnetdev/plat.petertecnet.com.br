@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SubscriptionPlanService from "../services/SubscriptionPlanService";
-import { createSubscriptionIntent } from "../services/subscriptionIntent";
+import {
+  createSubscriptionIntent,
+  createSubscriptionPixCheckout,
+  syncSubscriptionPayment,
+} from "../services/subscriptionIntent";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const DEFAULT_SOURCE = "subscription_plans";
@@ -32,6 +36,10 @@ export default function SubscriptionPlansPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submittingPlan, setSubmittingPlan] = useState("");
+  const [checkout, setCheckout] = useState(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +58,8 @@ export default function SubscriptionPlansPage() {
     const planCode = String(plan?.code || "").trim();
     if (!/^[a-z0-9_-]{1,80}$/i.test(planCode)) return;
 
+    setError("");
+    setPaymentMessage("");
     setSubmittingPlan(planCode);
 
     const priceCents = Number.isFinite(Number(plan?.price_cents))
@@ -73,37 +83,83 @@ export default function SubscriptionPlansPage() {
 
     localStorage.setItem("pending_subscription_plan", JSON.stringify(pendingPlan));
 
-    if (localStorage.getItem("token")) {
-      const intent = await createSubscriptionIntent({
-        planCode,
-        priceCents,
-        currency,
-        source: pendingPlan.source,
-        referral: pendingPlan.referral,
-        campaign: pendingPlan.campaign,
-        handoff: pendingPlan.handoff,
-        page: window.location.pathname,
-      });
-
-      if (intent?.id) {
-        localStorage.setItem(
-          "pending_subscription_plan",
-          JSON.stringify({
-            ...pendingPlan,
-            intent_id: intent.id,
-            intent_status: intent.status,
-            price_cents: intent.price_cents ?? priceCents,
-            currency: intent.currency || currency,
-          })
-        );
-      }
+    if (!localStorage.getItem("token")) {
+      window.location.assign(`/register?plan=${encodeURIComponent(planCode)}`);
+      return;
     }
 
-    const target = localStorage.getItem("token")
-      ? `/dashboard?plan=${encodeURIComponent(planCode)}`
-      : `/register?plan=${encodeURIComponent(planCode)}`;
-    window.location.assign(target);
+    const intent = await createSubscriptionIntent({
+      planCode,
+      priceCents,
+      currency,
+      source: pendingPlan.source,
+      referral: pendingPlan.referral,
+      campaign: pendingPlan.campaign,
+      handoff: pendingPlan.handoff,
+      page: window.location.pathname,
+    });
+
+    if (!intent?.id) {
+      setError("Não foi possível iniciar a contratação agora. Tente novamente.");
+      setSubmittingPlan("");
+      return;
+    }
+
+    localStorage.setItem(
+      "pending_subscription_plan",
+      JSON.stringify({
+        ...pendingPlan,
+        intent_id: intent.id,
+        intent_status: intent.status,
+        price_cents: intent.price_cents ?? priceCents,
+        currency: intent.currency || currency,
+      })
+    );
+
+    const paymentCheckout = await createSubscriptionPixCheckout(intent.id);
+    if (!paymentCheckout?.payment?.pix?.qr_code) {
+      setError("Não foi possível gerar o PIX agora. Nenhuma cobrança foi confirmada; tente novamente.");
+      setSubmittingPlan("");
+      return;
+    }
+
+    setCheckout({ ...paymentCheckout, planName: intent.plan_name || plan.name });
+    setSubmittingPlan("");
   };
+
+  const copyPix = async () => {
+    const code = checkout?.payment?.pix?.qr_code;
+    if (!code) return;
+
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const confirmPayment = async () => {
+    const intentId = checkout?.intent?.id;
+    if (!intentId || confirmingPayment) return;
+
+    setConfirmingPayment(true);
+    setPaymentMessage("Confirmando pagamento…");
+    const status = await syncSubscriptionPayment(intentId);
+    const active = status?.subscription?.status === "active" && status?.entitlement?.status === "active";
+
+    if (active) {
+      localStorage.removeItem("pending_subscription_plan");
+      setPaymentMessage("Pagamento confirmado. Seu plano está ativo.");
+      window.location.assign("/dashboard?subscription=active");
+      return;
+    }
+
+    setPaymentMessage("O PIX ainda não foi confirmado. Se você acabou de pagar, tente novamente em alguns segundos.");
+    setConfirmingPayment(false);
+  };
+
+  const qrCodeBase64 = checkout?.payment?.pix?.qr_code_base64;
 
   return (
     <main className="container py-5">
@@ -118,7 +174,36 @@ export default function SubscriptionPlansPage() {
       {loading && <div className="text-center py-5">Carregando planos…</div>}
       {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
-      {!loading && !error && (
+      {checkout && (
+        <section className="card shadow-sm border-primary mx-auto mb-5" style={{ maxWidth: 620 }}>
+          <div className="card-body p-4 p-md-5 text-center">
+            <span className="badge text-bg-success mb-3">Checkout seguro</span>
+            <h2 className="h3 fw-bold">Pague seu plano {checkout.planName} por PIX</h2>
+            <p className="text-body-secondary">
+              A liberação é automática após a confirmação do pagamento.
+            </p>
+            {qrCodeBase64 && (
+              <img
+                src={`data:image/png;base64,${qrCodeBase64}`}
+                alt="QR Code PIX da assinatura Plat"
+                className="img-fluid border rounded p-2 bg-white my-3"
+                style={{ width: 260, height: 260, objectFit: "contain" }}
+              />
+            )}
+            <div className="d-grid gap-2 mt-3">
+              <button type="button" className="btn btn-outline-primary" onClick={copyPix}>
+                {copied ? "Código PIX copiado" : "Copiar código PIX"}
+              </button>
+              <button type="button" className="btn btn-success" disabled={confirmingPayment} onClick={confirmPayment}>
+                {confirmingPayment ? "Confirmando…" : "Já paguei — confirmar agora"}
+              </button>
+            </div>
+            {paymentMessage && <p className="small mt-3 mb-0">{paymentMessage}</p>}
+          </div>
+        </section>
+      )}
+
+      {!loading && !error && !checkout && (
         <div className="row g-4 justify-content-center">
           {plans.map((plan) => (
             <div className="col-12 col-md-6 col-xl-4" key={plan.id || plan.code}>
@@ -139,7 +224,7 @@ export default function SubscriptionPlansPage() {
                     disabled={Boolean(submittingPlan)}
                     onClick={() => choosePlan(plan)}
                   >
-                    {submittingPlan === plan.code ? "Preparando contratação…" : `Escolher ${plan.name}`}
+                    {submittingPlan === plan.code ? "Gerando PIX…" : `Assinar ${plan.name} com PIX`}
                   </button>
                 </div>
               </section>
