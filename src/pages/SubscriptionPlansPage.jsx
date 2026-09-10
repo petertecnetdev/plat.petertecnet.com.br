@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import SubscriptionPlanService from "../services/SubscriptionPlanService";
 import {
   createSubscriptionIntent,
@@ -40,6 +40,7 @@ export default function SubscriptionPlansPage() {
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
   const [copied, setCopied] = useState(false);
+  const autoCheckoutStartedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -62,70 +63,91 @@ export default function SubscriptionPlansPage() {
     setPaymentMessage("");
     setSubmittingPlan(planCode);
 
-    const priceCents = Number.isFinite(Number(plan?.price_cents))
-      ? Number(plan.price_cents)
-      : Number.isFinite(Number(plan?.price))
-        ? Math.round(Number(plan.price) * 100)
-        : null;
-    const currency = plan?.currency || "BRL";
-    const attribution = getSubscriptionAttribution();
-    const pendingPlan = {
-      application: "plat",
-      plan: planCode,
-      price_cents: priceCents,
-      currency,
-      selected_at: new Date().toISOString(),
-      source: attribution.source,
-      referral: attribution.referral || undefined,
-      campaign: attribution.campaign || undefined,
-      handoff: "app",
-    };
+    try {
+      const priceCents = Number.isFinite(Number(plan?.price_cents))
+        ? Number(plan.price_cents)
+        : Number.isFinite(Number(plan?.price))
+          ? Math.round(Number(plan.price) * 100)
+          : null;
+      const currency = plan?.currency || "BRL";
+      const attribution = getSubscriptionAttribution();
+      const pendingPlan = {
+        application: "plat",
+        plan: planCode,
+        price_cents: priceCents,
+        currency,
+        selected_at: new Date().toISOString(),
+        source: attribution.source,
+        referral: attribution.referral || undefined,
+        campaign: attribution.campaign || undefined,
+        handoff: "app",
+      };
 
-    localStorage.setItem("pending_subscription_plan", JSON.stringify(pendingPlan));
+      localStorage.setItem("pending_subscription_plan", JSON.stringify(pendingPlan));
 
-    if (!localStorage.getItem("token")) {
-      window.location.assign(`/register?plan=${encodeURIComponent(planCode)}`);
-      return;
-    }
+      if (!localStorage.getItem("token")) {
+        window.location.assign(`/register?plan=${encodeURIComponent(planCode)}`);
+        return;
+      }
 
-    const intent = await createSubscriptionIntent({
-      planCode,
-      priceCents,
-      currency,
-      source: pendingPlan.source,
-      referral: pendingPlan.referral,
-      campaign: pendingPlan.campaign,
-      handoff: pendingPlan.handoff,
-      page: window.location.pathname,
-    });
+      const intent = await createSubscriptionIntent({
+        planCode,
+        priceCents,
+        currency,
+        source: pendingPlan.source,
+        referral: pendingPlan.referral,
+        campaign: pendingPlan.campaign,
+        handoff: pendingPlan.handoff,
+        page: window.location.pathname,
+      });
 
-    if (!intent?.id) {
-      setError("Não foi possível iniciar a contratação agora. Tente novamente.");
+      if (!intent?.id) {
+        setError("Não foi possível iniciar a contratação agora. Tente novamente.");
+        return;
+      }
+
+      localStorage.setItem(
+        "pending_subscription_plan",
+        JSON.stringify({
+          ...pendingPlan,
+          intent_id: intent.id,
+          intent_status: intent.status,
+          price_cents: intent.price_cents ?? priceCents,
+          currency: intent.currency || currency,
+        })
+      );
+
+      const paymentCheckout = await createSubscriptionPixCheckout(intent.id);
+      if (!paymentCheckout?.payment?.pix?.qr_code) {
+        setError("Não foi possível gerar o PIX agora. Nenhuma cobrança foi confirmada; tente novamente.");
+        return;
+      }
+
+      setCheckout({ ...paymentCheckout, planName: intent.plan_name || plan.name });
+    } catch {
+      setError("Não foi possível iniciar o checkout agora. Tente novamente.");
+    } finally {
       setSubmittingPlan("");
-      return;
     }
-
-    localStorage.setItem(
-      "pending_subscription_plan",
-      JSON.stringify({
-        ...pendingPlan,
-        intent_id: intent.id,
-        intent_status: intent.status,
-        price_cents: intent.price_cents ?? priceCents,
-        currency: intent.currency || currency,
-      })
-    );
-
-    const paymentCheckout = await createSubscriptionPixCheckout(intent.id);
-    if (!paymentCheckout?.payment?.pix?.qr_code) {
-      setError("Não foi possível gerar o PIX agora. Nenhuma cobrança foi confirmada; tente novamente.");
-      setSubmittingPlan("");
-      return;
-    }
-
-    setCheckout({ ...paymentCheckout, planName: intent.plan_name || plan.name });
-    setSubmittingPlan("");
   };
+
+  useEffect(() => {
+    if (loading || error || checkout || submittingPlan || autoCheckoutStartedRef.current) return;
+    if (!localStorage.getItem("token")) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const shouldResume = params.get("resume") === "1";
+    const source = normalizeAttribution(params.get("source"));
+    const requestedPlan = String(params.get("plan") || "").trim().toLowerCase();
+
+    if (!shouldResume || source !== "upgrade_required" || !requestedPlan) return;
+
+    const plan = plans.find((candidate) => String(candidate?.code || "").trim().toLowerCase() === requestedPlan);
+    if (!plan) return;
+
+    autoCheckoutStartedRef.current = true;
+    choosePlan(plan);
+  }, [loading, error, checkout, submittingPlan, plans]);
 
   const copyPix = async () => {
     const code = checkout?.payment?.pix?.qr_code;
