@@ -41,6 +41,8 @@ export async function createSubscriptionIntent({
   source = SOURCE,
   handoff = "app",
   page,
+  referral = "",
+  campaign = "",
 }) {
   const token = localStorage.getItem("token");
   const normalizedPlanCode = String(planCode || "").trim();
@@ -56,6 +58,8 @@ export async function createSubscriptionIntent({
       client_price_cents: priceCents,
       currency,
       page: page || window.location.pathname,
+      ...(referral ? { referral } : {}),
+      ...(campaign ? { campaign } : {}),
     },
   };
 
