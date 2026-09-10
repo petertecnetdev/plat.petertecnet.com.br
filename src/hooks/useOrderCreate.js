@@ -28,7 +28,6 @@ export default function useOrderCreate() {
   const [estLogo, setEstLogo] = useState("");
   const [orderLines, setOrderLines] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   const [attendantId, setAttendantId] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -93,7 +92,6 @@ export default function useOrderCreate() {
         ) || employers[0] || null;
 
         setProducts(items);
-        setCurrentUser(me);
         setAttendantId(usableAttendant?.id || null);
         setEstId(establishment.id);
         setEstName(String(establishment.name || "").toUpperCase());
@@ -255,11 +253,6 @@ export default function useOrderCreate() {
       );
       return;
     }
-    if (!currentUser?.id) {
-      Swal.fire("Erro", "Sessão inválida. Entre novamente na Plat.", "error");
-      return;
-    }
-
     submittingRef.current = true;
     setSubmitting(true);
     try {
@@ -269,7 +262,6 @@ export default function useOrderCreate() {
         entity_id: Number(estId),
         entity_name: "establishment",
         attendant_id: Number(attendantId),
-        client_id: Number(currentUser.id),
         customer_name: String(form.customer_name).trim(),
         origin: form.origin,
         fulfillment: form.fulfillment,
