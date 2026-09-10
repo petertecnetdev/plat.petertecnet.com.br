@@ -42,6 +42,7 @@ import ServiceRecordViewPage from "./pages/serviceRecord/ServiceRecordViewPage";
 import ReportOrderPage from "./pages/report/ReportOrderPage";
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
 import SeoManager from "./components/SeoManager";
+import PoweredByPlatGrowth from "./components/PoweredByPlatGrowth";
 import { apiV1BaseUrl } from "./config";
 import "./index.css";
 
@@ -115,7 +116,7 @@ const App = () => {
     <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage/>)}/>
     <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage/>)}/>
     <Route path="*" element={<NotFoundPage/>}/>
-  </Routes></Router>;
+  </Routes><PoweredByPlatGrowth/></Router>;
 };
 
 export default App;
