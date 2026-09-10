@@ -7,6 +7,7 @@ import {
   FiExternalLink,
   FiPackage,
   FiPlus,
+  FiShare2,
   FiShoppingBag,
 } from "react-icons/fi";
 import NavlogComponent from "../../../components/NavlogComponent";
@@ -50,6 +51,49 @@ export default function EstablishmentListPage() {
   const handleLogoError = (event) => {
     event.currentTarget.onerror = null;
     event.currentTarget.src = "/images/logo.png";
+  };
+
+  const handleShare = async (establishment) => {
+    const name = establishment.fantasy || establishment.name || "Cardápio";
+    const url = `${window.location.origin}/establishment/view/${encodeURIComponent(establishment.slug)}`;
+    const shareData = {
+      title: `${name} na Plat`,
+      text: `Veja o cardápio de ${name} e faça seu pedido online pela Plat.`,
+      url,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        await Swal.fire({
+          icon: "success",
+          title: "Link copiado",
+          text: "O link público do cardápio está pronto para você compartilhar.",
+          timer: 1800,
+          showConfirmButton: false,
+        });
+        return;
+      }
+
+      await Swal.fire({
+        icon: "info",
+        title: "Compartilhe seu cardápio",
+        text: url,
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error("[Plat] Falha ao compartilhar página pública", error);
+      Swal.fire({
+        icon: "error",
+        title: "Não foi possível compartilhar",
+        text: "Abra a página pública e copie o endereço do navegador.",
+      });
+    }
   };
 
   return (
@@ -127,6 +171,17 @@ export default function EstablishmentListPage() {
                     <FiExternalLink />
                     {establishment.is_published ? "Página pública" : "Pré-visualizar página"}
                   </Link>
+                  {establishment.is_published ? (
+                    <button
+                      type="button"
+                      className="establishment-share-action"
+                      onClick={() => handleShare(establishment)}
+                      aria-label={`Compartilhar cardápio de ${establishment.fantasy || establishment.name}`}
+                    >
+                      <FiShare2 />
+                      Compartilhar cardápio
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
