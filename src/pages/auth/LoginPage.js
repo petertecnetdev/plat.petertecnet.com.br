@@ -34,7 +34,7 @@ const pendingSubscriptionPath = () => {
       return null;
     }
 
-    return `/dashboard?plan=${encodeURIComponent(planCode)}`;
+    return `/planos?plan=${encodeURIComponent(planCode)}&resume=1`;
   } catch {
     localStorage.removeItem(PENDING_PLAN_KEY);
     return null;
