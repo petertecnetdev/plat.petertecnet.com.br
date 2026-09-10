@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SubscriptionPlanService from "../services/SubscriptionPlanService";
+import { createSubscriptionIntent } from "../services/subscriptionIntent";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -7,6 +8,7 @@ export default function SubscriptionPlansPage() {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [submittingPlan, setSubmittingPlan] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -19,14 +21,58 @@ export default function SubscriptionPlansPage() {
 
   const plans = useMemo(() => catalog?.plans ?? [], [catalog]);
 
-  const choosePlan = (plan) => {
-    localStorage.setItem(
-      "pending_subscription_plan",
-      JSON.stringify({ application: "plat", plan: plan.code, selected_at: new Date().toISOString() })
-    );
+  const choosePlan = async (plan) => {
+    if (submittingPlan) return;
+
+    const planCode = String(plan?.code || "").trim();
+    if (!/^[a-z0-9_-]{1,80}$/i.test(planCode)) return;
+
+    setSubmittingPlan(planCode);
+
+    const priceCents = Number.isFinite(Number(plan?.price_cents))
+      ? Number(plan.price_cents)
+      : Number.isFinite(Number(plan?.price))
+        ? Math.round(Number(plan.price) * 100)
+        : null;
+    const currency = plan?.currency || "BRL";
+    const pendingPlan = {
+      application: "plat",
+      plan: planCode,
+      price_cents: priceCents,
+      currency,
+      selected_at: new Date().toISOString(),
+      source: "subscription_plans",
+      handoff: "app",
+    };
+
+    localStorage.setItem("pending_subscription_plan", JSON.stringify(pendingPlan));
+
+    if (localStorage.getItem("token")) {
+      const intent = await createSubscriptionIntent({
+        planCode,
+        priceCents,
+        currency,
+        source: pendingPlan.source,
+        handoff: pendingPlan.handoff,
+      });
+
+      if (intent?.id) {
+        localStorage.setItem(
+          "pending_subscription_plan",
+          JSON.stringify({
+            ...pendingPlan,
+            intent_id: intent.id,
+            intent_status: intent.status,
+            price_cents: intent.price_cents ?? priceCents,
+            currency: intent.currency || currency,
+          })
+        );
+      }
+    }
+
     const target = localStorage.getItem("token")
-      ? `/dashboard?plan=${encodeURIComponent(plan.code)}`
-      : `/register?plan=${encodeURIComponent(plan.code)}`;
+      ? `/dashboard?plan=${encodeURIComponent(planCode)}`
+      : `/register?plan=${encodeURIComponent(planCode)}`;
     window.location.assign(target);
   };
 
@@ -61,9 +107,10 @@ export default function SubscriptionPlansPage() {
                   <button
                     type="button"
                     className={`btn btn-${plan.recommended ? "primary" : "outline-primary"} mt-auto`}
+                    disabled={Boolean(submittingPlan)}
                     onClick={() => choosePlan(plan)}
                   >
-                    Escolher {plan.name}
+                    {submittingPlan === plan.code ? "Preparando contratação…" : `Escolher ${plan.name}`}
                   </button>
                 </div>
               </section>
