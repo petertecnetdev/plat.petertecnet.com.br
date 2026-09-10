@@ -46,6 +46,8 @@ export default function DashboardPage() {
       priceCents: pending.price_cents ?? null,
       currency: pending.currency || "BRL",
       source: pending.source || "subscription_plans",
+      referral: pending.referral || "",
+      campaign: pending.campaign || "",
       handoff: pending.handoff || "app",
       page: window.location.pathname,
     }).then((intent) => {
