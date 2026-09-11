@@ -4,6 +4,62 @@ import { apiV1BaseUrl } from "../config";
 const token = () => localStorage.getItem("token") || "";
 const headers = () => ({ Authorization: `Bearer ${token()}` });
 const orderingRequests = new Map();
+const acquisitionStorageKey = "plat:acquisition-attribution";
+const acquisitionTtlMs = 7 * 24 * 60 * 60 * 1000;
+
+const trimParam = (value, max = 160) => String(value || "").trim().slice(0, max) || null;
+
+const readStoredAcquisitionAttribution = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(acquisitionStorageKey) || "null");
+    const capturedAt = Date.parse(stored?.acquisition_captured_at || "");
+    if (!stored || !Number.isFinite(capturedAt) || Date.now() - capturedAt > acquisitionTtlMs) {
+      sessionStorage.removeItem(acquisitionStorageKey);
+      return null;
+    }
+    return stored;
+  } catch {
+    sessionStorage.removeItem(acquisitionStorageKey);
+    return null;
+  }
+};
+
+const captureAcquisitionAttribution = () => {
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const attribution = {
+    utm_source: trimParam(params.get("utm_source")),
+    utm_medium: trimParam(params.get("utm_medium")),
+    utm_campaign: trimParam(params.get("utm_campaign")),
+    utm_content: trimParam(params.get("utm_content")),
+    utm_term: trimParam(params.get("utm_term")),
+    acquisition_source: trimParam(params.get("source") || params.get("referral") || params.get("ref")),
+    acquisition_landing: trimParam(`${window.location.pathname}${window.location.search}`, 1000),
+    acquisition_captured_at: new Date().toISOString(),
+  };
+
+  const hasAcquisitionSignal = Boolean(
+    attribution.acquisition_source ||
+      attribution.utm_source ||
+      attribution.utm_medium ||
+      attribution.utm_campaign ||
+      attribution.utm_content ||
+      attribution.utm_term
+  );
+
+  if (!hasAcquisitionSignal) return readStoredAcquisitionAttribution();
+
+  try {
+    sessionStorage.setItem(acquisitionStorageKey, JSON.stringify(attribution));
+  } catch {
+    // Checkout must remain usable when browser storage is unavailable.
+  }
+  return attribution;
+};
+
+const checkoutAcquisitionAttribution = () => captureAcquisitionAttribution() || readStoredAcquisitionAttribution();
 
 const asList = (value) => {
   if (Array.isArray(value)) return value;
@@ -127,6 +183,7 @@ const getOwnerPreviewFallback = async (slug) => {
 };
 
 export const getOrdering = async (slug) => {
+  captureAcquisitionAttribution();
   const key = String(slug || "").trim();
   const cached = orderingRequests.get(key);
   if (cached && Date.now() - cached.createdAt < 5000) return cached.promise;
@@ -153,7 +210,11 @@ export const getOrdering = async (slug) => {
 };
 
 export const createCheckout = async (payload) => {
-  const { data } = await axios.post(`${apiV1BaseUrl}/orders`, payload, { headers: headers() });
+  const attribution = payload?.acquisition_attribution || checkoutAcquisitionAttribution();
+  const checkoutPayload = attribution
+    ? { ...payload, acquisition_attribution: attribution }
+    : payload;
+  const { data } = await axios.post(`${apiV1BaseUrl}/orders`, checkoutPayload, { headers: headers() });
   return data?.data || {};
 };
 
