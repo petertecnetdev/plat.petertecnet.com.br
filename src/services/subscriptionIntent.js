@@ -133,20 +133,26 @@ export async function createSubscriptionPixCheckout(intentId) {
 
   const idempotencyKey = getOrCreateSessionKey(checkoutStorageKey(normalizedIntentId));
 
-  try {
-    const { data } = await api.post(
-      `/v1/apps/${APPLICATION}/subscription-intents/${encodeURIComponent(normalizedIntentId)}/checkout`,
-      { method: "pix" },
-      {
-        headers: { "Idempotency-Key": idempotencyKey },
-        timeout: REQUEST_TIMEOUT_MS,
-      }
-    );
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const { data } = await api.post(
+        `/v1/apps/${APPLICATION}/subscription-intents/${encodeURIComponent(normalizedIntentId)}/checkout`,
+        { method: "pix" },
+        {
+          headers: { "Idempotency-Key": idempotencyKey },
+          timeout: REQUEST_TIMEOUT_MS,
+        }
+      );
 
-    return data || null;
-  } catch {
-    return null;
+      return data || null;
+    } catch (error) {
+      const lastAttempt = attempt >= MAX_ATTEMPTS;
+      if (lastAttempt || !shouldRetry(error)) return null;
+      await wait(RETRY_DELAY_MS * attempt);
+    }
   }
+
+  return null;
 }
 
 export async function syncSubscriptionPayment(intentId) {
