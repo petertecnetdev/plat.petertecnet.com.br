@@ -97,8 +97,10 @@ export default function SubscriptionPlansPage() {
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copyMessage, setCopyMessage] = useState("");
   const autoCheckoutStartedRef = useRef(false);
   const paymentSyncInFlightRef = useRef(false);
+  const pixCodeRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -147,6 +149,8 @@ export default function SubscriptionPlansPage() {
 
     setError("");
     setPaymentMessage("");
+    setCopied(false);
+    setCopyMessage("");
     setSubmittingPlan(planCode);
 
     try {
@@ -263,11 +267,42 @@ export default function SubscriptionPlansPage() {
     const code = checkout?.payment?.pix?.qr_code;
     if (!code) return;
 
+    setCopied(false);
+    setCopyMessage("");
+
     try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("clipboard-unavailable");
+      }
+
       await navigator.clipboard.writeText(code);
       setCopied(true);
+      setCopyMessage("Código PIX copiado. Abra seu banco e cole no PIX Copia e Cola.");
+      return;
+    } catch {
+      // Browsers, PWAs and WebViews may deny the async Clipboard API.
+    }
+
+    try {
+      const field = pixCodeRef.current;
+      if (field) {
+        field.focus();
+        field.select();
+        field.setSelectionRange?.(0, field.value.length);
+      }
+
+      const copiedWithFallback = typeof document.execCommand === "function"
+        && document.execCommand("copy");
+
+      setCopied(Boolean(copiedWithFallback));
+      setCopyMessage(
+        copiedWithFallback
+          ? "Código PIX copiado. Abra seu banco e cole no PIX Copia e Cola."
+          : "Não foi possível copiar automaticamente. O código ficou selecionado para você copiar manualmente."
+      );
     } catch {
       setCopied(false);
+      setCopyMessage("Não foi possível copiar automaticamente. Selecione o código abaixo e copie manualmente.");
     }
   };
 
@@ -358,6 +393,7 @@ export default function SubscriptionPlansPage() {
   }, [checkout, checkPaymentStatus]);
 
   const qrCodeBase64 = checkout?.payment?.pix?.qr_code_base64;
+  const pixCode = checkout?.payment?.pix?.qr_code || "";
 
   return (
     <main className="container py-5">
@@ -388,6 +424,21 @@ export default function SubscriptionPlansPage() {
                 style={{ width: 260, height: 260, objectFit: "contain" }}
               />
             )}
+            <div className="text-start mt-3">
+              <label htmlFor="subscription-pix-code" className="form-label small text-body-secondary mb-1">
+                PIX Copia e Cola
+              </label>
+              <textarea
+                id="subscription-pix-code"
+                ref={pixCodeRef}
+                className="form-control font-monospace"
+                rows={3}
+                readOnly
+                value={pixCode}
+                aria-label="Código PIX Copia e Cola"
+                onFocus={(event) => event.currentTarget.select()}
+              />
+            </div>
             <div className="d-grid gap-2 mt-3">
               <button type="button" className="btn btn-outline-primary" onClick={copyPix}>
                 {copied ? "Código PIX copiado" : "Copiar código PIX"}
@@ -401,6 +452,11 @@ export default function SubscriptionPlansPage() {
                 {confirmingPayment ? "Confirmando…" : "Já paguei — verificar agora"}
               </button>
             </div>
+            {copyMessage && (
+              <p className={`small mt-2 mb-0 ${copied ? "text-success" : "text-body-secondary"}`} aria-live="polite">
+                {copyMessage}
+              </p>
+            )}
             {paymentMessage && <p className="small mt-3 mb-0">{paymentMessage}</p>}
           </div>
         </section>
