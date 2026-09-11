@@ -24,7 +24,7 @@ const postRegisterLoginTarget = () => {
 
   const plan = String(params.get("plan") || "").trim();
   if (/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(plan)) {
-    const resumePath = `/planos?plan=${encodeURIComponent(plan)}&resume=1`;
+    const resumePath = `/planos?plan=${encodeURIComponent(plan)}&resume=1&source=signup_resume`;
     return `/login?redirect=${encodeURIComponent(resumePath)}`;
   }
 
@@ -34,13 +34,7 @@ const postRegisterLoginTarget = () => {
 class RegisterPage extends Component {
   constructor(props) {
     super(props);
-    this.state = {
-      first_name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      loading: false,
-    };
+    this.state = { first_name: "", email: "", password: "", confirmPassword: "", loading: false };
   }
 
   onChangeFirstName = (e) => this.setState({ first_name: e.target.value });
@@ -53,31 +47,16 @@ class RegisterPage extends Component {
     const { first_name, email, password, confirmPassword } = this.state;
 
     if (password !== confirmPassword) {
-      Swal.fire({
-        title: "Erro!",
-        text: "As senhas não coincidem. Por favor, tente novamente.",
-        icon: "error",
-        confirmButtonText: "Ok",
-        iconColor: "#dc3545",
-        customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" },
-      });
+      Swal.fire({ title: "Erro!", text: "As senhas não coincidem. Por favor, tente novamente.", icon: "error", confirmButtonText: "Ok", iconColor: "#dc3545", customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" } });
       return;
     }
 
     this.setState({ loading: true });
-
     try {
       const response = await axios.post(`${apiBaseUrl}/auth/register`, { first_name, email, password });
       const modalMessage = response?.data?.message || "Registro bem-sucedido";
-
-      Swal.fire({
-        title: "Sucesso!",
-        text: modalMessage,
-        icon: "success",
-        confirmButtonText: "Ok",
-        iconColor: "#28a745",
-        customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" },
-      }).then(() => { window.location.href = postRegisterLoginTarget(); });
+      Swal.fire({ title: "Sucesso!", text: modalMessage, icon: "success", confirmButtonText: "Ok", iconColor: "#28a745", customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" } })
+        .then(() => { window.location.href = postRegisterLoginTarget(); });
     } catch (error) {
       let errorMessages = "";
       if (error.response?.data?.errors) {
@@ -88,15 +67,7 @@ class RegisterPage extends Component {
       } else {
         errorMessages = error.response?.data?.message || "Erro desconhecido ao tentar se registrar.";
       }
-
-      Swal.fire({
-        title: "Erro!",
-        text: errorMessages,
-        icon: "error",
-        confirmButtonText: "Ok",
-        iconColor: "#dc3545",
-        customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" },
-      });
+      Swal.fire({ title: "Erro!", text: errorMessages, icon: "error", confirmButtonText: "Ok", iconColor: "#dc3545", customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" } });
     } finally {
       this.setState({ loading: false });
     }
@@ -104,38 +75,17 @@ class RegisterPage extends Component {
 
   render() {
     const { loading, first_name, email, password, confirmPassword } = this.state;
-
     return (
       <>
         {loading && <ProcessingIndicatorComponent messages={["Registrando usuário...", "Por favor, aguarde..."]} />}
         {!loading && (
-          <AuthShell
-            eyebrow="Nova conta"
-            title="Comece na Plat"
-            description="Crie sua conta para organizar seus estabelecimentos e centralizar sua operação em um só lugar."
-            footer={(
-              <>
-                <p>Já possui uma conta? <a href="/login">Entrar</a></p>
-                <p>Esqueceu sua senha? <a href="/password-email">Recuperar senha</a></p>
-              </>
-            )}
-          >
+          <AuthShell eyebrow="Nova conta" title="Comece na Plat" description="Crie sua conta para organizar seus estabelecimentos e centralizar sua operação em um só lugar." footer={<><p>Já possui uma conta? <a href="/login">Entrar</a></p><p>Esqueceu sua senha? <a href="/password-email">Recuperar senha</a></p></>}>
             <Form onSubmit={this.onSubmit} className="form-container">
-              <Form.Group className="form-group">
-                <Form.Control type="text" placeholder="Seu nome" onChange={this.onChangeFirstName} value={first_name} required />
-              </Form.Group>
-              <Form.Group className="form-group">
-                <Form.Control type="email" placeholder="Seu e-mail" onChange={this.onChangeEmail} value={email} required />
-              </Form.Group>
-              <Form.Group className="form-group">
-                <Form.Control type="password" placeholder="Crie uma senha" onChange={this.onChangePassword} value={password} required />
-              </Form.Group>
-              <Form.Group className="form-group">
-                <Form.Control type="password" placeholder="Confirme sua senha" onChange={this.onChangeConfirmPassword} value={confirmPassword} required />
-              </Form.Group>
-              <Button type="submit" disabled={loading} className="submit-btn">
-                Criar minha conta
-              </Button>
+              <Form.Group className="form-group"><Form.Control type="text" placeholder="Seu nome" onChange={this.onChangeFirstName} value={first_name} required /></Form.Group>
+              <Form.Group className="form-group"><Form.Control type="email" placeholder="Seu e-mail" onChange={this.onChangeEmail} value={email} required /></Form.Group>
+              <Form.Group className="form-group"><Form.Control type="password" placeholder="Crie uma senha" onChange={this.onChangePassword} value={password} required /></Form.Group>
+              <Form.Group className="form-group"><Form.Control type="password" placeholder="Confirme sua senha" onChange={this.onChangeConfirmPassword} value={confirmPassword} required /></Form.Group>
+              <Button type="submit" disabled={loading} className="submit-btn">Criar minha conta</Button>
             </Form>
           </AuthShell>
         )}
