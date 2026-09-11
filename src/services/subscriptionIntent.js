@@ -54,6 +54,22 @@ export function getSubscriptionIntentIdempotencyKey(planCode) {
   return getOrCreateSessionKey(storageKey(planCode));
 }
 
+export async function getRecoverableSubscriptionIntent() {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const { data } = await api.get(
+      `/v1/apps/${APPLICATION}/subscription-intents/recoverable`,
+      { timeout: REQUEST_TIMEOUT_MS }
+    );
+
+    return data?.data || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createSubscriptionIntent({
   planCode,
   priceCents = null,
