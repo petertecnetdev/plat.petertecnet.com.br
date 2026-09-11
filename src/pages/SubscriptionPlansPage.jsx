@@ -9,6 +9,7 @@ import {
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const DEFAULT_SOURCE = "subscription_plans";
 const MAX_ATTRIBUTION_LENGTH = 80;
+const AUTO_RESUME_SOURCES = new Set(["upgrade_required", "signup_resume"]);
 
 const normalizeAttribution = (value, fallback = "") => {
   const normalized = String(value || "")
@@ -140,7 +141,7 @@ export default function SubscriptionPlansPage() {
     const source = normalizeAttribution(params.get("source"));
     const requestedPlan = String(params.get("plan") || "").trim().toLowerCase();
 
-    if (!shouldResume || source !== "upgrade_required" || !requestedPlan) return;
+    if (!shouldResume || !AUTO_RESUME_SOURCES.has(source) || !requestedPlan) return;
 
     const plan = plans.find((candidate) => String(candidate?.code || "").trim().toLowerCase() === requestedPlan);
     if (!plan) return;
