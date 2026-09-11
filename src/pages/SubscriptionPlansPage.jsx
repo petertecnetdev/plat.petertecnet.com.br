@@ -10,6 +10,8 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const DEFAULT_SOURCE = "subscription_plans";
 const MAX_ATTRIBUTION_LENGTH = 80;
 const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTO_PAYMENT_SYNC_INTERVAL_MS = 10000;
+const AUTO_PAYMENT_SYNC_MAX_ATTEMPTS = 18;
 const AUTO_RESUME_SOURCES = new Set(["upgrade_required", "signup_resume", "payment_recovery"]);
 
 const normalizeAttribution = (value, fallback = "") => {
@@ -74,6 +76,7 @@ export default function SubscriptionPlansPage() {
   const [paymentMessage, setPaymentMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const autoCheckoutStartedRef = useRef(false);
+  const paymentSyncInFlightRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -218,25 +221,62 @@ export default function SubscriptionPlansPage() {
     }
   };
 
-  const confirmPayment = async () => {
+  const checkPaymentStatus = useCallback(async ({ manual = false } = {}) => {
     const intentId = checkout?.intent?.id;
-    if (!intentId || confirmingPayment) return;
+    if (!intentId || paymentSyncInFlightRef.current) return false;
 
-    setConfirmingPayment(true);
-    setPaymentMessage("Confirmando pagamento…");
-    const status = await syncSubscriptionPayment(intentId);
-    const active = status?.subscription?.status === "active" && status?.entitlement?.status === "active";
-
-    if (active) {
-      localStorage.removeItem("pending_subscription_plan");
-      setPaymentMessage("Pagamento confirmado. Seu plano está ativo.");
-      window.location.assign("/dashboard?subscription=active");
-      return;
+    paymentSyncInFlightRef.current = true;
+    if (manual) {
+      setConfirmingPayment(true);
+      setPaymentMessage("Confirmando pagamento…");
     }
 
-    setPaymentMessage("O PIX ainda não foi confirmado. Se você acabou de pagar, tente novamente em alguns segundos.");
-    setConfirmingPayment(false);
-  };
+    try {
+      const status = await syncSubscriptionPayment(intentId);
+      const active = status?.subscription?.status === "active" && status?.entitlement?.status === "active";
+
+      if (active) {
+        localStorage.removeItem("pending_subscription_plan");
+        setPaymentMessage("Pagamento confirmado. Seu plano está ativo.");
+        window.location.assign("/dashboard?subscription=active");
+        return true;
+      }
+
+      setPaymentMessage(
+        manual
+          ? "O PIX ainda não foi confirmado. Se você acabou de pagar, a Plat continuará verificando automaticamente."
+          : "Aguardando a confirmação automática do PIX…"
+      );
+      return false;
+    } finally {
+      paymentSyncInFlightRef.current = false;
+      if (manual) setConfirmingPayment(false);
+    }
+  }, [checkout]);
+
+  useEffect(() => {
+    const intentId = checkout?.intent?.id;
+    if (!intentId) return undefined;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const sync = async () => {
+      if (cancelled || document.hidden || attempts >= AUTO_PAYMENT_SYNC_MAX_ATTEMPTS) return;
+      attempts += 1;
+      const activated = await checkPaymentStatus();
+      if (activated) cancelled = true;
+    };
+
+    setPaymentMessage("A Plat confirmará seu PIX automaticamente assim que o pagamento for identificado.");
+    sync();
+    const intervalId = window.setInterval(sync, AUTO_PAYMENT_SYNC_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [checkout, checkPaymentStatus]);
 
   const qrCodeBase64 = checkout?.payment?.pix?.qr_code_base64;
 
@@ -273,8 +313,13 @@ export default function SubscriptionPlansPage() {
               <button type="button" className="btn btn-outline-primary" onClick={copyPix}>
                 {copied ? "Código PIX copiado" : "Copiar código PIX"}
               </button>
-              <button type="button" className="btn btn-success" disabled={confirmingPayment} onClick={confirmPayment}>
-                {confirmingPayment ? "Confirmando…" : "Já paguei — confirmar agora"}
+              <button
+                type="button"
+                className="btn btn-success"
+                disabled={confirmingPayment}
+                onClick={() => checkPaymentStatus({ manual: true })}
+              >
+                {confirmingPayment ? "Confirmando…" : "Já paguei — verificar agora"}
               </button>
             </div>
             {paymentMessage && <p className="small mt-3 mb-0">{paymentMessage}</p>}
