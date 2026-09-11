@@ -26,6 +26,7 @@ async function main() {
 
   const urls = [
     { loc: `${SITE_URL}/`, priority: "1.0", changefreq: "weekly" },
+    { loc: `${SITE_URL}/cardapio-digital`, priority: "1.0", changefreq: "weekly" },
     { loc: `${SITE_URL}/restaurants`, priority: "0.9", changefreq: "daily" },
     ...restaurants.filter((item) => item?.slug).map((item) => ({ loc: `${SITE_URL}/establishment/view/${encodeURIComponent(item.slug)}`, priority: "0.8", changefreq: "daily" })),
   ];
