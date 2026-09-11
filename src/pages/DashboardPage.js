@@ -5,7 +5,7 @@ import { FiArrowRight, FiBarChart2, FiBriefcase, FiClipboard, FiDollarSign, FiEd
 import NavlogComponent from "../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, getDashboardSummary } from "../services/platCommerceApi";
-import { createSubscriptionIntent } from "../services/subscriptionIntent";
+import { createSubscriptionIntent, getRecoverableSubscriptionIntent } from "../services/subscriptionIntent";
 import { storageUrl } from "../config";
 import "./Dashboard.css";
 
@@ -28,6 +28,25 @@ const readPendingSubscription = () => {
   }
 };
 
+const pendingFromIntent = (intent) => {
+  const plan = String(intent?.plan_code || "").trim().toLowerCase();
+  if (!intent?.id || intent?.application !== "plat" || !/^[a-z0-9_-]{1,80}$/i.test(plan)) return null;
+
+  return {
+    application: "plat",
+    plan,
+    intent_id: intent.id,
+    intent_status: intent.status,
+    price_cents: intent.price_cents ?? null,
+    currency: intent.currency || "BRL",
+    source: intent.source || "subscription_plans",
+    handoff: intent.handoff_channel || "app",
+    referral: String(intent.metadata?.referral || "").trim(),
+    campaign: String(intent.metadata?.campaign || "").trim(),
+    selected_at: intent.created_at || new Date().toISOString(),
+  };
+};
+
 export default function DashboardPage() {
   const [searchParams] = useSearchParams();
   const planCode = String(searchParams.get("plan") || "").trim();
@@ -42,6 +61,23 @@ export default function DashboardPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const localPending = readPendingSubscription();
+    if (localPending?.intent_id || /^[a-z0-9_-]{1,80}$/i.test(planCode)) return;
+
+    let active = true;
+    getRecoverableSubscriptionIntent().then((intent) => {
+      if (!active) return;
+      const recovered = pendingFromIntent(intent);
+      if (!recovered) return;
+
+      localStorage.setItem("pending_subscription_plan", JSON.stringify(recovered));
+      setPendingSubscription(recovered);
+    });
+
+    return () => { active = false; };
+  }, [planCode]);
 
   useEffect(() => {
     if (!/^[a-z0-9_-]{1,80}$/i.test(planCode)) return;
