@@ -17,6 +17,7 @@ export default function HomePage() {
         <Link to="/" className="plat-home-brand"><img src="/images/logo.png" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
         <nav>
           <Link to="/restaurants">Restaurantes</Link>
+          <Link to="/cardapio-digital?source=plat-home">Cardápio digital</Link>
           <a href="#beneficios">Como funciona</a>
           <Link to="/login" className="plat-home-login">Entrar</Link>
           <Link to="/register" className="plat-home-cta">Sou restaurante</Link>
@@ -74,7 +75,7 @@ export default function HomePage() {
 
         <section className="plat-home-purpose">
           <div><span>Para o restaurante</span><h2>A mesma Plat continua sendo uma ferramenta completa de gestão.</h2></div>
-          <p>Estabelecimentos cadastrados administram itens, pedidos, atendimentos e relatórios em um painel separado da experiência pública do cliente.</p>
+          <p>Estabelecimentos cadastrados administram itens, pedidos, atendimentos e relatórios em um painel separado da experiência pública do cliente. <Link to="/cardapio-digital?source=plat-home-merchant">Veja como criar um cardápio digital e QR Code com a Plat.</Link></p>
         </section>
 
         <section className="plat-home-final">
@@ -85,7 +86,7 @@ export default function HomePage() {
           <div className="plat-home-hero__actions"><Link to="/restaurants" className="plat-home-primary">Explorar restaurantes <FiArrowRight /></Link><Link to="/register" className="plat-home-secondary">Cadastrar restaurante</Link></div>
         </section>
       </main>
-      <footer className="plat-home-footer"><span>© 2026 Peter Tecnet. Plat — clientes e restaurantes conectados.</span><Link to="/restaurants">Ver restaurantes</Link></footer>
+      <footer className="plat-home-footer"><span>© 2026 Peter Tecnet. Plat — clientes e restaurantes conectados.</span><Link to="/cardapio-digital?source=plat-footer">Cardápio digital e QR Code</Link><Link to="/restaurants">Ver restaurantes</Link></footer>
     </div>
   );
 }
