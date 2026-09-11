@@ -46,7 +46,7 @@ export default function PoweredByPlatGrowth() {
         </span>
       </div>
       <Link
-        to={`/cardapio-digital?${query.toString()}`}
+        to={`/register?${query.toString()}`}
         style={{
           textDecoration: "none",
           fontWeight: 800,
@@ -58,7 +58,7 @@ export default function PoweredByPlatGrowth() {
           whiteSpace: "nowrap",
         }}
       >
-        Criar meu cardápio grátis
+        Criar meu cardápio
       </Link>
     </aside>
   );
