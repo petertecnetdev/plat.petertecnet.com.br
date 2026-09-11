@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Swal from "sweetalert2";
-import { FiArrowRight, FiBarChart2, FiBriefcase, FiClipboard, FiDollarSign, FiEdit3, FiPlus, FiSettings, FiShoppingBag, FiTrendingUp } from "react-icons/fi";
+import { FiArrowRight, FiBarChart2, FiBriefcase, FiClipboard, FiDollarSign, FiEdit3, FiExternalLink, FiPlus, FiSettings, FiShare2, FiShoppingBag, FiTrendingUp } from "react-icons/fi";
 import NavlogComponent from "../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, getDashboardSummary } from "../services/platCommerceApi";
@@ -45,6 +45,14 @@ const pendingFromIntent = (intent) => {
     campaign: String(intent.metadata?.campaign || "").trim(),
     selected_at: intent.created_at || new Date().toISOString(),
   };
+};
+
+const publicPagePath = (slug) => `/establishment/view/${encodeURIComponent(String(slug || "").trim())}`;
+const publicShareUrl = (slug) => `${window.location.origin}${publicPagePath(slug)}?source=merchant_share`;
+const whatsappShareUrl = (establishment) => {
+  const name = String(establishment?.fantasy || establishment?.name || "nosso estabelecimento").trim();
+  const message = `Veja o cardápio de ${name} na Plat: ${publicShareUrl(establishment?.slug)}`;
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
 };
 
 export default function DashboardPage() {
@@ -128,7 +136,7 @@ export default function DashboardPage() {
     {recoverablePayment && <section className="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="status"><div><strong>Seu plano ainda está aguardando pagamento.</strong><div className="small mt-1">Continue de onde parou para ativar a assinatura sem iniciar uma nova contratação.</div></div><Link to={recoveryTarget} className="btn btn-dark flex-shrink-0">Continuar pagamento <FiArrowRight/></Link></section>}
     <section className="dashboard-kpis"><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-gold"><FiDollarSign/></span><div><span>Receita de hoje</span><strong>{money(totals.revenue)}</strong><small>Pedidos não cancelados</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-blue"><FiShoppingBag/></span><div><span>Pedidos hoje</span><strong>{totals.orders || 0}</strong><small>Atualizados pela API</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-green"><FiTrendingUp/></span><div><span>Ticket médio</span><strong>{money(totals.average_ticket)}</strong><small>Média de hoje</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-purple"><FiBriefcase/></span><div><span>Estabelecimentos</span><strong>{totals.establishments || 0}</strong><small>Vinculados à Plat</small></div></article></section>
     <section className="dashboard-grid"><div className="dashboard-panel dashboard-panel--establishments"><div className="dashboard-panel__header"><div><span className="dashboard-eyebrow">Operação</span><h2>Estabelecimentos</h2></div><Link to="/establishment">Ver todos <FiArrowRight/></Link></div>
-      {rows.length===0 ? <div className="dashboard-empty"><span><FiBriefcase/></span><h3>Sua operação na Plat começa aqui</h3><p>Cadastre seu primeiro restaurante para começar a vender.</p><Link to="/establishment/create"><FiPlus/> Criar estabelecimento</Link></div> : <div className="dashboard-establishments">{rows.map((row)=>{const est=row.establishment||{};return <article className="dashboard-establishment" key={est.id}><div className="dashboard-establishment__head"><img src={est.logo?`${storageUrl}/${est.logo}`:"/images/logo.png"} alt="" onError={(e)=>{e.currentTarget.src="/images/logo.png"}}/><div><h3>{est.fantasy||est.name}</h3><span>@{est.slug}</span></div></div><div className="dashboard-establishment__numbers"><div><span>Pedidos hoje</span><strong>{row.orders||0}</strong></div><div><span>Receita hoje</span><strong>{money(row.revenue)}</strong></div><div><span>Ticket médio</span><strong>{money(row.average_ticket)}</strong></div></div><div className="dashboard-establishment__actions"><Link to={`/order/list/${est.id}`}><FiShoppingBag/> Pedidos</Link><Link to={`/item/list/${est.slug}`}><FiClipboard/> Itens</Link><Link to={`/report/order/${est.id}`}><FiBarChart2/> Relatório</Link><Link to={`/establishment/${est.id}/ordering-settings`}><FiSettings/> Operação</Link><Link to={`/establishment/update/${est.id}`}><FiEdit3/> Editar</Link></div></article>})}</div>}
+      {rows.length===0 ? <div className="dashboard-empty"><span><FiBriefcase/></span><h3>Sua operação na Plat começa aqui</h3><p>Cadastre seu primeiro restaurante para começar a vender.</p><Link to="/establishment/create"><FiPlus/> Criar estabelecimento</Link></div> : <div className="dashboard-establishments">{rows.map((row)=>{const est=row.establishment||{};return <article className="dashboard-establishment" key={est.id}><div className="dashboard-establishment__head"><img src={est.logo?`${storageUrl}/${est.logo}`:"/images/logo.png"} alt="" onError={(e)=>{e.currentTarget.src="/images/logo.png"}}/><div><h3>{est.fantasy||est.name}</h3><span>@{est.slug}</span></div></div><div className="dashboard-establishment__numbers"><div><span>Pedidos hoje</span><strong>{row.orders||0}</strong></div><div><span>Receita hoje</span><strong>{money(row.revenue)}</strong></div><div><span>Ticket médio</span><strong>{money(row.average_ticket)}</strong></div></div><div className="dashboard-establishment__actions"><Link to={`/order/list/${est.id}`}><FiShoppingBag/> Pedidos</Link><Link to={`/item/list/${est.slug}`}><FiClipboard/> Itens</Link><Link to={publicPagePath(est.slug)}><FiExternalLink/> Página pública</Link><a href={whatsappShareUrl(est)} target="_blank" rel="noreferrer"><FiShare2/> Compartilhar</a><Link to={`/report/order/${est.id}`}><FiBarChart2/> Relatório</Link><Link to={`/establishment/${est.id}/ordering-settings`}><FiSettings/> Operação</Link><Link to={`/establishment/update/${est.id}`}><FiEdit3/> Editar</Link></div></article>})}</div>}
     </div><aside className="dashboard-side"><div className="dashboard-panel dashboard-summary"><span className="dashboard-eyebrow">Produção</span><h2>Fluxo essencial</h2><p>Cardápio → pedido → pagamento → preparo → conclusão. A tela de pedidos atualiza automaticamente.</p></div></aside></section>
   </main></div>;
 }
