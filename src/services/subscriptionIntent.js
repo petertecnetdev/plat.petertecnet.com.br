@@ -1,4 +1,5 @@
 import api from "./api";
+import { trackTelemetryEvent } from "../telemetry";
 
 const APPLICATION = "plat";
 const SOURCE = "subscription_plans";
@@ -25,6 +26,19 @@ const shouldRetry = (error) => {
 
   if (!error?.response) return true;
   return status === 408 || status === 429 || status >= 500;
+};
+
+const httpStatus = (error) => Number(error?.response?.status || 0) || "network";
+
+const trackRevenue = (type, metadata = {}) => {
+  trackTelemetryEvent(type, {
+    label: "Assinatura Plat",
+    target: "subscription",
+    metadata: {
+      application: APPLICATION,
+      ...metadata,
+    },
+  });
 };
 
 const readPendingAttribution = (planCode) => {
@@ -65,10 +79,28 @@ export async function getRecoverableSubscriptionIntent() {
         { timeout: REQUEST_TIMEOUT_MS }
       );
 
-      return data?.data || null;
+      const intent = data?.data || null;
+      if (intent) {
+        trackRevenue("subscription_intent_recovered", {
+          plan: intent.plan_code,
+          status: intent.status,
+          source: intent.source,
+          price_cents: intent.price_cents,
+          attempt,
+        });
+      }
+
+      return intent;
     } catch (error) {
       const lastAttempt = attempt >= MAX_ATTEMPTS;
-      if (lastAttempt || !shouldRetry(error)) return null;
+      if (lastAttempt || !shouldRetry(error)) {
+        trackRevenue("subscription_recovery_failed", {
+          http_status: httpStatus(error),
+          retryable: shouldRetry(error),
+          attempt,
+        });
+        return null;
+      }
       await wait(RETRY_DELAY_MS * attempt);
     }
   }
@@ -122,10 +154,40 @@ export async function createSubscriptionIntent({
         }
       );
 
-      return data?.data || null;
+      const intent = data?.data || null;
+      if (intent) {
+        trackRevenue("subscription_intent_created", {
+          plan: normalizedPlanCode,
+          status: intent.status,
+          source,
+          price_cents: intent.price_cents ?? priceCents,
+          currency: intent.currency || currency,
+          referral: resolvedReferral || undefined,
+          campaign: resolvedCampaign || undefined,
+          attempt,
+        });
+      } else {
+        trackRevenue("subscription_intent_failed", {
+          plan: normalizedPlanCode,
+          source,
+          reason: "empty_response",
+          attempt,
+        });
+      }
+
+      return intent;
     } catch (error) {
       const lastAttempt = attempt >= MAX_ATTEMPTS;
-      if (lastAttempt || !shouldRetry(error)) return null;
+      if (lastAttempt || !shouldRetry(error)) {
+        trackRevenue("subscription_intent_failed", {
+          plan: normalizedPlanCode,
+          source,
+          http_status: httpStatus(error),
+          retryable: shouldRetry(error),
+          attempt,
+        });
+        return null;
+      }
       await wait(RETRY_DELAY_MS * attempt);
     }
   }
@@ -150,10 +212,32 @@ export async function createSubscriptionPixCheckout(intentId) {
         }
       );
 
+      if (data?.payment?.pix?.qr_code) {
+        trackRevenue("subscription_checkout_ready", {
+          method: "pix",
+          status: data?.payment?.status || data?.intent?.status || "ready",
+          attempt,
+        });
+      } else {
+        trackRevenue("subscription_checkout_failed", {
+          method: "pix",
+          reason: "missing_pix_payload",
+          attempt,
+        });
+      }
+
       return data || null;
     } catch (error) {
       const lastAttempt = attempt >= MAX_ATTEMPTS;
-      if (lastAttempt || !shouldRetry(error)) return null;
+      if (lastAttempt || !shouldRetry(error)) {
+        trackRevenue("subscription_checkout_failed", {
+          method: "pix",
+          http_status: httpStatus(error),
+          retryable: shouldRetry(error),
+          attempt,
+        });
+        return null;
+      }
       await wait(RETRY_DELAY_MS * attempt);
     }
   }
@@ -171,6 +255,16 @@ export async function syncSubscriptionPayment(intentId) {
       {},
       { timeout: REQUEST_TIMEOUT_MS }
     );
+
+    const subscriptionStatus = data?.subscription?.status || "";
+    const entitlementStatus = data?.entitlement?.status || "";
+    if (subscriptionStatus === "active" && entitlementStatus === "active") {
+      trackRevenue("subscription_activated", {
+        method: "pix",
+        subscription_status: subscriptionStatus,
+        entitlement_status: entitlementStatus,
+      });
+    }
 
     return data || null;
   } catch (error) {
