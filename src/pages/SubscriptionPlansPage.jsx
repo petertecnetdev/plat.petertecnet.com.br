@@ -3,6 +3,7 @@ import SubscriptionPlanService from "../services/SubscriptionPlanService";
 import {
   createSubscriptionIntent,
   createSubscriptionPixCheckout,
+  getRecoverableSubscriptionIntent,
   syncSubscriptionPayment,
 } from "../services/subscriptionIntent";
 
@@ -41,6 +42,25 @@ const readPendingSubscription = () => {
   }
 };
 
+const pendingFromIntent = (intent) => {
+  const plan = String(intent?.plan_code || "").trim().toLowerCase();
+  if (!intent?.id || intent?.application !== "plat" || !/^[a-z0-9_-]{1,80}$/i.test(plan)) return null;
+
+  return {
+    application: "plat",
+    plan,
+    intent_id: intent.id,
+    intent_status: intent.status,
+    price_cents: intent.price_cents ?? null,
+    currency: intent.currency || "BRL",
+    source: intent.source || DEFAULT_SOURCE,
+    handoff: intent.handoff_channel || "app",
+    referral: String(intent.metadata?.referral || "").trim(),
+    campaign: String(intent.metadata?.campaign || "").trim(),
+    selected_at: intent.created_at || new Date().toISOString(),
+  };
+};
+
 const getSubscriptionAttribution = () => {
   const params = new URLSearchParams(window.location.search);
   const source = normalizeAttribution(params.get("source"), DEFAULT_SOURCE);
@@ -69,6 +89,7 @@ const getResumePlan = () => {
 export default function SubscriptionPlansPage() {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recoveryReady, setRecoveryReady] = useState(false);
   const [error, setError] = useState("");
   const [submittingPlan, setSubmittingPlan] = useState("");
   const [checkout, setCheckout] = useState(null);
@@ -84,6 +105,34 @@ export default function SubscriptionPlansPage() {
       .then((data) => active && setCatalog(data))
       .catch(() => active && setError("Não foi possível carregar os planos agora."))
       .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      setRecoveryReady(true);
+      return undefined;
+    }
+
+    const localPending = readPendingSubscription();
+    if (localPending?.intent_id) {
+      setRecoveryReady(true);
+      return undefined;
+    }
+
+    let active = true;
+    getRecoverableSubscriptionIntent()
+      .then((intent) => {
+        if (!active) return;
+        const recovered = pendingFromIntent(intent);
+        if (recovered) {
+          localStorage.setItem("pending_subscription_plan", JSON.stringify(recovered));
+        }
+      })
+      .finally(() => {
+        if (active) setRecoveryReady(true);
+      });
+
     return () => { active = false; };
   }, []);
 
@@ -194,7 +243,7 @@ export default function SubscriptionPlansPage() {
   }, [submittingPlan]);
 
   useEffect(() => {
-    if (loading || error || checkout || submittingPlan || autoCheckoutStartedRef.current) return;
+    if (!recoveryReady || loading || error || checkout || submittingPlan || autoCheckoutStartedRef.current) return;
     if (!localStorage.getItem("token")) return;
 
     const resumePlanCode = getResumePlan();
@@ -207,7 +256,7 @@ export default function SubscriptionPlansPage() {
 
     autoCheckoutStartedRef.current = true;
     choosePlan(resumePlan);
-  }, [loading, error, checkout, submittingPlan, plans, choosePlan]);
+  }, [recoveryReady, loading, error, checkout, submittingPlan, plans, choosePlan]);
 
   const copyPix = async () => {
     const code = checkout?.payment?.pix?.qr_code;
