@@ -58,16 +58,22 @@ export async function getRecoverableSubscriptionIntent() {
   const token = localStorage.getItem("token");
   if (!token) return null;
 
-  try {
-    const { data } = await api.get(
-      `/v1/apps/${APPLICATION}/subscription-intents/recoverable`,
-      { timeout: REQUEST_TIMEOUT_MS }
-    );
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const { data } = await api.get(
+        `/v1/apps/${APPLICATION}/subscription-intents/recoverable`,
+        { timeout: REQUEST_TIMEOUT_MS }
+      );
 
-    return data?.data || null;
-  } catch {
-    return null;
+      return data?.data || null;
+    } catch (error) {
+      const lastAttempt = attempt >= MAX_ATTEMPTS;
+      if (lastAttempt || !shouldRetry(error)) return null;
+      await wait(RETRY_DELAY_MS * attempt);
+    }
   }
+
+  return null;
 }
 
 export async function createSubscriptionIntent({
