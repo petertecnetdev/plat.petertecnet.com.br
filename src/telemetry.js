@@ -1,5 +1,23 @@
 const SENSITIVE_KEY_PATTERN = /password|token|secret|cookie|card|cpf|document|authorization|code/i
 const TELEMETRY_SCHEMA = "2"
+const PENDING_TELEMETRY_KEY = "__peterTelemetryPending"
+const CUSTOM_TELEMETRY_EVENT = "peter:telemetry"
+
+export function trackTelemetryEvent(type, details = {}) {
+  if (typeof window === "undefined") return
+
+  const event = { type: String(type || "").trim(), details }
+  if (!event.type) return
+
+  if (window.__peterTelemetryStarted) {
+    window.dispatchEvent(new CustomEvent(CUSTOM_TELEMETRY_EVENT, { detail: event }))
+    return
+  }
+
+  const pending = Array.isArray(window[PENDING_TELEMETRY_KEY]) ? window[PENDING_TELEMETRY_KEY] : []
+  pending.push(event)
+  window[PENDING_TELEMETRY_KEY] = pending.slice(-50)
+}
 
 export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => localStorage.getItem("token") }) {
   if (typeof window === "undefined" || window.__peterTelemetryStarted) return () => {}
@@ -42,7 +60,7 @@ export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => lo
 
     queue.push({
       id: createId(),
-      type,
+      type: clean(type, 100),
       timestamp: new Date().toISOString(),
       page: page(),
       label: clean(details.label),
@@ -165,6 +183,12 @@ export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => lo
     })
   }
 
+  function onCustomTelemetry(event) {
+    const type = clean(event.detail?.type, 100)
+    if (!type) return
+    enqueue(type, event.detail?.details || {})
+  }
+
   function onPopState() {
     recordNavigation("popstate")
   }
@@ -193,11 +217,17 @@ export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => lo
   document.addEventListener("click", onClick, true)
   document.addEventListener("submit", onSubmit, true)
   document.addEventListener("change", onChange, true)
+  window.addEventListener(CUSTOM_TELEMETRY_EVENT, onCustomTelemetry)
   window.addEventListener("popstate", onPopState)
   window.addEventListener("error", onError)
   window.addEventListener("unhandledrejection", onRejection)
   window.addEventListener("scroll", onScroll, { passive: true })
   window.addEventListener("pagehide", onPageHide)
+
+  const pendingTelemetry = Array.isArray(window[PENDING_TELEMETRY_KEY])
+    ? window[PENDING_TELEMETRY_KEY].splice(0, 50)
+    : []
+  for (const pendingEvent of pendingTelemetry) onCustomTelemetry({ detail: pendingEvent })
 
   enqueue("session_start", {
     label: "Sessão iniciada",
@@ -218,6 +248,7 @@ export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => lo
     document.removeEventListener("click", onClick, true)
     document.removeEventListener("submit", onSubmit, true)
     document.removeEventListener("change", onChange, true)
+    window.removeEventListener(CUSTOM_TELEMETRY_EVENT, onCustomTelemetry)
     window.removeEventListener("popstate", onPopState)
     window.removeEventListener("error", onError)
     window.removeEventListener("unhandledrejection", onRejection)
