@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { trackTelemetryEvent } from "../telemetry";
 
@@ -85,3 +86,7 @@ export default function PoweredByPlatGrowth({ user = null }) {
     </aside>
   );
 }
+
+PoweredByPlatGrowth.propTypes = {
+  user: PropTypes.object,
+};
