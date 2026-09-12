@@ -19,6 +19,9 @@ export default function PublicRestaurantsPage() {
   const [city, setCity] = useState("all");
   const [category, setCategory] = useState("all");
   const authenticated = Boolean(localStorage.getItem("token"));
+  const restaurantOwnerTarget = authenticated
+    ? "/establishment/create?source=restaurant-discovery"
+    : "/register?source=restaurant-discovery";
 
   useEffect(() => {
     let active = true;
@@ -50,7 +53,7 @@ export default function PublicRestaurantsPage() {
   return <div className="plat-discovery">
     <header className="plat-discovery__nav">
       <Link to="/" className="plat-discovery__brand" aria-label="Plat - página inicial"><img src="/images/logo.png" alt=""/><div><strong>PLAT</strong><span>Restaurantes & pedidos</span></div></Link>
-      <nav className="plat-discovery__nav-actions" aria-label="Navegação principal"><Link to="/">Início</Link>{authenticated && <Link to="/my-orders">Meus pedidos</Link>}<Link to={authenticated ? "/dashboard" : "/login"}>{authenticated ? "Minha conta" : "Entrar"}</Link><Link className="plat-discovery__manage" to={authenticated ? "/establishment" : "/register"}>Sou restaurante</Link></nav>
+      <nav className="plat-discovery__nav-actions" aria-label="Navegação principal"><Link to="/">Início</Link>{authenticated && <Link to="/my-orders">Meus pedidos</Link>}<Link to={authenticated ? "/dashboard" : "/login"}>{authenticated ? "Minha conta" : "Entrar"}</Link><Link className="plat-discovery__manage" to={restaurantOwnerTarget}>Sou restaurante</Link></nav>
     </header>
     <main className="plat-discovery__main" id="conteudo-principal">
       <section className="plat-discovery__hero"><div className="plat-discovery__hero-copy"><span className="plat-discovery__eyebrow"><FiShoppingBag/> Descubra, escolha e peça</span><h1>Seu próximo pedido começa aqui.</h1><p>Explore restaurantes da Plat, escolha seu pedido e acompanhe cada etapa até a conclusão.</p></div><div className="plat-discovery__hero-stat" aria-live="polite"><span>Na Plat agora</span><strong>{loading ? "—" : restaurants.length}</strong><small>{restaurants.length === 1 ? "restaurante" : "restaurantes"}</small></div></section>
