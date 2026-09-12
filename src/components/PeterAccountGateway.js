@@ -3,10 +3,13 @@ import React, { useEffect, useRef } from "react";
 
 const SDK_VERSION = "3.0.0";
 const TELEMETRY_VERSION = "3.3.3";
+const SUBSCRIPTION_VERSION = "1.0.0";
 const SDK_URL = `https://petertecnet.com.br/ecosystem/peter-ecosystem-v3.js?v=${SDK_VERSION}`;
 const TELEMETRY_URL = `https://petertecnet.com.br/ecosystem/peter-telemetry-v3.js?v=${TELEMETRY_VERSION}`;
+const SUBSCRIPTION_URL = `https://petertecnet.com.br/ecosystem/peter-subscriptions-v1.js?v=${SUBSCRIPTION_VERSION}`;
 let sdkPromise;
 let telemetryPromise;
+let subscriptionPromise;
 
 function loadTelemetry(apiBaseUrl, appSlug) {
   if (window.PeterTecnetTelemetry?.version === TELEMETRY_VERSION) {
@@ -60,6 +63,36 @@ function loadSdk() {
     document.head.appendChild(script);
   });
   return sdkPromise;
+}
+
+function loadSubscriptionSdk() {
+  if (window.PeterTecnetSubscriptions?.version === SUBSCRIPTION_VERSION && customElements.get("peter-subscription-gate")) return Promise.resolve();
+  if (subscriptionPromise) return subscriptionPromise;
+  subscriptionPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector("script[data-peter-subscription-sdk]");
+    const ready = () => customElements.get("peter-subscription-gate")
+      ? resolve()
+      : reject(new Error("SDK de assinaturas carregou sem registrar o componente."));
+    if (existing) {
+      if (customElements.get("peter-subscription-gate")) resolve();
+      else {
+        existing.addEventListener("load", ready, { once: true });
+        existing.addEventListener("error", () => reject(new Error("Não foi possível carregar as assinaturas Peter Tecnet.")), { once: true });
+      }
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = SUBSCRIPTION_URL;
+    script.async = true;
+    script.dataset.peterSubscriptionSdk = SUBSCRIPTION_VERSION;
+    script.addEventListener("load", ready, { once: true });
+    script.addEventListener("error", () => reject(new Error("Não foi possível carregar as assinaturas Peter Tecnet.")), { once: true });
+    document.head.appendChild(script);
+  }).catch((error) => {
+    subscriptionPromise = undefined;
+    throw error;
+  });
+  return subscriptionPromise;
 }
 
 function dockLauncherInNavbar(launcher) {
@@ -143,19 +176,23 @@ export default function PeterAccountGateway({ apiBaseUrl, appSlug, children }) {
   useEffect(() => {
     let active = true;
     let launcher = null;
+    let subscriptionGate = null;
     let cleanupDock = null;
     const host = hostRef.current;
     const api = apiBaseUrl || "https://api.petertecnet.com.br/api";
 
     loadTelemetry(api, appSlug || "")
       .catch((error) => console.error("[Peter Tecnet Telemetry]", error))
-      .finally(() => loadSdk().then(() => {
+      .finally(() => Promise.all([loadSdk(), loadSubscriptionSdk()]).then(() => {
         if (!active || !host) return;
         launcher = document.createElement("peter-ecosystem-launcher");
         launcher.setAttribute("api-base", api);
         launcher.setAttribute("app-slug", appSlug || "");
         launcher.setAttribute("sdk-version", SDK_VERSION);
-        host.replaceChildren(launcher);
+        subscriptionGate = document.createElement("peter-subscription-gate");
+        subscriptionGate.setAttribute("api-base", api);
+        subscriptionGate.setAttribute("app-slug", appSlug || "");
+        host.replaceChildren(launcher, subscriptionGate);
         cleanupDock = dockLauncherInNavbar(launcher);
       }).catch((error) => console.error("[Peter Tecnet Ecosystem]", error)));
 
@@ -163,6 +200,7 @@ export default function PeterAccountGateway({ apiBaseUrl, appSlug, children }) {
       active = false;
       cleanupDock?.();
       launcher?.remove();
+      subscriptionGate?.remove();
       host?.replaceChildren();
     };
   }, [apiBaseUrl, appSlug]);
