@@ -1,9 +1,11 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
+import { trackTelemetryEvent } from "../telemetry";
 
 const PUBLIC_MENU_PATH = /^\/establishment\/view\/([^/?#]+)/i;
 
-export default function PoweredByPlatGrowth() {
+export default function PoweredByPlatGrowth({ user = null }) {
   const location = useLocation();
   const match = location.pathname.match(PUBLIC_MENU_PATH);
 
@@ -17,6 +19,26 @@ export default function PoweredByPlatGrowth() {
     utm_medium: "product_badge",
     utm_campaign: "powered_by_plat",
   });
+  const destination = user
+    ? `/establishment/create?${query.toString()}`
+    : `/register?${query.toString()}`;
+
+  const handleConversion = () => {
+    trackTelemetryEvent("plat_powered_by_referral_clicked", {
+      target: destination,
+      label: "Criar meu cardápio",
+      metadata: {
+        placement: "public_menu",
+        destination: user ? "/establishment/create" : "/register",
+        source: "powered-by-plat",
+        ref: slug || null,
+        utm_source: "public_menu",
+        utm_medium: "product_badge",
+        utm_campaign: "powered_by_plat",
+        authenticated: Boolean(user),
+      },
+    });
+  };
 
   return (
     <aside
@@ -46,7 +68,8 @@ export default function PoweredByPlatGrowth() {
         </span>
       </div>
       <Link
-        to={`/register?${query.toString()}`}
+        to={destination}
+        onClick={handleConversion}
         style={{
           textDecoration: "none",
           fontWeight: 800,
@@ -63,3 +86,7 @@ export default function PoweredByPlatGrowth() {
     </aside>
   );
 }
+
+PoweredByPlatGrowth.propTypes = {
+  user: PropTypes.object,
+};
