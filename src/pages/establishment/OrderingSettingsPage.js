@@ -139,6 +139,11 @@ export default function OrderingSettingsPage() {
 
   const save = async () => {
     if (!data.payment_methods?.length) { Swal.fire("Pagamento necessário", "Selecione ao menos uma forma de pagamento.", "warning"); return; }
+    if (onboarding && !data.ordering_enabled) { Swal.fire("Ative os pedidos online", "Para divulgar o cardápio e receber o primeiro pedido, ative Pedidos online.", "warning"); return; }
+    if (onboarding && !data.accepting_orders) { Swal.fire("Comece recebendo pedidos", "Ative Recebendo pedidos agora para que o primeiro cliente consiga finalizar a compra.", "warning"); return; }
+    if (onboarding && !data.delivery_enabled && !data.pickup_enabled && !data.dine_in_enabled) { Swal.fire("Forma de recebimento necessária", "Ative entrega, retirada ou consumo no local antes de divulgar o cardápio.", "warning"); return; }
+    if (onboarding && paymentMethods.has("pix") && !data.mercadopago_configured && !String(data.pix_key || "").trim()) { Swal.fire("Chave Pix necessária", "Informe a chave Pix do estabelecimento para não oferecer Pix sem uma forma válida de pagamento.", "warning"); return; }
+    if (onboarding && !Object.values(data.opening_hours || {}).some((value) => Array.isArray(value) && value.length)) { Swal.fire("Horário necessário", "Abra pelo menos um dia da semana para que clientes consigam fazer pedidos.", "warning"); return; }
     setSaving(true);
     try {
       const opening_hours = Object.fromEntries(Object.entries(data.opening_hours || {}).filter(([, value]) => Array.isArray(value) && value.length));
