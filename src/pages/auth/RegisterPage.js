@@ -17,6 +17,29 @@ const safeInternalPath = (value) => {
   }
 };
 
+const safeAttributionValue = (value) => {
+  const normalized = String(value || "").trim().slice(0, 80);
+  return /^[a-z0-9._-]+$/i.test(normalized) ? normalized : "";
+};
+
+const acquisitionOnboardingPath = (params) => {
+  const source = safeAttributionValue(params.get("source"));
+  if (!source) return "";
+
+  const query = new URLSearchParams({ source });
+  const referral = safeAttributionValue(params.get("ref") || params.get("referral"));
+  const utmSource = safeAttributionValue(params.get("utm_source"));
+  const utmMedium = safeAttributionValue(params.get("utm_medium"));
+  const utmCampaign = safeAttributionValue(params.get("utm_campaign"));
+
+  if (referral) query.set("ref", referral);
+  if (utmSource) query.set("utm_source", utmSource);
+  if (utmMedium) query.set("utm_medium", utmMedium);
+  if (utmCampaign) query.set("utm_campaign", utmCampaign);
+
+  return `/establishment/create?${query.toString()}`;
+};
+
 const postRegisterLoginTarget = () => {
   const params = new URLSearchParams(window.location.search);
   const explicitRedirect = safeInternalPath(params.get("redirect"));
@@ -27,6 +50,9 @@ const postRegisterLoginTarget = () => {
     const resumePath = `/planos?plan=${encodeURIComponent(plan)}&resume=1&source=signup_resume`;
     return `/login?redirect=${encodeURIComponent(resumePath)}`;
   }
+
+  const acquisitionPath = acquisitionOnboardingPath(params);
+  if (acquisitionPath) return `/login?redirect=${encodeURIComponent(acquisitionPath)}`;
 
   return "/login";
 };
