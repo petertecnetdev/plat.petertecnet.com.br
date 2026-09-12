@@ -4,6 +4,7 @@ import { apiV1BaseUrl } from "../config";
 const token = () => localStorage.getItem("token") || "";
 const headers = () => ({ Authorization: `Bearer ${token()}` });
 const orderingRequests = new Map();
+const checkoutRequests = new Map();
 const acquisitionStorageKey = "plat:acquisition-attribution";
 const acquisitionTtlMs = 7 * 24 * 60 * 60 * 1000;
 
@@ -214,8 +215,17 @@ export const createCheckout = async (payload) => {
   const checkoutPayload = attribution
     ? { ...payload, acquisition_attribution: attribution }
     : payload;
-  const { data } = await axios.post(`${apiV1BaseUrl}/orders`, checkoutPayload, { headers: headers() });
-  return data?.data || {};
+  const requestKey = JSON.stringify(checkoutPayload);
+  const inFlight = checkoutRequests.get(requestKey);
+  if (inFlight) return inFlight;
+
+  const request = axios
+    .post(`${apiV1BaseUrl}/orders`, checkoutPayload, { headers: headers() })
+    .then(({ data }) => data?.data || {})
+    .finally(() => checkoutRequests.delete(requestKey));
+
+  checkoutRequests.set(requestKey, request);
+  return request;
 };
 
 export const getMyOrders = async () => {
