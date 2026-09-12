@@ -7,6 +7,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import axios from "axios";
 import App from "./App";
+import GlobalImageInputEnhancer from "./components/GlobalImageInputEnhancer";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import PeterTecnetSignature from "./components/PeterTecnetSignature";
 import PeterAccountGateway from "./components/PeterAccountGateway";
@@ -36,6 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <PeterAccountGateway apiBaseUrl={apiBaseUrl} appSlug={appSlug}>
         <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
           <App />
+        <GlobalImageInputEnhancer />
           <PeterTecnetSignature />
         </GoogleOAuthProvider>
       </PeterAccountGateway>
