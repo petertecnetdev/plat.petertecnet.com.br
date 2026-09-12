@@ -7,6 +7,8 @@ const orderingRequests = new Map();
 const checkoutRequests = new Map();
 const acquisitionStorageKey = "plat:acquisition-attribution";
 const acquisitionTtlMs = 7 * 24 * 60 * 60 * 1000;
+const checkoutIntentStoragePrefix = "plat:checkout-intent:";
+const checkoutIntentTtlMs = 30 * 60 * 1000;
 
 const trimParam = (value, max = 160) => String(value || "").trim().slice(0, max) || null;
 
@@ -66,6 +68,64 @@ const asList = (value) => {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.data)) return value.data;
   return [];
+};
+
+const hashCheckoutIntent = (value) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+};
+
+const newCheckoutIdempotencyKey = () => {
+  const randomUuid = globalThis.crypto?.randomUUID?.();
+  if (randomUuid) return `plat-order-${randomUuid}`;
+  return `plat-order-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+};
+
+const checkoutIntentFor = (requestKey) => {
+  const storageKey = `${checkoutIntentStoragePrefix}${hashCheckoutIntent(requestKey)}`;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
+      if (
+        stored?.fingerprint === requestKey &&
+        typeof stored?.idempotencyKey === "string" &&
+        stored.idempotencyKey &&
+        Number.isFinite(stored?.createdAt) &&
+        Date.now() - stored.createdAt <= checkoutIntentTtlMs
+      ) {
+        return { storageKey, idempotencyKey: stored.idempotencyKey };
+      }
+      localStorage.removeItem(storageKey);
+    } catch {
+      localStorage.removeItem(storageKey);
+    }
+  }
+
+  const idempotencyKey = newCheckoutIdempotencyKey();
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ fingerprint: requestKey, idempotencyKey, createdAt: Date.now() })
+      );
+    } catch {
+      // Checkout remains functional even when browser storage is unavailable.
+    }
+  }
+  return { storageKey, idempotencyKey };
+};
+
+const clearCheckoutIntent = (intent) => {
+  if (typeof window === "undefined" || !intent?.storageKey) return;
+  try {
+    localStorage.removeItem(intent.storageKey);
+  } catch {
+    // Storage cleanup must never block checkout completion.
+  }
 };
 
 const unavailableOrdering = (reason = "Pedidos online temporariamente indisponíveis.") => ({
@@ -219,9 +279,26 @@ export const createCheckout = async (payload) => {
   const inFlight = checkoutRequests.get(requestKey);
   if (inFlight) return inFlight;
 
+  const intent = checkoutIntentFor(requestKey);
   const request = axios
-    .post(`${apiV1BaseUrl}/orders`, checkoutPayload, { headers: headers() })
-    .then(({ data }) => data?.data || {})
+    .post(`${apiV1BaseUrl}/orders`, checkoutPayload, {
+      headers: { ...headers(), "Idempotency-Key": intent.idempotencyKey },
+    })
+    .then(({ data }) => {
+      clearCheckoutIntent(intent);
+      return data?.data || {};
+    })
+    .catch((error) => {
+      const idempotencyStatus = String(error?.response?.headers?.["idempotency-status"] || "").toLowerCase();
+      const status = Number(error?.response?.status || 0);
+      const shouldPreserveIntent =
+        !status ||
+        idempotencyStatus === "processing" ||
+        status >= 500;
+
+      if (!shouldPreserveIntent) clearCheckoutIntent(intent);
+      throw error;
+    })
     .finally(() => checkoutRequests.delete(requestKey));
 
   checkoutRequests.set(requestKey, request);
