@@ -19,6 +19,7 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const paymentBoxRef = useRef(null);
   const recoveryOpenedRef = useRef(false);
+  const recoveryPendingSeenRef = useRef(false);
   const recoveryPaidRef = useRef(false);
   const recoverySource = new URLSearchParams(location.search).get("recovery_source") || "";
   const isRecovery = recoverySource === "in_app";
@@ -31,6 +32,7 @@ export default function OrderTrackingPage() {
         const next = await getMyOrder(id);
         if (!active) return;
         setOrder(next);
+        const recoveryPayable = isRecovery && next?.status !== "cancelled" && next?.payment_status !== "paid";
 
         if (isRecovery && !recoveryOpenedRef.current) {
           recoveryOpenedRef.current = true;
@@ -42,12 +44,20 @@ export default function OrderTrackingPage() {
               recovery_source: recoverySource,
               payment_method: next?.payment_method || null,
               payment_status: next?.payment_status || null,
+              order_status: next?.status || null,
               amount: Number(next?.total_price || 0),
             },
           });
         }
 
-        if (isRecovery && next?.payment_status === "paid" && !recoveryPaidRef.current) {
+        if (recoveryPayable) recoveryPendingSeenRef.current = true;
+
+        if (
+          isRecovery &&
+          recoveryPendingSeenRef.current &&
+          next?.payment_status === "paid" &&
+          !recoveryPaidRef.current
+        ) {
           recoveryPaidRef.current = true;
           trackTelemetryEvent("plat_checkout_recovery_paid", {
             target: "pix_recovery",
@@ -60,14 +70,14 @@ export default function OrderTrackingPage() {
           });
         }
 
-        if (next?.payment_method === "pix" && next?.payment_status !== "paid") {
+        if (next?.payment_method === "pix" && next?.payment_status !== "paid" && next?.status !== "cancelled") {
           try {
             const nextPayment = await getMyOrderPayment(id);
             if (active) setPayment(nextPayment);
           } catch {
             // O pedido continua sendo acompanhado mesmo se o provedor de pagamento estiver indisponível.
           }
-        } else if (next?.payment_status === "paid") {
+        } else {
           setPayment(null);
         }
       } catch (error) {
@@ -80,9 +90,9 @@ export default function OrderTrackingPage() {
   }, [id, isRecovery, recoverySource]);
 
   useEffect(() => {
-    if (!isRecovery || !payment || order?.payment_status === "paid") return;
+    if (!isRecovery || !payment || order?.payment_status === "paid" || order?.status === "cancelled") return;
     paymentBoxRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
-  }, [isRecovery, order?.payment_status, payment]);
+  }, [isRecovery, order?.payment_status, order?.status, payment]);
 
   const currentIndex = useMemo(() => stages.indexOf(order?.status), [order?.status]);
   const copyPix = async (value, method = "qr_code") => {
@@ -110,13 +120,15 @@ export default function OrderTrackingPage() {
   if (loading) return <ProcessingIndicatorComponent messages={["Carregando seu pedido…"]}/>;
   if (!order) return null;
 
+  const recoveryPayable = isRecovery && order.status !== "cancelled" && order.payment_status !== "paid";
+
   return <div className="plat-customer-orders"><NavlogComponent/><main className="plat-customer-orders__main plat-track">
     <header className="plat-customer-orders__head"><div><span className="plat-customer-orders__eyebrow">Acompanhamento ao vivo</span><h1>Pedido #{order.order_number || order.id}</h1><p>{order.establishment?.fantasy || order.establishment?.name}</p></div><Link to="/my-orders">Todos os pedidos</Link></header>
-    {isRecovery && order.payment_status !== "paid" && <div className="plat-payment-box" role="status"><strong>Finalize seu Pix para confirmar este pedido</strong><p>Você voltou pelo lembrete de pagamento. O código Pix está logo abaixo para concluir sem refazer o pedido.</p></div>}
-    {isRecovery && order.payment_status === "paid" && <div className="plat-payment-box" role="status"><strong>Pagamento confirmado</strong><p>Seu Pix foi confirmado e o pedido segue normalmente.</p></div>}
+    {recoveryPayable && <div className="plat-payment-box" role="status"><strong>Finalize seu Pix para confirmar este pedido</strong><p>Você voltou pelo lembrete de pagamento. O código Pix está logo abaixo para concluir sem refazer o pedido.</p></div>}
+    {isRecovery && order.payment_status === "paid" && <div className="plat-payment-box" role="status"><strong>Pagamento confirmado</strong><p>Seu Pix já está confirmado e o pedido segue normalmente.</p></div>}
     {order.status === "cancelled" ? <div className="plat-payment-box"><strong>Pedido cancelado</strong><p>Este pedido não seguirá para preparo.</p></div> : <div className="plat-track__timeline">{stages.map((stage,index)=><div className={`plat-track__step${index <= currentIndex ? " is-active" : ""}`} key={stage}>{labels[stage]}</div>)}</div>}
     <section className="plat-track__summary"><div className="plat-track__row"><span>Status</span><strong>{labels[order.status] || order.status}</strong></div><div className="plat-track__row"><span>Pagamento</span><strong>{order.payment_status === "paid" ? "Pago" : "Pendente"}</strong></div><div className="plat-track__row"><span>Modalidade</span><strong>{order.fulfillment === "delivery" ? "Entrega" : order.fulfillment === "pickup" ? "Retirada" : "No local"}</strong></div><div className="plat-track__row"><span>Total</span><strong>{money(order.total_price)}</strong></div></section>
-    {payment && order.payment_status !== "paid" && <section className="plat-payment-box" ref={paymentBoxRef}><h2>Pagamento Pix</h2><p>Valor: <strong>{money(payment.amount || order.total_price)}</strong></p>{payment.qr_code_base64 && <img src={`data:image/png;base64,${payment.qr_code_base64}`} alt="QR Code Pix"/>}{payment.qr_code && <><p>Pix copia e cola</p><button type="button" className="btn btn-primary" onClick={()=>copyPix(payment.qr_code, "qr_code")}>Copiar código Pix</button></>}{payment.pix_key && <><p>Chave Pix do restaurante</p><strong style={{wordBreak:"break-all"}}>{payment.pix_key}</strong><div style={{marginTop:12}}><button type="button" className="btn btn-primary" onClick={()=>copyPix(payment.pix_key, "pix_key")}>Copiar chave Pix</button></div></>}{payment.ticket_url && <p><a href={payment.ticket_url} target="_blank" rel="noreferrer">Abrir instruções de pagamento</a></p>}{!payment.qr_code && !payment.pix_key && <p>O Pix está sendo preparado. Esta tela atualiza automaticamente.</p>}</section>}
+    {payment && order.payment_status !== "paid" && order.status !== "cancelled" && <section className="plat-payment-box" ref={paymentBoxRef}><h2>Pagamento Pix</h2><p>Valor: <strong>{money(payment.amount || order.total_price)}</strong></p>{payment.qr_code_base64 && <img src={`data:image/png;base64,${payment.qr_code_base64}`} alt="QR Code Pix"/>}{payment.qr_code && <><p>Pix copia e cola</p><button type="button" className="btn btn-primary" onClick={()=>copyPix(payment.qr_code, "qr_code")}>Copiar código Pix</button></>}{payment.pix_key && <><p>Chave Pix do restaurante</p><strong style={{wordBreak:"break-all"}}>{payment.pix_key}</strong><div style={{marginTop:12}}><button type="button" className="btn btn-primary" onClick={()=>copyPix(payment.pix_key, "pix_key")}>Copiar chave Pix</button></div></>}{payment.ticket_url && <p><a href={payment.ticket_url} target="_blank" rel="noreferrer">Abrir instruções de pagamento</a></p>}{!payment.qr_code && !payment.pix_key && <p>O Pix está sendo preparado. Esta tela atualiza automaticamente.</p>}</section>}
     {order.delivery_address && <section className="plat-track__delivery"><h2>Entrega</h2><p>{order.delivery_address}</p></section>}
     <section className="plat-track__items"><h2>Itens</h2>{(order.items || []).map((item)=><div className="plat-track__row" key={item.id}><span>{item.quantity}× {item.name || "Item"}{item.notes ? <small> · {item.notes}</small> : null}</span><strong>{money(item.subtotal)}</strong></div>)}</section>
   </main></div>;
