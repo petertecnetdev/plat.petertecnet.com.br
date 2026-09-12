@@ -116,7 +116,7 @@ const App = () => {
     <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage/>)}/>
     <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage/>)}/>
     <Route path="*" element={<NotFoundPage/>}/>
-  </Routes><PoweredByPlatGrowth/></Router>;
+  </Routes><PoweredByPlatGrowth user={user}/></Router>;
 };
 
 export default App;
