@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowRight, FiCheckCircle, FiGrid, FiShoppingBag, FiSmartphone, FiTrendingUp } from "react-icons/fi";
+import { trackTelemetryEvent } from "../../telemetry";
 import "../HomePage.css";
 
 const benefits = [
@@ -20,14 +21,18 @@ const ATTRIBUTION_KEYS = [
 ];
 const MAX_ATTRIBUTION_LENGTH = 120;
 
-const buildConversionTarget = (path) => {
+const readAttribution = () => {
   const incoming = new URLSearchParams(window.location.search);
-  const outgoing = new URLSearchParams();
-
-  ATTRIBUTION_KEYS.forEach((key) => {
+  return ATTRIBUTION_KEYS.reduce((result, key) => {
     const value = String(incoming.get(key) || "").trim().slice(0, MAX_ATTRIBUTION_LENGTH);
-    if (value) outgoing.set(key, value);
-  });
+    if (value) result[key] = value;
+    return result;
+  }, {});
+};
+
+const buildConversionTarget = (path) => {
+  const attribution = readAttribution();
+  const outgoing = new URLSearchParams(attribution);
 
   if (!outgoing.has("source")) outgoing.set("source", "cardapio-digital");
 
@@ -38,15 +43,48 @@ export default function DigitalMenuLandingPage() {
   const registerTarget = buildConversionTarget("/register");
   const plansTarget = buildConversionTarget("/planos");
 
+  useEffect(() => {
+    const attribution = readAttribution();
+    trackTelemetryEvent("plat_high_intent_landing_viewed", {
+      target: "digital_menu_landing",
+      label: "Cardápio digital",
+      metadata: {
+        landing_path: window.location.pathname,
+        source: attribution.source || "cardapio-digital",
+        ref: attribution.ref || attribution.referral || null,
+        utm_source: attribution.utm_source || null,
+        utm_medium: attribution.utm_medium || null,
+        utm_campaign: attribution.utm_campaign || null,
+      },
+    });
+  }, []);
+
+  const trackConversion = (action, destination, placement) => {
+    const attribution = readAttribution();
+    trackTelemetryEvent("plat_high_intent_landing_cta", {
+      target: destination,
+      label: action,
+      metadata: {
+        placement,
+        destination,
+        source: attribution.source || "cardapio-digital",
+        ref: attribution.ref || attribution.referral || null,
+        utm_source: attribution.utm_source || null,
+        utm_medium: attribution.utm_medium || null,
+        utm_campaign: attribution.utm_campaign || null,
+      },
+    });
+  };
+
   return (
     <div className="plat-home">
       <header className="plat-home-nav">
         <Link to="/" className="plat-home-brand"><img src="/images/logo.png" alt="Plat" /><div><strong>PLAT</strong><span>by Peter Tecnet</span></div></Link>
         <nav>
           <Link to="/restaurants">Ver restaurantes</Link>
-          <Link to={plansTarget}>Planos</Link>
+          <Link to={plansTarget} onClick={() => trackConversion("Ver planos", "/planos", "nav")}>Planos</Link>
           <Link to="/login" className="plat-home-login">Entrar</Link>
-          <Link to={registerTarget} className="plat-home-cta">Criar cardápio</Link>
+          <Link to={registerTarget} className="plat-home-cta" onClick={() => trackConversion("Criar cardápio", "/register", "nav")}>Criar cardápio</Link>
         </nav>
       </header>
 
@@ -57,8 +95,8 @@ export default function DigitalMenuLandingPage() {
             <h1>Seu cardápio online, pronto para <em>receber pedidos.</em></h1>
             <p>Cadastre seu estabelecimento na Plat, organize os itens e publique uma página que seus clientes podem abrir pelo celular. Uma base simples para sair do cardápio estático e evoluir para pedidos e gestão.</p>
             <div className="plat-home-hero__actions">
-              <Link to={registerTarget} className="plat-home-primary">Criar meu cardápio <FiArrowRight /></Link>
-              <Link to={plansTarget} className="plat-home-secondary">Ver planos</Link>
+              <Link to={registerTarget} className="plat-home-primary" onClick={() => trackConversion("Criar meu cardápio", "/register", "hero")}>Criar meu cardápio <FiArrowRight /></Link>
+              <Link to={plansTarget} className="plat-home-secondary" onClick={() => trackConversion("Ver planos", "/planos", "hero")}>Ver planos</Link>
             </div>
             <div className="plat-home-trust">
               <span><FiCheckCircle /> Página pública</span>
@@ -104,7 +142,7 @@ export default function DigitalMenuLandingPage() {
           <span>PLAT • PETER TECNET</span>
           <h2>Coloque seu cardápio online e transforme acesso em oportunidade de venda.</h2>
           <p>Crie sua conta ou consulte os planos disponíveis para sua operação.</p>
-          <div className="plat-home-hero__actions"><Link to={registerTarget} className="plat-home-primary">Criar cardápio <FiArrowRight /></Link><Link to={plansTarget} className="plat-home-secondary">Ver planos</Link></div>
+          <div className="plat-home-hero__actions"><Link to={registerTarget} className="plat-home-primary" onClick={() => trackConversion("Criar cardápio", "/register", "final")}>Criar cardápio <FiArrowRight /></Link><Link to={plansTarget} className="plat-home-secondary" onClick={() => trackConversion("Ver planos", "/planos", "final")}>Ver planos</Link></div>
         </section>
       </main>
       <footer className="plat-home-footer"><span>© 2026 Peter Tecnet. Plat — cardápios, pedidos e gestão conectados.</span><Link to="/">Conhecer a Plat</Link></footer>
