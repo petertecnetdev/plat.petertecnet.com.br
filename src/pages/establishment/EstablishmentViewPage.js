@@ -7,7 +7,7 @@ import { FiArrowLeft, FiMinus, FiPlus, FiShoppingBag, FiX } from "react-icons/fi
 import { storageUrl } from "../../config";
 import NavlogComponent from "../../components/NavlogComponent";
 import { apiErrorMessage, createCheckout, getOrdering } from "../../services/platCommerceApi";
-import { clampCartQuantity, isSellableModifier, reconcileCartAvailability } from "../../utils/cartAvailability";
+import { clampCartQuantity, isModifierAvailableForQuantity, isSellableModifier, reconcileCartAvailability } from "../../utils/cartAvailability";
 import "./View.css";
 import "../public/PublicRestaurantsPage.css";
 import "./PlatCheckout.css";
@@ -54,8 +54,25 @@ export default function EstablishmentViewPage() {
   const entry = (id) => cart[id] || { quantity: 0, additions: [], removals: [], notes: "" };
   const qty = (id) => Number(entry(id).quantity || 0);
   const updateLine = (id, patch) => setCart((current) => { const next = { ...current }; const base = next[id] || { quantity: 0, additions: [], removals: [], notes: "" }; const value = { ...base, ...patch }; if (Number(value.quantity) > 0) next[id] = value; else delete next[id]; return next; });
-  const change = (id, delta) => { const item = items.find((candidate) => Number(candidate.id) === Number(id)); updateLine(id, { quantity: clampCartQuantity(qty(id), delta, item?.stock) }); };
-  const toggleAddition = (id, modifierId) => { const line = entry(id); const active = line.additions.includes(modifierId); updateLine(id, { additions: active ? line.additions.filter((v)=>v!==modifierId) : [...line.additions, modifierId] }); };
+  const change = (id, delta) => {
+    const item = items.find((candidate) => Number(candidate.id) === Number(id));
+    const line = entry(id);
+    const quantity = clampCartQuantity(qty(id), delta, item?.stock);
+    const additions = line.additions.filter((modifierId) => (
+      isModifierAvailableForQuantity(items.find((candidate) => Number(candidate.id) === Number(modifierId)), quantity)
+    ));
+    updateLine(id, { quantity, additions });
+  };
+  const toggleAddition = (id, modifierId) => {
+    const line = entry(id);
+    const active = line.additions.includes(modifierId);
+    const modifier = items.find((candidate) => Number(candidate.id) === Number(modifierId));
+    if (!active && !isModifierAvailableForQuantity(modifier, line.quantity)) {
+      Swal.fire("Adicional indisponível", "Não há estoque suficiente deste adicional para a quantidade escolhida.", "info");
+      return;
+    }
+    updateLine(id, { additions: active ? line.additions.filter((v)=>v!==modifierId) : [...line.additions, modifierId] });
+  };
   const cartLines = useMemo(() => availableItems.filter((i)=>qty(i.id)>0).map((i)=>({ ...i, ...entry(i.id) })), [availableItems, cart]);
   const subtotal = useMemo(() => cartLines.reduce((sum,line)=>sum + line.quantity * (Number(line.price||0) + (line.additions||[]).reduce((s,id)=>s+Number(items.find((i)=>Number(i.id)===Number(id))?.price||0),0)),0), [cartLines, items]);
   const fee = form.fulfillment === "delivery" ? Number(ordering?.delivery_fee || 0) : 0;
@@ -76,6 +93,23 @@ export default function EstablishmentViewPage() {
     if (form.fulfillment === "delivery" && !form.delivery_address.trim()) { Swal.fire("Endereço necessário", "Informe o endereço completo para entrega.", "warning"); return; }
     setSubmitting(true);
     try {
+      const latest = await getOrdering(slug);
+      const latestCatalog = Array.isArray(latest.items) ? latest.items : [];
+      const refreshedCart = reconcileCartAvailability(cart, latestCatalog);
+      const availabilityChanged = JSON.stringify(refreshedCart) !== JSON.stringify(cart);
+      setItems(latestCatalog);
+      setOrdering(latest.ordering || null);
+      if (!latest.ordering?.available) {
+        setCheckoutOpen(false);
+        await Swal.fire("Pedidos indisponíveis", latest.ordering?.unavailable_reason || "O estabelecimento pausou os pedidos agora.", "info");
+        return;
+      }
+      if (availabilityChanged) {
+        setCart(refreshedCart);
+        setCheckoutOpen(false);
+        await Swal.fire("Carrinho atualizado", "Algum item ou adicional mudou de estoque enquanto você finalizava. Ajustamos o carrinho para você revisar sem perder o restante do pedido.", "info");
+        return;
+      }
       const result = await createCheckout({ establishment_id: establishment.id, ...form, items: cartLines.map((line)=>({ item_id: line.id, quantity: line.quantity, additions: line.additions || [], removals: line.removals || [], notes: line.notes || null })) });
       setCart({}); setCheckoutOpen(false);
       if (result.payment) sessionStorage.setItem(`plat-payment:${result.order.id}`, JSON.stringify(result.payment));
@@ -95,7 +129,7 @@ export default function EstablishmentViewPage() {
     <div className="estab-hero" style={resolveImage(establishment.background)?{background:`linear-gradient(90deg,rgba(10,13,18,.92) 44%,rgba(10,13,18,.62)),url('${resolveImage(establishment.background)}') center/cover no-repeat`}:undefined}><div className="estab-hero-inner"><div className="estab-logo-bubble">{resolveImage(establishment.logo)?<img src={resolveImage(establishment.logo)} alt="" className="estab-logo"/>:<span style={{fontSize:"1.6rem",fontWeight:900,color:"#efd89d"}}>{initials(establishment.name)}</span>}</div><div className="estab-info-block"><span className="estab-eyebrow">Cardápio digital • Plat</span><div className={`plat-ordering-state${ordering?.available?"":" is-closed"}`}>{ordering?.available ? "Recebendo pedidos" : ordering?.unavailable_reason || "Pedidos indisponíveis"}</div><h1 className="estab-title">{establishment.fantasy||establishment.name}</h1>{establishment.description&&<div className="estab-description">{establishment.description}</div>}<div className="estab-actions">{establishment.instagram_url&&<a href={establishment.instagram_url} target="_blank" rel="noreferrer" className="estab-link"><FaInstagram/> Instagram</a>}{phoneLink&&<a href={phoneLink} target="_blank" rel="noreferrer" className="estab-link"><FaWhatsapp/> WhatsApp</a>}{establishment.location&&<a href={establishment.location} target="_blank" rel="noreferrer" className="estab-link"><FaMapMarkerAlt/> Como chegar</a>}</div></div></div></div>
     <div className="estab-details-row"><div className="estab-detail-card"><span>Endereço</span><strong>{establishment.address?`${establishment.address}${establishment.city?` - ${establishment.city}`:""}`:"Não informado"}</strong></div><div className="estab-detail-card"><span>Atendimento</span><strong className="estab-detail-tags">{segments.length?segments.map((seg)=><Badge key={seg} bg="warning" text="dark">{seg}</Badge>):"Consulte o restaurante"}</strong></div><div className="estab-detail-card"><span>Pedido mínimo</span><strong>{Number(ordering?.minimum_order||0)>0?money(ordering.minimum_order):"Sem mínimo"}</strong></div>{ordering?.estimated_delivery_minutes ? <div className="estab-detail-card"><span>Entrega estimada</span><strong>{ordering.estimated_delivery_minutes} min</strong></div> : null}<div className="estab-detail-card"><span>Pagamento</span><strong>{(ordering?.payment_methods||[]).length?(ordering.payment_methods||[]).map((method)=>method==="pix"?"Pix":method==="cash"?"Dinheiro":"Cartão").join(" • "):"Consulte o restaurante"}</strong></div></div>
     <section className="estab-cardapio-section"><div className="estab-cardapio-head"><div><span className="estab-section-eyebrow">Cardápio</span><h2 className="estab-cardapio-title">{establishment.fantasy||establishment.name}</h2><p>Escolha seus itens e monte o pedido do seu jeito.</p></div><span className="estab-item-count">{availableItems.length} {availableItems.length===1?"item":"itens"}</span></div>
-      {Object.keys(grouped).length===0?<div className="estab-vazio"><span><FiShoppingBag/></span><strong>Cardápio sendo preparado</strong><p>Este estabelecimento ainda não publicou itens disponíveis. Volte em breve para conferir as novidades.</p></div>:Object.entries(grouped).map(([cat,prods])=><div key={cat} className="estab-cardapio-bloco"><h3 className="estab-cat-title">{cat}</h3><div className="estab-items-grid">{prods.map((item)=><article className={`estab-cardapio-card ${Number(item.stock)<1?"estab-esgotado":""}`} key={item.id}><div className="estab-item-media">{resolveImage(item.image)?<img src={resolveImage(item.image)} alt={item.name} className="estab-item-img" loading="lazy" decoding="async"/>:<span>{initials(item.name)}</span>}</div><div className="estab-item-info"><div className="estab-item-row"><span className="estab-item-title">{item.name}</span>{item.is_featured?<Badge bg="warning" text="dark">Destaque</Badge>:null}</div><div className="estab-item-desc">{item.description||"Sem descrição"}</div><div className="estab-item-bottom-row"><span className="estab-item-preco">{money(item.price)}</span>{Number(item.stock)>0?(qty(item.id)?<span className="plat-cart-count"><button onClick={()=>change(item.id,-1)} aria-label="Remover"><FiMinus/></button><b>{qty(item.id)}</b><button onClick={()=>change(item.id,1)} disabled={qty(item.id)>=Number(item.stock)} aria-label={qty(item.id)>=Number(item.stock)?`Estoque máximo de ${item.name} atingido`:`Adicionar ${item.name}`}><FiPlus/></button></span>:<button className="plat-item-add" onClick={()=>change(item.id,1)} aria-label={`Adicionar ${item.name}`}><FiPlus/></button>):<span className="estab-item-indisponivel">Esgotado</span>}</div>{qty(item.id)>0 && <div className="plat-item-config"><textarea value={entry(item.id).notes} onChange={(e)=>updateLine(item.id,{notes:e.target.value})} placeholder="Observações deste item (ex.: sem cebola)" maxLength={500}/>{modifierItems.length>0 && <div className="plat-modifier-list">{modifierItems.slice(0,12).map((mod)=><button type="button" key={mod.id} className={`plat-modifier-chip${entry(item.id).additions.includes(mod.id)?" is-active":""}`} onClick={()=>toggleAddition(item.id,mod.id)}>+ {mod.name}{Number(mod.price)>0?` · ${money(mod.price)}`:""}</button>)}</div>}</div>}</div></article>)}</div></div>)}
+      {Object.keys(grouped).length===0?<div className="estab-vazio"><span><FiShoppingBag/></span><strong>Cardápio sendo preparado</strong><p>Este estabelecimento ainda não publicou itens disponíveis. Volte em breve para conferir as novidades.</p></div>:Object.entries(grouped).map(([cat,prods])=><div key={cat} className="estab-cardapio-bloco"><h3 className="estab-cat-title">{cat}</h3><div className="estab-items-grid">{prods.map((item)=><article className={`estab-cardapio-card ${Number(item.stock)<1?"estab-esgotado":""}`} key={item.id}><div className="estab-item-media">{resolveImage(item.image)?<img src={resolveImage(item.image)} alt={item.name} className="estab-item-img" loading="lazy" decoding="async"/>:<span>{initials(item.name)}</span>}</div><div className="estab-item-info"><div className="estab-item-row"><span className="estab-item-title">{item.name}</span>{item.is_featured?<Badge bg="warning" text="dark">Destaque</Badge>:null}</div><div className="estab-item-desc">{item.description||"Sem descrição"}</div><div className="estab-item-bottom-row"><span className="estab-item-preco">{money(item.price)}</span>{Number(item.stock)>0?(qty(item.id)?<span className="plat-cart-count"><button onClick={()=>change(item.id,-1)} aria-label="Remover"><FiMinus/></button><b>{qty(item.id)}</b><button onClick={()=>change(item.id,1)} disabled={qty(item.id)>=Number(item.stock)} aria-label={qty(item.id)>=Number(item.stock)?`Estoque máximo de ${item.name} atingido`:`Adicionar ${item.name}`}><FiPlus/></button></span>:<button className="plat-item-add" onClick={()=>change(item.id,1)} aria-label={`Adicionar ${item.name}`}><FiPlus/></button>):<span className="estab-item-indisponivel">Esgotado</span>}</div>{qty(item.id)>0 && <div className="plat-item-config"><textarea value={entry(item.id).notes} onChange={(e)=>updateLine(item.id,{notes:e.target.value})} placeholder="Observações deste item (ex.: sem cebola)" maxLength={500}/>{modifierItems.length>0 && <div className="plat-modifier-list">{modifierItems.slice(0,12).map((mod)=>{const modifierUnavailable=!entry(item.id).additions.includes(mod.id)&&!isModifierAvailableForQuantity(mod,qty(item.id));return <button type="button" key={mod.id} disabled={modifierUnavailable} title={modifierUnavailable?"Estoque insuficiente para a quantidade escolhida":undefined} className={`plat-modifier-chip${entry(item.id).additions.includes(mod.id)?" is-active":""}`} onClick={()=>toggleAddition(item.id,mod.id)}>+ {mod.name}{Number(mod.price)>0?` · ${money(mod.price)}`:""}{modifierUnavailable?" · indisponível":""}</button>;})}</div>}</div>}</div></article>)}</div></div>)}
     </section>
     <section className="estab-powered"><div><span className="estab-section-eyebrow">Powered by Plat</span><h2>Seu negócio também pode vender assim.</h2><p>Cardápio digital, pedidos online e uma vitrine profissional para bares, restaurantes e negócios de alimentação.</p></div><Link to="/planos?source=establishment-public" className="estab-powered-cta">Criar meu cardápio <FiArrowLeft className="estab-powered-arrow"/></Link></section>
     {cartCount>0 && <><div className="plat-cart-panel"><div><strong>{cartCount} {cartCount===1?"item":"itens"}</strong><span> • {money(subtotal)}</span>{Number(ordering?.minimum_order||0)>subtotal?<small className="plat-minimum-note"> · mínimo {money(ordering.minimum_order)}</small>:null}</div><div className="plat-cart-checkout"><button className="plat-customer-cta" disabled={!ordering?.available} onClick={openCheckout}><FiShoppingBag/>{ordering?.available?"Continuar pedido":"Pedidos pausados"}</button></div></div><p className="plat-cart-note">O carrinho fica salvo neste dispositivo até você finalizar o pedido.</p></>}
