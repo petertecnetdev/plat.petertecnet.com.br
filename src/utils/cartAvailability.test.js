@@ -1,4 +1,4 @@
-import { clampCartQuantity, isSellableModifier, reconcileCartAvailability } from "./cartAvailability";
+import { clampCartQuantity, isModifierAvailableForQuantity, isSellableModifier, reconcileCartAvailability } from "./cartAvailability";
 
 describe("cart availability guards", () => {
   test("caps cart quantity at available stock", () => {
@@ -27,5 +27,26 @@ describe("cart availability guards", () => {
     expect(isSellableModifier({ status: 1, type: "modifier", stock: 1 })).toBe(true);
     expect(isSellableModifier({ status: 0, type: "modifier", stock: 1 })).toBe(false);
     expect(isSellableModifier({ status: 1, type: "modifier", stock: 0 })).toBe(false);
+  });
+
+  test("requires modifier stock for the whole selected quantity", () => {
+    const modifier = { status: 1, type: "modifier", stock: 2 };
+    expect(isModifierAvailableForQuantity(modifier, 2)).toBe(true);
+    expect(isModifierAvailableForQuantity(modifier, 3)).toBe(false);
+  });
+
+  test("removes a modifier when its stock cannot cover the cart line quantity", () => {
+    const cart = {
+      10: { quantity: 3, additions: [20, 21], removals: [], notes: "" },
+    };
+    const items = [
+      { id: 10, status: 1, type: "product", stock: 5 },
+      { id: 20, status: 1, type: "modifier", stock: 2 },
+      { id: 21, status: 1, type: "modifier", stock: 3 },
+    ];
+
+    expect(reconcileCartAvailability(cart, items)).toEqual({
+      10: { quantity: 3, additions: [21], removals: [], notes: "" },
+    });
   });
 });
