@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, getOrderingSettings, updateOrderingSettings } from "../../services/platCommerceApi";
+import { trackTelemetryEvent } from "../../telemetry";
 import "./OrderingSettings.css";
 
 const days = [
@@ -110,21 +111,17 @@ export default function OrderingSettingsPage() {
       const nextData = { ...data, ...updated };
       setData(nextData);
 
-      try {
-        window.PeterTecnetTelemetry?.track?.("plat_ordering_configured", {
-          label: nextData.establishment?.name || nextData.establishment?.fantasy || "Estabelecimento",
-          target: "ordering_onboarding",
-          metadata: {
-            onboarding,
-            ordering_enabled: !!nextData.ordering_enabled,
-            accepting_orders: !!nextData.accepting_orders,
-            payment_methods_count: nextData.payment_methods?.length || 0,
-            next_step: onboarding ? "public_distribution" : "stay_in_settings",
-          },
-        });
-      } catch {
-        // Telemetry must never interrupt merchant activation.
-      }
+      trackTelemetryEvent("plat_ordering_configured", {
+        label: nextData.establishment?.name || nextData.establishment?.fantasy || "Estabelecimento",
+        target: "ordering_onboarding",
+        metadata: {
+          onboarding,
+          ordering_enabled: !!nextData.ordering_enabled,
+          accepting_orders: !!nextData.accepting_orders,
+          payment_methods_count: nextData.payment_methods?.length || 0,
+          next_step: onboarding ? "public_distribution" : "stay_in_settings",
+        },
+      });
 
       if (!onboarding) {
         await Swal.fire("Salvo", "A operação de pedidos foi atualizada.", "success");
