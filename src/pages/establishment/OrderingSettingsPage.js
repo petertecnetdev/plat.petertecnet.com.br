@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
@@ -11,9 +11,61 @@ const days = [
   ["thursday", "Quinta"], ["friday", "Sexta"], ["saturday", "Sábado"], ["sunday", "Domingo"],
 ];
 const defaultHours = () => Object.fromEntries(days.map(([key]) => [key, [{ open: "11:00", close: "23:00" }]]));
+const copyToClipboard = async (value) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // PWA/WebView can deny Clipboard API; use the legacy fallback below.
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
+};
+const sharePublicMenu = async (establishment) => {
+  const slug = String(establishment?.slug || "").trim();
+  if (!slug) return false;
+  const url = new URL(`/establishment/view/${encodeURIComponent(slug)}?source=ordering_onboarding_share`, window.location.origin).toString();
+  const title = establishment?.fantasy || establishment?.name || "Cardápio Plat";
+
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, text: `Confira o cardápio de ${title} na Plat.`, url });
+      return true;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") return false;
+  }
+
+  const copied = await copyToClipboard(url);
+  if (copied) {
+    await Swal.fire("Link copiado", "O cardápio está pronto para ser enviado aos primeiros clientes.", "success");
+    return true;
+  }
+
+  await Swal.fire({ title: "Compartilhe seu cardápio", text: url, icon: "info", confirmButtonText: "Entendi" });
+  return false;
+};
 
 export default function OrderingSettingsPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const onboarding = location.state?.onboarding === true;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState(null);
@@ -55,8 +107,53 @@ export default function OrderingSettingsPage() {
         payment_methods: data.payment_methods,
         pix_key: data.pix_key || null,
       });
-      setData((current) => ({ ...current, ...updated }));
-      Swal.fire("Salvo", "A operação de pedidos foi atualizada.", "success");
+      const nextData = { ...data, ...updated };
+      setData(nextData);
+
+      try {
+        window.PeterTecnetTelemetry?.track?.("plat_ordering_configured", {
+          label: nextData.establishment?.name || nextData.establishment?.fantasy || "Estabelecimento",
+          target: "ordering_onboarding",
+          metadata: {
+            onboarding,
+            ordering_enabled: !!nextData.ordering_enabled,
+            accepting_orders: !!nextData.accepting_orders,
+            payment_methods_count: nextData.payment_methods?.length || 0,
+            next_step: onboarding ? "public_distribution" : "stay_in_settings",
+          },
+        });
+      } catch {
+        // Telemetry must never interrupt merchant activation.
+      }
+
+      if (!onboarding) {
+        await Swal.fire("Salvo", "A operação de pedidos foi atualizada.", "success");
+        return;
+      }
+
+      const establishment = nextData.establishment || data.establishment;
+      const slug = String(establishment?.slug || "").trim();
+      if (!slug) {
+        await Swal.fire("Operação pronta", "Os pedidos foram configurados. Volte ao dashboard para continuar.", "success");
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      const next = await Swal.fire({
+        title: "Operação pronta para receber o primeiro pedido",
+        text: "Seu cardápio e suas regras de pedido estão configurados. Agora coloque o link na frente dos clientes.",
+        icon: "success",
+        showDenyButton: true,
+        confirmButtonText: "Compartilhar cardápio",
+        denyButtonText: "Ver como cliente",
+        allowOutsideClick: false,
+      });
+
+      if (next.isConfirmed) await sharePublicMenu(establishment);
+      navigate(`/establishment/view/${encodeURIComponent(slug)}?source=ordering_onboarding`, {
+        replace: true,
+        state: { onboarding: true, source: "ordering-configured" },
+      });
     } catch (error) { Swal.fire("Erro", apiErrorMessage(error, "Não foi possível salvar."), "error"); }
     finally { setSaving(false); }
   };
@@ -64,6 +161,7 @@ export default function OrderingSettingsPage() {
   if (loading || !data) return <ProcessingIndicatorComponent messages={["Carregando configuração de pedidos…"]}/>;
   return <div className="plat-settings"><NavlogComponent/><main className="plat-settings__main">
     <header className="plat-settings__head"><div><span className="plat-customer-orders__eyebrow">Operação</span><h1>Pedidos de {data.establishment?.fantasy || data.establishment?.name}</h1></div><Link to="/dashboard">Voltar ao dashboard</Link></header>
+    {onboarding && <div className="alert alert-info mb-4" role="status"><strong>Última etapa para começar a vender.</strong><div className="small mt-1">Ative os pedidos, escolha como o cliente pode receber e pagar e salve. Em seguida, a Plat leva você direto para divulgar o cardápio.</div></div>}
     <div className="plat-settings__grid">
       <section className="plat-settings__card"><h2>Disponibilidade</h2>
         <div className="plat-toggle-row"><div><strong>Pedidos online</strong><small>Exibe o botão de pedido no cardápio.</small></div><input type="checkbox" checked={!!data.ordering_enabled} onChange={()=>toggle("ordering_enabled")}/></div>
@@ -80,6 +178,6 @@ export default function OrderingSettingsPage() {
       <section className="plat-settings__card" style={{gridColumn:"1/-1"}}><h2>Horários</h2><div className="plat-hours">{days.map(([key,label])=>{const range=data.opening_hours?.[key]?.[0];return <div className="plat-hours__row" key={key}><span>{label}</span><input type="time" disabled={!range} value={range?.open || "11:00"} onChange={(e)=>updateHour(key,"open",e.target.value)}/><input type="time" disabled={!range} value={range?.close || "23:00"} onChange={(e)=>updateHour(key,"close",e.target.value)}/><button type="button" className="plat-payment-option" onClick={()=>toggleDay(key)}>{range?"Fechar neste dia":"Abrir neste dia"}</button></div>})}</div></section>
       <section className="plat-settings__card"><h2>Pagamento</h2><div className="plat-payment-options"><button type="button" className={`plat-payment-option${paymentMethods.has("pix")?" is-active":""}`} onClick={()=>togglePayment("pix")}>Pix</button><button type="button" className={`plat-payment-option${paymentMethods.has("cash")?" is-active":""}`} onClick={()=>togglePayment("cash")}>Dinheiro</button><button type="button" className={`plat-payment-option${paymentMethods.has("card_on_delivery")?" is-active":""}`} onClick={()=>togglePayment("card_on_delivery")}>Cartão na entrega</button></div>{!data.mercadopago_configured && paymentMethods.has("pix") && <><label style={{marginTop:14}}>Chave Pix do restaurante<input type="text" value={data.pix_key || ""} onChange={(e)=>setData({...data,pix_key:e.target.value})} placeholder="CPF, CNPJ, e-mail, telefone ou aleatória"/></label><div className="plat-settings__notice">Sem credencial Mercado Pago na API, a Plat usa a chave Pix informada e mantém o pagamento pendente até confirmação operacional.</div></>}</section>
       <section className="plat-settings__card"><h2>Status técnico do Pix</h2><p>{data.mercadopago_configured ? "Mercado Pago configurado na API: o Pix pode ser gerado e confirmado por webhook." : "Mercado Pago ainda não possui credencial ativa na API."}</p></section>
-    </div><div className="plat-settings__actions"><button type="button" className="plat-settings__save" disabled={saving} onClick={save}>{saving?"Salvando…":"Salvar operação"}</button></div>
+    </div><div className="plat-settings__actions"><button type="button" className="plat-settings__save" disabled={saving} onClick={save}>{saving?"Salvando…":onboarding?"Salvar e começar a vender":"Salvar operação"}</button></div>
   </main></div>;
 }
