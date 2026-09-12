@@ -12,6 +12,11 @@ const days = [
   ["thursday", "Quinta"], ["friday", "Sexta"], ["saturday", "Sábado"], ["sunday", "Domingo"],
 ];
 const defaultHours = () => Object.fromEntries(days.map(([key]) => [key, [{ open: "11:00", close: "23:00" }]]));
+const publicMenuUrl = (establishment, source = "ordering_settings") => {
+  const slug = String(establishment?.slug || "").trim();
+  if (!slug) return "";
+  return new URL(`/establishment/view/${encodeURIComponent(slug)}?source=${encodeURIComponent(source)}`, window.location.origin).toString();
+};
 const copyToClipboard = async (value) => {
   try {
     if (navigator.clipboard?.writeText) {
@@ -38,9 +43,8 @@ const copyToClipboard = async (value) => {
   }
 };
 const sharePublicMenu = async (establishment) => {
-  const slug = String(establishment?.slug || "").trim();
-  if (!slug) return false;
-  const url = new URL(`/establishment/view/${encodeURIComponent(slug)}?source=ordering_onboarding_share`, window.location.origin).toString();
+  const url = publicMenuUrl(establishment, "ordering_onboarding_share");
+  if (!url) return false;
   const title = establishment?.fantasy || establishment?.name || "Cardápio Plat";
 
   try {
@@ -59,6 +63,49 @@ const sharePublicMenu = async (establishment) => {
   }
 
   await Swal.fire({ title: "Compartilhe seu cardápio", text: url, icon: "info", confirmButtonText: "Entendi" });
+  return false;
+};
+const showMenuQrCode = async (establishment, source = "ordering_settings") => {
+  const url = publicMenuUrl(establishment, "qr_menu");
+  if (!url) {
+    await Swal.fire("QR Code indisponível", "Salve o estabelecimento antes de gerar o QR Code.", "info");
+    return false;
+  }
+
+  const title = establishment?.fantasy || establishment?.name || "Cardápio Plat";
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=900x900&format=png&margin=24&data=${encodeURIComponent(url)}`;
+
+  trackTelemetryEvent("plat_menu_qr_opened", {
+    label: title,
+    target: "menu_distribution",
+    metadata: { source, slug: establishment?.slug || null },
+  });
+
+  const result = await Swal.fire({
+    title: "QR Code do cardápio",
+    text: "Mostre este QR nas mesas, balcão, caixa ou materiais impressos. Cada leitura abre seu cardápio público.",
+    imageUrl: qrUrl,
+    imageAlt: `QR Code do cardápio de ${title}`,
+    imageWidth: 280,
+    imageHeight: 280,
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonText: "Copiar link",
+    denyButtonText: "Abrir QR Code",
+    cancelButtonText: "Fechar",
+  });
+
+  if (result.isConfirmed) {
+    const copied = await copyToClipboard(url);
+    await Swal.fire(copied ? "Link copiado" : "Link do cardápio", copied ? "Agora você pode divulgar o cardápio em qualquer canal." : url, copied ? "success" : "info");
+    return copied;
+  }
+
+  if (result.isDenied) {
+    window.open(qrUrl, "_blank", "noopener,noreferrer");
+    return true;
+  }
+
   return false;
 };
 
@@ -138,15 +185,18 @@ export default function OrderingSettingsPage() {
 
       const next = await Swal.fire({
         title: "Operação pronta para receber o primeiro pedido",
-        text: "Seu cardápio e suas regras de pedido estão configurados. Agora coloque o link na frente dos clientes.",
+        text: "Seu cardápio e suas regras de pedido estão configurados. Agora coloque o cardápio na frente dos clientes.",
         icon: "success",
         showDenyButton: true,
+        showCancelButton: true,
         confirmButtonText: "Compartilhar cardápio",
-        denyButtonText: "Ver como cliente",
+        denyButtonText: "Gerar QR Code",
+        cancelButtonText: "Ver como cliente",
         allowOutsideClick: false,
       });
 
       if (next.isConfirmed) await sharePublicMenu(establishment);
+      if (next.isDenied) await showMenuQrCode(establishment, "ordering_onboarding");
       navigate(`/establishment/view/${encodeURIComponent(slug)}?source=ordering_onboarding`, {
         replace: true,
         state: { onboarding: true, source: "ordering-configured" },
@@ -175,6 +225,7 @@ export default function OrderingSettingsPage() {
       <section className="plat-settings__card" style={{gridColumn:"1/-1"}}><h2>Horários</h2><div className="plat-hours">{days.map(([key,label])=>{const range=data.opening_hours?.[key]?.[0];return <div className="plat-hours__row" key={key}><span>{label}</span><input type="time" disabled={!range} value={range?.open || "11:00"} onChange={(e)=>updateHour(key,"open",e.target.value)}/><input type="time" disabled={!range} value={range?.close || "23:00"} onChange={(e)=>updateHour(key,"close",e.target.value)}/><button type="button" className="plat-payment-option" onClick={()=>toggleDay(key)}>{range?"Fechar neste dia":"Abrir neste dia"}</button></div>})}</div></section>
       <section className="plat-settings__card"><h2>Pagamento</h2><div className="plat-payment-options"><button type="button" className={`plat-payment-option${paymentMethods.has("pix")?" is-active":""}`} onClick={()=>togglePayment("pix")}>Pix</button><button type="button" className={`plat-payment-option${paymentMethods.has("cash")?" is-active":""}`} onClick={()=>togglePayment("cash")}>Dinheiro</button><button type="button" className={`plat-payment-option${paymentMethods.has("card_on_delivery")?" is-active":""}`} onClick={()=>togglePayment("card_on_delivery")}>Cartão na entrega</button></div>{!data.mercadopago_configured && paymentMethods.has("pix") && <><label style={{marginTop:14}}>Chave Pix do restaurante<input type="text" value={data.pix_key || ""} onChange={(e)=>setData({...data,pix_key:e.target.value})} placeholder="CPF, CNPJ, e-mail, telefone ou aleatória"/></label><div className="plat-settings__notice">Sem credencial Mercado Pago na API, a Plat usa a chave Pix informada e mantém o pagamento pendente até confirmação operacional.</div></>}</section>
       <section className="plat-settings__card"><h2>Status técnico do Pix</h2><p>{data.mercadopago_configured ? "Mercado Pago configurado na API: o Pix pode ser gerado e confirmado por webhook." : "Mercado Pago ainda não possui credencial ativa na API."}</p></section>
+      {data.establishment?.slug && <section className="plat-settings__card" style={{gridColumn:"1/-1"}}><h2>Divulgação física</h2><p>Gere um QR Code do cardápio para colocar nas mesas, balcão, caixa e materiais impressos. O cliente escaneia e abre o cardápio público direto no celular.</p><button type="button" className="plat-payment-option is-active" onClick={()=>showMenuQrCode(data.establishment, "ordering_settings")}>Gerar QR Code do cardápio</button></section>}
     </div><div className="plat-settings__actions"><button type="button" className="plat-settings__save" disabled={saving} onClick={save}>{saving?"Salvando…":onboarding?"Salvar e começar a vender":"Salvar operação"}</button></div>
   </main></div>;
 }
