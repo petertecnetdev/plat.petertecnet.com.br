@@ -1,5 +1,7 @@
 const REPEAT_ORDER_CONTEXT_KEY = "plat-repeat-order-context";
 const REPEAT_ORDER_CONTEXT_TTL_MS = 2 * 60 * 60 * 1000;
+const REPEAT_ORDER_CONVERSION_PREFIX = "plat-repeat-order-conversion:";
+const REPEAT_ORDER_CONVERSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const cartFromTrackedOrder = (order) => {
   const cart = {};
@@ -83,6 +85,78 @@ export const readRepeatOrderContext = (slug) => {
     return context;
   } catch {
     clearRepeatOrderContext();
+    return null;
+  }
+};
+
+const repeatConversionKey = (orderId) => `${REPEAT_ORDER_CONVERSION_PREFIX}${String(orderId || "").trim()}`;
+
+export const rememberRepeatOrderConversion = (order, sourceContext = readRepeatOrderContext()) => {
+  const newOrderId = order?.id;
+  if (
+    !sourceContext ||
+    sourceContext.source_order_id === undefined ||
+    sourceContext.source_order_id === null ||
+    newOrderId === undefined ||
+    newOrderId === null ||
+    typeof window === "undefined" ||
+    !window.localStorage
+  ) return false;
+
+  const context = {
+    source_order_id: sourceContext.source_order_id,
+    new_order_id: newOrderId,
+    establishment_id: order?.establishment_id ?? sourceContext.establishment_id ?? null,
+    created_at: Date.now(),
+    paid_tracked: false,
+    completed_tracked: false,
+  };
+
+  try {
+    window.localStorage.setItem(repeatConversionKey(newOrderId), JSON.stringify(context));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const readRepeatOrderConversion = (orderId) => {
+  if (typeof window === "undefined" || !window.localStorage) return null;
+  const key = repeatConversionKey(orderId);
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const context = JSON.parse(raw);
+    const createdAt = Number(context?.created_at || 0);
+    const expectedOrderId = String(orderId || "").trim();
+    const storedOrderId = String(context?.new_order_id || "").trim();
+    const expired = !createdAt || Date.now() - createdAt > REPEAT_ORDER_CONVERSION_TTL_MS;
+    const invalid = !expectedOrderId || !storedOrderId || expectedOrderId !== storedOrderId || context?.source_order_id === undefined || context?.source_order_id === null;
+
+    if (expired || invalid) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return context;
+  } catch {
+    window.localStorage.removeItem(key);
+    return null;
+  }
+};
+
+export const markRepeatOrderConversionMilestone = (orderId, milestone) => {
+  const context = readRepeatOrderConversion(orderId);
+  if (!context || !["paid", "completed"].includes(milestone)) return null;
+  const field = `${milestone}_tracked`;
+  if (context[field]) return null;
+
+  const next = { ...context, [field]: true };
+  try {
+    window.localStorage.setItem(repeatConversionKey(orderId), JSON.stringify(next));
+    return next;
+  } catch {
     return null;
   }
 };
