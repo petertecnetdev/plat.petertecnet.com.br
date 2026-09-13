@@ -23,6 +23,19 @@ export default function PoweredByPlatGrowth({ user = null }) {
     ? `/establishment/create?${query.toString()}`
     : `/register?${query.toString()}`;
 
+  const referralQuery = new URLSearchParams({
+    source: "powered-by-plat-referral",
+    ref: slug,
+    utm_source: "public_menu",
+    utm_medium: "whatsapp_referral",
+    utm_campaign: "powered_by_plat_referral",
+  });
+  const referralUrl = `https://plat.petertecnet.com.br/register?${referralQuery.toString()}`;
+  const referralMessage = encodeURIComponent(
+    `Conheça a Plat: cardápio digital, QR Code e pedidos online para bares, restaurantes e outros negócios. ${referralUrl}`
+  );
+  const whatsappReferralUrl = `https://wa.me/?text=${referralMessage}`;
+
   const handleConversion = () => {
     trackTelemetryEvent("plat_powered_by_referral_clicked", {
       target: destination,
@@ -35,6 +48,23 @@ export default function PoweredByPlatGrowth({ user = null }) {
         utm_source: "public_menu",
         utm_medium: "product_badge",
         utm_campaign: "powered_by_plat",
+        authenticated: Boolean(user),
+      },
+    });
+  };
+
+  const handleWhatsappReferral = () => {
+    trackTelemetryEvent("plat_powered_by_whatsapp_referral_clicked", {
+      target: referralUrl,
+      label: "Indicar a Plat",
+      metadata: {
+        placement: "public_menu",
+        destination: "/register",
+        source: "powered-by-plat-referral",
+        ref: slug || null,
+        utm_source: "public_menu",
+        utm_medium: "whatsapp_referral",
+        utm_campaign: "powered_by_plat_referral",
         authenticated: Boolean(user),
       },
     });
@@ -67,22 +97,42 @@ export default function PoweredByPlatGrowth({ user = null }) {
           Tem um bar, restaurante ou negócio? Crie seu cardápio digital e comece a receber pedidos online.
         </span>
       </div>
-      <Link
-        to={destination}
-        onClick={handleConversion}
-        style={{
-          textDecoration: "none",
-          fontWeight: 800,
-          fontSize: 13,
-          color: "#11151b",
-          background: "#efd89d",
-          borderRadius: 999,
-          padding: "10px 15px",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Criar meu cardápio
-      </Link>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <a
+          href={whatsappReferralUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={handleWhatsappReferral}
+          style={{
+            textDecoration: "none",
+            fontWeight: 800,
+            fontSize: 13,
+            color: "#f4e4b7",
+            border: "1px solid rgba(239,216,157,.38)",
+            borderRadius: 999,
+            padding: "10px 15px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Indicar a Plat
+        </a>
+        <Link
+          to={destination}
+          onClick={handleConversion}
+          style={{
+            textDecoration: "none",
+            fontWeight: 800,
+            fontSize: 13,
+            color: "#11151b",
+            background: "#efd89d",
+            borderRadius: 999,
+            padding: "10px 15px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Criar meu cardápio
+        </Link>
+      </div>
     </aside>
   );
 }
