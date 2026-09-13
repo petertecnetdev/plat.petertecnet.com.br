@@ -1,5 +1,9 @@
 import api from "./api";
 import { trackTelemetryEvent } from "../telemetry";
+import {
+  buildSubscriptionRecoveryUrl,
+  safeSubscriptionReturnTo,
+} from "../utils/subscriptionRecovery";
 
 const APPLICATION = "plat";
 const SOURCE = "subscription_plans";
@@ -14,6 +18,7 @@ const TERMINAL_PAYMENT_STATUSES = new Set([
   "rejected",
   "refunded",
   "charged_back",
+  "chargeback",
 ]);
 
 const storageKey = (planCode) =>
@@ -52,6 +57,44 @@ const trackRevenue = (type, metadata = {}) => {
 
 const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
 
+const returnToFromLocation = () => {
+  const params = new URLSearchParams(window.location.search);
+  return safeSubscriptionReturnTo(params.get("return_to"));
+};
+
+const restoreReturnToFromIntent = (intent) => {
+  if (returnToFromLocation()) return "url";
+
+  const returnTo = safeSubscriptionReturnTo(intent?.metadata?.return_to);
+  if (!returnTo) return "";
+
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("return_to", returnTo);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    return "intent_metadata";
+  } catch {
+    return "";
+  }
+};
+
+const persistPendingReturnTo = (planCode, returnTo) => {
+  const safeReturnTo = safeSubscriptionReturnTo(returnTo);
+  if (!safeReturnTo) return;
+
+  try {
+    const pending = JSON.parse(localStorage.getItem("pending_subscription_plan") || "null");
+    if (pending?.application !== APPLICATION || pending?.plan !== planCode) return;
+
+    localStorage.setItem(
+      "pending_subscription_plan",
+      JSON.stringify({ ...pending, return_to: safeReturnTo })
+    );
+  } catch {
+    // Recovery can still continue from the current URL if local storage is unavailable.
+  }
+};
+
 const terminalPaymentStatus = (data) => {
   const candidates = [
     data?.payment?.status,
@@ -74,6 +117,11 @@ const recoverFromTerminalPayment = (intentId, status) => {
 
   const planCode = String(pending?.plan || "").trim().toLowerCase();
   const validPlanCode = /^[a-z0-9_-]{1,80}$/i.test(planCode);
+  const referral = String(pending?.referral || "").trim();
+  const campaign = String(pending?.campaign || "").trim();
+  const locationReturnTo = returnToFromLocation();
+  const pendingReturnTo = safeSubscriptionReturnTo(pending?.return_to);
+  const returnTo = locationReturnTo || pendingReturnTo;
 
   sessionStorage.removeItem(checkoutStorageKey(intentId));
   if (validPlanCode) sessionStorage.removeItem(storageKey(planCode));
@@ -83,13 +131,22 @@ const recoverFromTerminalPayment = (intentId, status) => {
     method: "pix",
     terminal_status: status,
     plan: validPlanCode ? planCode : undefined,
+    referral: referral || undefined,
+    campaign: campaign || undefined,
+    return_to_preserved: Boolean(returnTo),
+    return_to_source: returnTo ? (locationReturnTo ? "url" : "pending_subscription") : undefined,
   });
 
-  if (validPlanCode) {
-    window.location.assign(
-      `/subscriptions?plan=${encodeURIComponent(planCode)}&resume=1&source=payment_recovery`
-    );
-  }
+  if (!validPlanCode) return;
+
+  const recoveryUrl = buildSubscriptionRecoveryUrl({
+    planCode,
+    referral,
+    campaign,
+    returnTo,
+  });
+
+  if (recoveryUrl) window.location.assign(recoveryUrl);
 };
 
 const readPendingAttribution = (planCode) => {
@@ -100,6 +157,7 @@ const readPendingAttribution = (planCode) => {
     return {
       referral: String(pending?.referral || "").trim(),
       campaign: String(pending?.campaign || "").trim(),
+      returnTo: safeSubscriptionReturnTo(pending?.return_to),
     };
   } catch {
     return {};
@@ -132,11 +190,14 @@ export async function getRecoverableSubscriptionIntent() {
 
       const intent = data?.data || null;
       if (intent) {
+        const returnToSource = restoreReturnToFromIntent(intent);
         trackRevenue("subscription_intent_recovered", {
           plan: intent.plan_code,
           status: intent.status,
           source: intent.source,
           price_cents: intent.price_cents,
+          return_to_preserved: Boolean(returnToSource),
+          return_to_source: returnToSource || undefined,
           attempt,
         });
       }
@@ -177,6 +238,7 @@ export async function createSubscriptionIntent({
   const pendingAttribution = readPendingAttribution(normalizedPlanCode);
   const resolvedReferral = String(referral || pendingAttribution.referral || "").trim();
   const resolvedCampaign = String(campaign || pendingAttribution.campaign || "").trim();
+  const resolvedReturnTo = returnToFromLocation() || pendingAttribution.returnTo || "";
   const idempotencyKey = getSubscriptionIntentIdempotencyKey(normalizedPlanCode);
   const metadata = {
     client_price_cents: priceCents,
@@ -186,6 +248,10 @@ export async function createSubscriptionIntent({
 
   if (resolvedReferral) metadata.referral = resolvedReferral;
   if (resolvedCampaign) metadata.campaign = resolvedCampaign;
+  if (resolvedReturnTo) {
+    metadata.return_to = resolvedReturnTo;
+    persistPendingReturnTo(normalizedPlanCode, resolvedReturnTo);
+  }
 
   const payload = {
     plan_code: normalizedPlanCode,
@@ -215,6 +281,7 @@ export async function createSubscriptionIntent({
           currency: intent.currency || currency,
           referral: resolvedReferral || undefined,
           campaign: resolvedCampaign || undefined,
+          return_to_preserved: Boolean(resolvedReturnTo),
           attempt,
         });
       } else {
