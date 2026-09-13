@@ -1,5 +1,6 @@
 import axios from "axios";
 import { apiV1BaseUrl } from "../config";
+import { checkoutResource } from "../utils/checkoutAccess";
 
 const token = () => localStorage.getItem("token") || "";
 const headers = () => ({ Authorization: `Bearer ${token()}` });
@@ -279,10 +280,14 @@ export const createCheckout = async (payload) => {
   const inFlight = checkoutRequests.get(requestKey);
   if (inFlight) return inFlight;
 
+  const authenticated = Boolean(token());
   const intent = checkoutIntentFor(requestKey);
   const request = axios
-    .post(`${apiV1BaseUrl}/orders`, checkoutPayload, {
-      headers: { ...headers(), "Idempotency-Key": intent.idempotencyKey },
+    .post(`${apiV1BaseUrl}/${checkoutResource(authenticated)}`, checkoutPayload, {
+      headers: {
+        ...(authenticated ? headers() : {}),
+        "Idempotency-Key": intent.idempotencyKey,
+      },
     })
     .then(({ data }) => {
       clearCheckoutIntent(intent);
