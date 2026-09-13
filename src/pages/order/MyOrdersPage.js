@@ -8,6 +8,7 @@ import "./CustomerOrders.css";
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const labels = { pending: "Recebido", confirmed: "Confirmado", preparing: "Em preparo", ready: "Pronto", completed: "Concluído", cancelled: "Cancelado" };
+const pendingPixStorageKey = "plat-pending-pix-order";
 const isRecoverablePix = (order) =>
   order?.payment_method === "pix" &&
   order?.payment_status !== "paid" &&
@@ -15,13 +16,33 @@ const isRecoverablePix = (order) =>
 const orderTrackingPath = (order) =>
   `/my-orders/${order.id}${isRecoverablePix(order) ? "?recovery_source=in_app" : ""}`;
 
+const syncPendingPixRecovery = (orders) => {
+  const recoverable = (orders || []).find(isRecoverablePix);
+  if (!recoverable) {
+    localStorage.removeItem(pendingPixStorageKey);
+    return;
+  }
+  localStorage.setItem(pendingPixStorageKey, JSON.stringify({
+    id: recoverable.id,
+    order_number: recoverable.order_number || recoverable.id,
+    establishment: recoverable.establishment?.fantasy || recoverable.establishment?.name || "Estabelecimento",
+    amount: Number(recoverable.total_price || 0),
+    saved_at: new Date().toISOString(),
+  }));
+};
+
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    getMyOrders().then((page) => { if (active) setOrders(Array.isArray(page?.data) ? page.data : []); })
+    getMyOrders().then((page) => {
+      if (!active) return;
+      const nextOrders = Array.isArray(page?.data) ? page.data : [];
+      setOrders(nextOrders);
+      syncPendingPixRecovery(nextOrders);
+    })
       .catch((error) => Swal.fire("Erro", apiErrorMessage(error, "Não foi possível carregar seus pedidos."), "error"))
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
