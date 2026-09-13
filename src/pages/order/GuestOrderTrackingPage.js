@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, trackGuestOrder } from "../../services/platCommerceApi";
 import { readGuestOrder, rememberGuestOrderPhone } from "../../utils/guestOrderTracking";
+import { restoreTrackedOrderCart } from "../../utils/repeatOrder";
 import { trackTelemetryEvent } from "../../telemetry";
 import "./CustomerOrders.css";
 
@@ -14,6 +15,7 @@ const labels = { pending: "Recebido", confirmed: "Confirmado", preparing: "Em pr
 
 export default function GuestOrderTrackingPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const stored = useMemo(() => readGuestOrder(id), [id]);
   const [phone, setPhone] = useState(stored?.phone || "");
   const [credential, setCredential] = useState(stored?.phone || "");
@@ -79,6 +81,33 @@ export default function GuestOrderTrackingPage() {
     setCredential(normalized);
   };
 
+  const repeatOrder = async () => {
+    const slug = String(order?.establishment?.slug || "").trim();
+    if (!slug || !restoreTrackedOrderCart(order)) {
+      await Swal.fire("Não foi possível repetir", "Abra o cardápio e escolha novamente os itens disponíveis.", "info");
+      return;
+    }
+
+    trackTelemetryEvent("plat_guest_order_reorder_started", {
+      target: "guest_order",
+      label: String(order?.order_number || order?.id || id),
+      metadata: {
+        source_order_id: order?.id || id,
+        establishment_id: order?.establishment?.id || null,
+        item_count: (order?.items || []).reduce((sum, item) => sum + Number(item?.quantity || 0), 0),
+        amount: Number(order?.total_price || 0),
+      },
+    });
+
+    await Swal.fire({
+      title: "Carrinho preparado",
+      text: "Recolocamos os itens base do pedido no carrinho. Preços, estoque e disponibilidade serão revalidados no cardápio; revise adicionais antes de confirmar.",
+      icon: "success",
+      confirmButtonText: "Revisar e pedir novamente",
+    });
+    navigate(`/establishment/view/${slug}?source=repeat_order`);
+  };
+
   const currentIndex = stages.indexOf(order?.status);
 
   if (loading && credential && !order) return <ProcessingIndicatorComponent messages={["Localizando seu pedido…"]}/>;
@@ -105,6 +134,11 @@ export default function GuestOrderTrackingPage() {
         <div className="plat-track__row"><span>Atualização</span><strong>{refreshing ? "Atualizando…" : "Automática a cada 10s"}</strong></div>
       </section>
       <section className="plat-track__items"><h2>Itens</h2>{(order.items || []).map((item)=><div className="plat-track__row" key={item.id}><span>{item.quantity}× {item.name || "Item"}</span><strong>{money(item.subtotal)}</strong></div>)}</section>
+      {order.status === "completed" && order.establishment?.slug && (order.items || []).length > 0 ? <section className="plat-track__summary" style={{marginTop:16}}>
+        <strong>Gostou do pedido?</strong>
+        <p style={{margin:"8px 0 16px"}}>Repita os itens em poucos segundos. Antes de comprar novamente, a Plat confere o cardápio atual, o estoque e os preços.</p>
+        <button type="button" className="btn btn-primary" onClick={repeatOrder}>Pedir novamente</button>
+      </section> : null}
     </> : null}
   </main></div>;
 }
