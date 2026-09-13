@@ -304,6 +304,9 @@ export const createCheckout = async (payload) => {
       const shouldPreserveIntent =
         !status ||
         idempotencyStatus === "processing" ||
+        status === 408 ||
+        status === 425 ||
+        status === 429 ||
         status >= 500;
 
       if (!shouldPreserveIntent) clearCheckoutIntent(intent);
