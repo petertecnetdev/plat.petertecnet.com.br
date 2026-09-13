@@ -6,6 +6,10 @@ import {
   getRecoverableSubscriptionIntent,
   syncSubscriptionPayment,
 } from "../services/subscriptionIntent";
+import {
+  buildSubscriptionSuccessUrl,
+  safeSubscriptionReturnTo,
+} from "../utils/subscriptionRecovery";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const DEFAULT_SOURCE = "subscription_plans";
@@ -24,7 +28,6 @@ const normalizeAttribution = (value, fallback = "") => {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, MAX_ATTRIBUTION_LENGTH);
-
   return normalized || fallback;
 };
 
@@ -33,20 +36,23 @@ const readPendingSubscription = () => {
     const pending = JSON.parse(localStorage.getItem("pending_subscription_plan") || "null");
     const selectedAt = pending?.selected_at ? Date.parse(pending.selected_at) : NaN;
     const fresh = Number.isFinite(selectedAt) && Date.now() - selectedAt <= PENDING_TTL_MS;
-
     if (pending?.application !== "plat" || !fresh) return null;
     if (!/^[a-z0-9_-]{1,80}$/i.test(String(pending?.plan || ""))) return null;
-
     return pending;
   } catch {
     return null;
   }
 };
 
+const returnToFromLocation = () => {
+  const params = new URLSearchParams(window.location.search);
+  return safeSubscriptionReturnTo(params.get("return_to"));
+};
+
 const pendingFromIntent = (intent) => {
   const plan = String(intent?.plan_code || "").trim().toLowerCase();
   if (!intent?.id || intent?.application !== "plat" || !/^[a-z0-9_-]{1,80}$/i.test(plan)) return null;
-
+  const returnTo = safeSubscriptionReturnTo(intent?.metadata?.return_to);
   return {
     application: "plat",
     plan,
@@ -58,17 +64,19 @@ const pendingFromIntent = (intent) => {
     handoff: intent.handoff_channel || "app",
     referral: String(intent.metadata?.referral || "").trim(),
     campaign: String(intent.metadata?.campaign || "").trim(),
+    return_to: returnTo || undefined,
     selected_at: intent.created_at || new Date().toISOString(),
   };
 };
 
 const getSubscriptionAttribution = () => {
   const params = new URLSearchParams(window.location.search);
-  const source = normalizeAttribution(params.get("source"), DEFAULT_SOURCE);
-  const referral = normalizeAttribution(params.get("ref") || params.get("referral"));
-  const campaign = normalizeAttribution(params.get("utm_campaign"));
-
-  return { source, referral, campaign };
+  return {
+    source: normalizeAttribution(params.get("source"), DEFAULT_SOURCE),
+    referral: normalizeAttribution(params.get("ref") || params.get("referral")),
+    campaign: normalizeAttribution(params.get("utm_campaign")),
+    returnTo: safeSubscriptionReturnTo(params.get("return_to")),
+  };
 };
 
 const getResumePlan = () => {
@@ -76,14 +84,9 @@ const getResumePlan = () => {
   const plan = String(params.get("plan") || "").trim().toLowerCase();
   const resume = params.get("resume") === "1";
   const source = normalizeAttribution(params.get("source"));
-
-  if (resume && AUTO_RESUME_SOURCES.has(source) && /^[a-z0-9_-]{1,80}$/i.test(plan)) {
-    return plan;
-  }
-
+  if (resume && AUTO_RESUME_SOURCES.has(source) && /^[a-z0-9_-]{1,80}$/i.test(plan)) return plan;
   const pending = readPendingSubscription();
   if (!pending?.intent_id) return "";
-
   return String(pending.plan).trim().toLowerCase();
 };
 
@@ -116,26 +119,19 @@ export default function SubscriptionPlansPage() {
       setRecoveryReady(true);
       return undefined;
     }
-
     const localPending = readPendingSubscription();
     if (localPending?.intent_id) {
       setRecoveryReady(true);
       return undefined;
     }
-
     let active = true;
     getRecoverableSubscriptionIntent()
       .then((intent) => {
         if (!active) return;
         const recovered = pendingFromIntent(intent);
-        if (recovered) {
-          localStorage.setItem("pending_subscription_plan", JSON.stringify(recovered));
-        }
+        if (recovered) localStorage.setItem("pending_subscription_plan", JSON.stringify(recovered));
       })
-      .finally(() => {
-        if (active) setRecoveryReady(true);
-      });
-
+      .finally(() => { if (active) setRecoveryReady(true); });
     return () => { active = false; };
   }, []);
 
@@ -143,10 +139,8 @@ export default function SubscriptionPlansPage() {
 
   const choosePlan = useCallback(async (plan) => {
     if (submittingPlan) return;
-
     const planCode = String(plan?.code || "").trim();
     if (!/^[a-z0-9_-]{1,80}$/i.test(planCode)) return;
-
     setError("");
     setPaymentMessage("");
     setCopied(false);
@@ -156,53 +150,43 @@ export default function SubscriptionPlansPage() {
     try {
       const priceCents = Number.isFinite(Number(plan?.price_cents))
         ? Number(plan.price_cents)
-        : Number.isFinite(Number(plan?.price))
-          ? Math.round(Number(plan.price) * 100)
-          : null;
+        : Number.isFinite(Number(plan?.price)) ? Math.round(Number(plan.price) * 100) : null;
       const currency = plan?.currency || "BRL";
       const attribution = getSubscriptionAttribution();
       const existingPending = readPendingSubscription();
       const reusableIntentId = existingPending?.plan === planCode && existingPending?.intent_id
-        ? String(existingPending.intent_id)
-        : "";
+        ? String(existingPending.intent_id) : "";
+      const returnTo = attribution.returnTo || safeSubscriptionReturnTo(existingPending?.return_to);
       const pendingPlan = {
         application: "plat",
         plan: planCode,
         price_cents: priceCents,
         currency,
         selected_at: existingPending?.plan === planCode && existingPending?.selected_at
-          ? existingPending.selected_at
-          : new Date().toISOString(),
-        source: reusableIntentId
-          ? existingPending.source || attribution.source
-          : attribution.source,
+          ? existingPending.selected_at : new Date().toISOString(),
+        source: reusableIntentId ? existingPending.source || attribution.source : attribution.source,
         referral: existingPending?.referral || attribution.referral || undefined,
         campaign: existingPending?.campaign || attribution.campaign || undefined,
+        return_to: returnTo || undefined,
         handoff: "app",
-        ...(reusableIntentId
-          ? {
-              intent_id: reusableIntentId,
-              intent_status: existingPending.intent_status,
-            }
-          : {}),
+        ...(reusableIntentId ? { intent_id: reusableIntentId, intent_status: existingPending.intent_status } : {}),
       };
-
       localStorage.setItem("pending_subscription_plan", JSON.stringify(pendingPlan));
 
       if (!localStorage.getItem("token")) {
-        window.location.assign(`/register?plan=${encodeURIComponent(planCode)}`);
+        const params = new URLSearchParams({ plan: planCode });
+        if (returnTo) params.set("return_to", returnTo);
+        window.location.assign(`/register?${params.toString()}`);
         return;
       }
 
-      let intent = reusableIntentId
-        ? {
-            id: reusableIntentId,
-            status: existingPending?.intent_status,
-            price_cents: existingPending?.price_cents ?? priceCents,
-            currency: existingPending?.currency || currency,
-            plan_name: plan.name,
-          }
-        : null;
+      let intent = reusableIntentId ? {
+        id: reusableIntentId,
+        status: existingPending?.intent_status,
+        price_cents: existingPending?.price_cents ?? priceCents,
+        currency: existingPending?.currency || currency,
+        plan_name: plan.name,
+      } : null;
 
       if (!intent) {
         intent = await createSubscriptionIntent({
@@ -216,29 +200,24 @@ export default function SubscriptionPlansPage() {
           page: window.location.pathname,
         });
       }
-
       if (!intent?.id) {
         setError("Não foi possível iniciar a contratação agora. Tente novamente.");
         return;
       }
 
-      localStorage.setItem(
-        "pending_subscription_plan",
-        JSON.stringify({
-          ...pendingPlan,
-          intent_id: intent.id,
-          intent_status: intent.status,
-          price_cents: intent.price_cents ?? priceCents,
-          currency: intent.currency || currency,
-        })
-      );
+      localStorage.setItem("pending_subscription_plan", JSON.stringify({
+        ...pendingPlan,
+        intent_id: intent.id,
+        intent_status: intent.status,
+        price_cents: intent.price_cents ?? priceCents,
+        currency: intent.currency || currency,
+      }));
 
       const paymentCheckout = await createSubscriptionPixCheckout(intent.id);
       if (!paymentCheckout?.payment?.pix?.qr_code) {
         setError("Não foi possível recuperar ou gerar o PIX agora. Nenhuma cobrança foi confirmada; tente novamente.");
         return;
       }
-
       setCheckout({ ...paymentCheckout, planName: intent.plan_name || plan.name });
     } catch {
       setError("Não foi possível iniciar o checkout agora. Tente novamente.");
@@ -250,15 +229,10 @@ export default function SubscriptionPlansPage() {
   useEffect(() => {
     if (!recoveryReady || loading || error || checkout || submittingPlan || autoCheckoutStartedRef.current) return;
     if (!localStorage.getItem("token")) return;
-
     const resumePlanCode = getResumePlan();
     if (!resumePlanCode) return;
-
-    const resumePlan = plans.find(
-      (plan) => String(plan?.code || "").trim().toLowerCase() === resumePlanCode
-    );
+    const resumePlan = plans.find((plan) => String(plan?.code || "").trim().toLowerCase() === resumePlanCode);
     if (!resumePlan) return;
-
     autoCheckoutStartedRef.current = true;
     choosePlan(resumePlan);
   }, [recoveryReady, loading, error, checkout, submittingPlan, plans, choosePlan]);
@@ -266,23 +240,17 @@ export default function SubscriptionPlansPage() {
   const copyPix = async () => {
     const code = checkout?.payment?.pix?.qr_code;
     if (!code) return;
-
     setCopied(false);
     setCopyMessage("");
-
     try {
-      if (!navigator.clipboard?.writeText) {
-        throw new Error("clipboard-unavailable");
-      }
-
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard-unavailable");
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setCopyMessage("Código PIX copiado. Abra seu banco e cole no PIX Copia e Cola.");
       return;
     } catch {
-      // Browsers, PWAs and WebViews may deny the async Clipboard API.
+      // Clipboard API can be unavailable in browsers, PWAs and WebViews; continue with the fallback below.
     }
-
     try {
       const field = pixCodeRef.current;
       if (field) {
@@ -290,16 +258,11 @@ export default function SubscriptionPlansPage() {
         field.select();
         field.setSelectionRange?.(0, field.value.length);
       }
-
-      const copiedWithFallback = typeof document.execCommand === "function"
-        && document.execCommand("copy");
-
+      const copiedWithFallback = typeof document.execCommand === "function" && document.execCommand("copy");
       setCopied(Boolean(copiedWithFallback));
-      setCopyMessage(
-        copiedWithFallback
-          ? "Código PIX copiado. Abra seu banco e cole no PIX Copia e Cola."
-          : "Não foi possível copiar automaticamente. O código ficou selecionado para você copiar manualmente."
-      );
+      setCopyMessage(copiedWithFallback
+        ? "Código PIX copiado. Abra seu banco e cole no PIX Copia e Cola."
+        : "Não foi possível copiar automaticamente. O código ficou selecionado para você copiar manualmente.");
     } catch {
       setCopied(false);
       setCopyMessage("Não foi possível copiar automaticamente. Selecione o código abaixo e copie manualmente.");
@@ -309,29 +272,26 @@ export default function SubscriptionPlansPage() {
   const checkPaymentStatus = useCallback(async ({ manual = false } = {}) => {
     const intentId = checkout?.intent?.id;
     if (!intentId || paymentSyncInFlightRef.current) return false;
-
     paymentSyncInFlightRef.current = true;
     if (manual) {
       setConfirmingPayment(true);
       setPaymentMessage("Confirmando pagamento…");
     }
-
     try {
       const status = await syncSubscriptionPayment(intentId);
       const active = status?.subscription?.status === "active" && status?.entitlement?.status === "active";
-
       if (active) {
+        const pending = readPendingSubscription();
+        const returnTo = returnToFromLocation() || safeSubscriptionReturnTo(pending?.return_to);
+        const destination = buildSubscriptionSuccessUrl({ returnTo });
         localStorage.removeItem("pending_subscription_plan");
         setPaymentMessage("Pagamento confirmado. Seu plano está ativo.");
-        window.location.assign("/dashboard?subscription=active");
+        window.location.assign(destination);
         return true;
       }
-
-      setPaymentMessage(
-        manual
-          ? "O PIX ainda não foi confirmado. Se você acabou de pagar, a Plat continuará verificando automaticamente."
-          : "Aguardando a confirmação automática do PIX…"
-      );
+      setPaymentMessage(manual
+        ? "O PIX ainda não foi confirmado. Se você acabou de pagar, a Plat continuará verificando automaticamente."
+        : "Aguardando a confirmação automática do PIX…");
       return false;
     } finally {
       paymentSyncInFlightRef.current = false;
@@ -342,30 +302,21 @@ export default function SubscriptionPlansPage() {
   useEffect(() => {
     const intentId = checkout?.intent?.id;
     if (!intentId) return undefined;
-
     let cancelled = false;
     let attempts = 0;
     let timeoutId = null;
     let running = false;
-
     const scheduleNext = () => {
       if (cancelled) return;
       const delay = attempts < AUTO_PAYMENT_SYNC_FAST_ATTEMPTS
-        ? AUTO_PAYMENT_SYNC_INTERVAL_MS
-        : AUTO_PAYMENT_SYNC_SLOW_INTERVAL_MS;
+        ? AUTO_PAYMENT_SYNC_INTERVAL_MS : AUTO_PAYMENT_SYNC_SLOW_INTERVAL_MS;
       timeoutId = window.setTimeout(sync, delay);
     };
-
     const sync = async () => {
       if (cancelled || running) return;
-      if (document.hidden) {
-        scheduleNext();
-        return;
-      }
-
+      if (document.hidden) { scheduleNext(); return; }
       running = true;
       attempts += 1;
-
       try {
         const activated = await checkPaymentStatus();
         if (activated) cancelled = true;
@@ -374,17 +325,14 @@ export default function SubscriptionPlansPage() {
         if (!cancelled) scheduleNext();
       }
     };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible" || cancelled || running) return;
       if (timeoutId) window.clearTimeout(timeoutId);
       sync();
     };
-
     setPaymentMessage("A Plat confirmará seu PIX automaticamente assim que o pagamento for identificado.");
     sync();
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       cancelled = true;
       if (timeoutId) window.clearTimeout(timeoutId);
@@ -400,68 +348,30 @@ export default function SubscriptionPlansPage() {
       <div className="text-center mx-auto mb-5" style={{ maxWidth: 760 }}>
         <span className="badge text-bg-primary mb-3">Plat</span>
         <h1 className="display-6 fw-bold">Planos para bares e restaurantes</h1>
-        <p className="lead text-body-secondary mb-0">
-          Cardápio, pedidos, comandas, equipe e gestão em uma única operação. Valores mensais fornecidos pela Peter Tecnet API.
-        </p>
+        <p className="lead text-body-secondary mb-0">Cardápio, pedidos, comandas, equipe e gestão em uma única operação. Valores mensais fornecidos pela Peter Tecnet API.</p>
       </div>
-
       {loading && <div className="text-center py-5">Carregando planos…</div>}
       {error && <div className="alert alert-danger" role="alert">{error}</div>}
-
       {checkout && (
         <section className="card shadow-sm border-primary mx-auto mb-5" style={{ maxWidth: 620 }}>
           <div className="card-body p-4 p-md-5 text-center">
             <span className="badge text-bg-success mb-3">Checkout seguro</span>
             <h2 className="h3 fw-bold">Pague seu plano {checkout.planName} por PIX</h2>
-            <p className="text-body-secondary">
-              A liberação é automática após a confirmação do pagamento.
-            </p>
-            {qrCodeBase64 && (
-              <img
-                src={`data:image/png;base64,${qrCodeBase64}`}
-                alt="QR Code PIX da assinatura Plat"
-                className="img-fluid border rounded p-2 bg-white my-3"
-                style={{ width: 260, height: 260, objectFit: "contain" }}
-              />
-            )}
+            <p className="text-body-secondary">A liberação é automática após a confirmação do pagamento.</p>
+            {qrCodeBase64 && <img src={`data:image/png;base64,${qrCodeBase64}`} alt="QR Code PIX da assinatura Plat" className="img-fluid border rounded p-2 bg-white my-3" style={{ width: 260, height: 260, objectFit: "contain" }} />}
             <div className="text-start mt-3">
-              <label htmlFor="subscription-pix-code" className="form-label small text-body-secondary mb-1">
-                PIX Copia e Cola
-              </label>
-              <textarea
-                id="subscription-pix-code"
-                ref={pixCodeRef}
-                className="form-control font-monospace"
-                rows={3}
-                readOnly
-                value={pixCode}
-                aria-label="Código PIX Copia e Cola"
-                onFocus={(event) => event.currentTarget.select()}
-              />
+              <label htmlFor="subscription-pix-code" className="form-label small text-body-secondary mb-1">PIX Copia e Cola</label>
+              <textarea id="subscription-pix-code" ref={pixCodeRef} className="form-control font-monospace" rows={3} readOnly value={pixCode} aria-label="Código PIX Copia e Cola" onFocus={(event) => event.currentTarget.select()} />
             </div>
             <div className="d-grid gap-2 mt-3">
-              <button type="button" className="btn btn-outline-primary" onClick={copyPix}>
-                {copied ? "Código PIX copiado" : "Copiar código PIX"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-success"
-                disabled={confirmingPayment}
-                onClick={() => checkPaymentStatus({ manual: true })}
-              >
-                {confirmingPayment ? "Confirmando…" : "Já paguei — verificar agora"}
-              </button>
+              <button type="button" className="btn btn-outline-primary" onClick={copyPix}>{copied ? "Código PIX copiado" : "Copiar código PIX"}</button>
+              <button type="button" className="btn btn-success" disabled={confirmingPayment} onClick={() => checkPaymentStatus({ manual: true })}>{confirmingPayment ? "Confirmando…" : "Já paguei — verificar agora"}</button>
             </div>
-            {copyMessage && (
-              <p className={`small mt-2 mb-0 ${copied ? "text-success" : "text-body-secondary"}`} aria-live="polite">
-                {copyMessage}
-              </p>
-            )}
+            {copyMessage && <p className={`small mt-2 mb-0 ${copied ? "text-success" : "text-body-secondary"}`} aria-live="polite">{copyMessage}</p>}
             {paymentMessage && <p className="small mt-3 mb-0">{paymentMessage}</p>}
           </div>
         </section>
       )}
-
       {!loading && !error && !checkout && (
         <div className="row g-4 justify-content-center">
           {plans.map((plan) => (
@@ -470,21 +380,9 @@ export default function SubscriptionPlansPage() {
                 <div className="card-body d-flex flex-column p-4">
                   {plan.recommended && <span className="badge text-bg-primary align-self-start mb-3">Mais escolhido</span>}
                   <h2 className="h4 fw-bold">{plan.name}</h2>
-                  <div className="d-flex align-items-end gap-2 my-3">
-                    <strong className="display-6">{money.format(plan.price ?? plan.price_cents / 100)}</strong>
-                    <span className="text-body-secondary mb-2">/mês</span>
-                  </div>
-                  <ul className="list-unstyled d-grid gap-2 mb-4">
-                    {(plan.features || []).map((feature) => <li key={feature}>✓ {feature}</li>)}
-                  </ul>
-                  <button
-                    type="button"
-                    className={`btn btn-${plan.recommended ? "primary" : "outline-primary"} mt-auto`}
-                    disabled={Boolean(submittingPlan)}
-                    onClick={() => choosePlan(plan)}
-                  >
-                    {submittingPlan === plan.code ? "Gerando PIX…" : `Assinar ${plan.name} com PIX`}
-                  </button>
+                  <div className="d-flex align-items-end gap-2 my-3"><strong className="display-6">{money.format(plan.price ?? plan.price_cents / 100)}</strong><span className="text-body-secondary mb-2">/mês</span></div>
+                  <ul className="list-unstyled d-grid gap-2 mb-4">{(plan.features || []).map((feature) => <li key={feature}>✓ {feature}</li>)}</ul>
+                  <button type="button" className={`btn btn-${plan.recommended ? "primary" : "outline-primary"} mt-auto`} disabled={Boolean(submittingPlan)} onClick={() => choosePlan(plan)}>{submittingPlan === plan.code ? "Gerando PIX…" : `Assinar ${plan.name} com PIX`}</button>
                 </div>
               </section>
             </div>

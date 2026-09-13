@@ -45,3 +45,19 @@ export const buildSubscriptionRecoveryUrl = ({
 
   return `/planos?${params.toString()}`;
 };
+
+export const buildSubscriptionSuccessUrl = ({
+  returnTo = "",
+  origin = window.location.origin,
+} = {}) => {
+  const safeReturnTo = safeSubscriptionReturnTo(returnTo, origin);
+  if (!safeReturnTo) return "/dashboard?subscription=active";
+
+  try {
+    const target = new URL(safeReturnTo, origin);
+    target.searchParams.set("subscription", "active");
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return "/dashboard?subscription=active";
+  }
+};

@@ -1,5 +1,6 @@
 import {
   buildSubscriptionRecoveryUrl,
+  buildSubscriptionSuccessUrl,
   safeSubscriptionReturnTo,
 } from "./subscriptionRecovery";
 
@@ -16,6 +17,20 @@ describe("subscription recovery", () => {
     })).toBe(
       "/planos?plan=pro&resume=1&source=payment_recovery&ref=menu-42&utm_campaign=organic-menu&return_to=%2Festablishment%2F42%2Fordering-settings%3Ftab%3Dpayments%23pix"
     );
+  });
+
+  test("returns to the paid feature after activation", () => {
+    expect(buildSubscriptionSuccessUrl({
+      returnTo: "/establishment/42/ordering-settings?tab=payments#pix",
+      origin,
+    })).toBe("/establishment/42/ordering-settings?tab=payments&subscription=active#pix");
+  });
+
+  test("falls back to dashboard when the return destination is unsafe", () => {
+    expect(buildSubscriptionSuccessUrl({ returnTo: "https://evil.example/path", origin }))
+      .toBe("/dashboard?subscription=active");
+    expect(buildSubscriptionSuccessUrl({ returnTo: "/planos?plan=pro", origin }))
+      .toBe("/dashboard?subscription=active");
   });
 
   test("rejects external and looping return destinations", () => {
