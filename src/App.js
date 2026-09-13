@@ -21,6 +21,7 @@ import OrderListPage from "./pages/order/OrderListPage";
 import OrderEditPage from "./pages/order/OrderEditPage";
 import MyOrdersPage from "./pages/order/MyOrdersPage";
 import OrderTrackingPage from "./pages/order/OrderTrackingPage";
+import GuestOrderTrackingPage from "./pages/order/GuestOrderTrackingPage";
 import UserListPage from "./pages/admin/user/UserListPage";
 import UserCreatePage from "./pages/admin/user/UserCreatePage";
 import UserViewPage from "./pages/user/UserViewPage";
@@ -43,6 +44,7 @@ import ReportOrderPage from "./pages/report/ReportOrderPage";
 import ProcessingIndicatorComponent from "./components/ProcessingIndicatorComponent";
 import SeoManager from "./components/SeoManager";
 import PoweredByPlatGrowth from "./components/PoweredByPlatGrowth";
+import GuestOrderResume from "./components/GuestOrderResume";
 import { apiV1BaseUrl } from "./config";
 import "./index.css";
 
@@ -83,6 +85,7 @@ const App = () => {
     <Route path="/cardapio-digital" element={<DigitalMenuLandingPage/>}/>
     <Route path="/restaurants" element={<PublicRestaurantsPage/>}/>
     <Route path="/establishment/view/:slug" element={<EstablishmentViewPage/>}/>
+    <Route path="/pedido/:id" element={<GuestOrderTrackingPage/>}/>
     <Route path="/register" element={restrictedRoute(<RegisterPage/>)}/>
     <Route path="/login" element={restrictedRoute(<LoginPage/>)}/>
     <Route path="/password-email" element={restrictedRoute(<PasswordEmailPage/>)}/>
@@ -116,7 +119,7 @@ const App = () => {
     <Route path="/service-record/view/:id" element={protectedRoute(<ServiceRecordViewPage/>)}/>
     <Route path="/report/order/:entityId" element={protectedRoute(<ReportOrderPage/>)}/>
     <Route path="*" element={<NotFoundPage/>}/>
-  </Routes><PoweredByPlatGrowth user={user}/></Router>;
+  </Routes><GuestOrderResume/><PoweredByPlatGrowth user={user}/></Router>;
 };
 
 export default App;
