@@ -1,6 +1,7 @@
 import axios from "axios";
 import { apiV1BaseUrl } from "../config";
 import { checkoutResource } from "../utils/checkoutAccess";
+import { rememberGuestOrder } from "../utils/guestOrderTracking";
 
 const token = () => localStorage.getItem("token") || "";
 const headers = () => ({ Authorization: `Bearer ${token()}` });
@@ -291,7 +292,11 @@ export const createCheckout = async (payload) => {
     })
     .then(({ data }) => {
       clearCheckoutIntent(intent);
-      return data?.data || {};
+      const result = data?.data || {};
+      if (!authenticated && result?.order?.id) {
+        rememberGuestOrder(result.order, checkoutPayload?.customer_phone);
+      }
+      return result;
     })
     .catch((error) => {
       const idempotencyStatus = String(error?.response?.headers?.["idempotency-status"] || "").toLowerCase();
@@ -308,6 +313,14 @@ export const createCheckout = async (payload) => {
 
   checkoutRequests.set(requestKey, request);
   return request;
+};
+
+export const trackGuestOrder = async (id, phone) => {
+  const { data } = await axios.post(`${apiV1BaseUrl}/guest-orders/track`, {
+    order_id: Number(id),
+    phone: String(phone || "").trim(),
+  });
+  return data?.data || null;
 };
 
 export const getMyOrders = async () => {
