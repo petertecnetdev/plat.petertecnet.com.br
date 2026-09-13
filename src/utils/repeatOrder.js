@@ -1,3 +1,6 @@
+const REPEAT_ORDER_CONTEXT_KEY = "plat-repeat-order-context";
+const REPEAT_ORDER_CONTEXT_TTL_MS = 2 * 60 * 60 * 1000;
+
 export const cartFromTrackedOrder = (order) => {
   const cart = {};
 
@@ -28,5 +31,58 @@ export const restoreTrackedOrderCart = (order) => {
     return true;
   } catch {
     return false;
+  }
+};
+
+export const rememberRepeatOrderContext = (order) => {
+  const slug = String(order?.establishment?.slug || "").trim();
+  const sourceOrderId = order?.id;
+  if (!slug || sourceOrderId === undefined || sourceOrderId === null || typeof window === "undefined" || !window.sessionStorage) return false;
+
+  const context = {
+    source_order_id: sourceOrderId,
+    establishment_id: order?.establishment?.id ?? null,
+    establishment_slug: slug,
+    started_at: Date.now(),
+  };
+
+  try {
+    window.sessionStorage.setItem(REPEAT_ORDER_CONTEXT_KEY, JSON.stringify(context));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const clearRepeatOrderContext = () => {
+  try {
+    window.sessionStorage?.removeItem(REPEAT_ORDER_CONTEXT_KEY);
+  } catch {
+    // Storage can be unavailable in hardened browser contexts.
+  }
+};
+
+export const readRepeatOrderContext = (slug) => {
+  if (typeof window === "undefined" || !window.sessionStorage) return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(REPEAT_ORDER_CONTEXT_KEY);
+    if (!raw) return null;
+    const context = JSON.parse(raw);
+    const startedAt = Number(context?.started_at || 0);
+    const expectedSlug = String(slug || "").trim();
+    const contextSlug = String(context?.establishment_slug || "").trim();
+    const expired = !startedAt || Date.now() - startedAt > REPEAT_ORDER_CONTEXT_TTL_MS;
+    const invalid = context?.source_order_id === undefined || context?.source_order_id === null || !contextSlug;
+
+    if (expired || invalid || (expectedSlug && expectedSlug !== contextSlug)) {
+      clearRepeatOrderContext();
+      return null;
+    }
+
+    return context;
+  } catch {
+    clearRepeatOrderContext();
+    return null;
   }
 };

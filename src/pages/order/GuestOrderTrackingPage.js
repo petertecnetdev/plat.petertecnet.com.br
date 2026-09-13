@@ -5,7 +5,7 @@ import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, trackGuestOrder } from "../../services/platCommerceApi";
 import { readGuestOrder, rememberGuestOrderPhone } from "../../utils/guestOrderTracking";
-import { restoreTrackedOrderCart } from "../../utils/repeatOrder";
+import { rememberRepeatOrderContext, restoreTrackedOrderCart } from "../../utils/repeatOrder";
 import { trackTelemetryEvent } from "../../telemetry";
 import "./CustomerOrders.css";
 
@@ -83,7 +83,7 @@ export default function GuestOrderTrackingPage() {
 
   const repeatOrder = async () => {
     const slug = String(order?.establishment?.slug || "").trim();
-    if (!slug || !restoreTrackedOrderCart(order)) {
+    if (!slug || !restoreTrackedOrderCart(order) || !rememberRepeatOrderContext(order)) {
       await Swal.fire("Não foi possível repetir", "Abra o cardápio e escolha novamente os itens disponíveis.", "info");
       return;
     }
