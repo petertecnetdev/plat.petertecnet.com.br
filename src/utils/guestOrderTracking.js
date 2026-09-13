@@ -1,19 +1,41 @@
 const latestGuestOrderKey = "plat:guest-order:latest";
 const guestOrderPrefix = "plat:guest-order:";
+const guestOrderPhonePrefix = "plat:guest-order-phone:";
 const guestOrderTtlMs = 30 * 24 * 60 * 60 * 1000;
 
 const storageAvailable = () => typeof window !== "undefined" && Boolean(window.localStorage);
+const sessionStorageAvailable = () => typeof window !== "undefined" && Boolean(window.sessionStorage);
+
+const metadataFor = (order) => ({
+  id: order.id,
+  order_number: order.order_number || order.id,
+  establishment: order.establishment || null,
+  saved_at: order.saved_at || new Date().toISOString(),
+});
+
+const rememberSessionPhone = (id, phone) => {
+  if (!sessionStorageAvailable() || !id || !String(phone || "").trim()) return;
+  try {
+    sessionStorage.setItem(`${guestOrderPhonePrefix}${id}`, String(phone).trim());
+  } catch {
+    // Tracking can ask for the phone again when session storage is unavailable.
+  }
+};
+
+const sessionPhoneFor = (id) => {
+  if (!sessionStorageAvailable()) return "";
+  try {
+    return sessionStorage.getItem(`${guestOrderPhonePrefix}${id}`) || "";
+  } catch {
+    return "";
+  }
+};
 
 export const rememberGuestOrder = (order, phone) => {
-  if (!storageAvailable() || !order?.id || !String(phone || "").trim()) return;
+  if (!storageAvailable() || !order?.id) return;
 
-  const value = {
-    id: order.id,
-    order_number: order.order_number || order.id,
-    phone: String(phone).trim(),
-    establishment: order.establishment || null,
-    saved_at: new Date().toISOString(),
-  };
+  const value = metadataFor(order);
+  rememberSessionPhone(order.id, phone);
 
   try {
     localStorage.setItem(`${guestOrderPrefix}${order.id}`, JSON.stringify(value));
@@ -28,37 +50,32 @@ const validStoredOrder = (value) => {
   const savedAt = Date.parse(value?.saved_at || "");
   return Boolean(
     value?.id &&
-    value?.phone &&
     Number.isFinite(savedAt) &&
     Date.now() - savedAt <= guestOrderTtlMs
   );
 };
 
-export const readGuestOrder = (id) => {
+const readMetadata = (key) => {
   if (!storageAvailable()) return null;
   try {
-    const value = JSON.parse(localStorage.getItem(`${guestOrderPrefix}${id}`) || "null");
+    const value = JSON.parse(localStorage.getItem(key) || "null");
     if (validStoredOrder(value)) return value;
-    localStorage.removeItem(`${guestOrderPrefix}${id}`);
+    localStorage.removeItem(key);
   } catch {
-    localStorage.removeItem(`${guestOrderPrefix}${id}`);
+    localStorage.removeItem(key);
   }
   return null;
 };
 
-export const readLatestGuestOrder = () => {
-  if (!storageAvailable()) return null;
-  try {
-    const value = JSON.parse(localStorage.getItem(latestGuestOrderKey) || "null");
-    if (validStoredOrder(value)) return value;
-    localStorage.removeItem(latestGuestOrderKey);
-  } catch {
-    localStorage.removeItem(latestGuestOrderKey);
-  }
-  return null;
+export const readGuestOrder = (id) => {
+  const value = readMetadata(`${guestOrderPrefix}${id}`);
+  return value ? { ...value, phone: sessionPhoneFor(value.id) } : null;
 };
+
+export const readLatestGuestOrder = () => readMetadata(latestGuestOrderKey);
 
 export const rememberGuestOrderPhone = (id, phone) => {
-  const existing = readGuestOrder(id) || { id, saved_at: new Date().toISOString() };
+  rememberSessionPhone(id, phone);
+  const existing = readMetadata(`${guestOrderPrefix}${id}`) || { id, saved_at: new Date().toISOString() };
   rememberGuestOrder(existing, phone);
 };
