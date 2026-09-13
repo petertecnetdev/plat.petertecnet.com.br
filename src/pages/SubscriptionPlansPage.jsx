@@ -248,7 +248,9 @@ export default function SubscriptionPlansPage() {
       setCopied(true);
       setCopyMessage("Código PIX copiado. Abra seu banco e cole no PIX Copia e Cola.");
       return;
-    } catch {}
+    } catch {
+      // Clipboard API can be unavailable in browsers, PWAs and WebViews; continue with the fallback below.
+    }
     try {
       const field = pixCodeRef.current;
       if (field) {
