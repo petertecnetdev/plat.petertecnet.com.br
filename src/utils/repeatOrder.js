@@ -1,6 +1,8 @@
 const REPEAT_ORDER_CONTEXT_KEY = "plat-repeat-order-context";
 const REPEAT_ORDER_CONTEXT_TTL_MS = 2 * 60 * 60 * 1000;
 const REPEAT_ORDER_CONVERSION_PREFIX = "plat-repeat-order-conversion:";
+const REPEAT_ORDER_CONVERSION_SEED_KEY = "plat-repeat-order-conversion-seed";
+const REPEAT_ORDER_CONVERSION_SEED_TTL_MS = 30 * 60 * 1000;
 const REPEAT_ORDER_CONVERSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const cartFromTrackedOrder = (order) => {
@@ -58,9 +60,21 @@ export const rememberRepeatOrderContext = (order) => {
 
 export const clearRepeatOrderContext = () => {
   try {
+    const raw = window.sessionStorage?.getItem(REPEAT_ORDER_CONTEXT_KEY);
+    if (raw && window.localStorage) {
+      const context = JSON.parse(raw);
+      if (context?.source_order_id !== undefined && context?.source_order_id !== null) {
+        window.localStorage.setItem(REPEAT_ORDER_CONVERSION_SEED_KEY, JSON.stringify({
+          source_order_id: context.source_order_id,
+          establishment_id: context.establishment_id ?? null,
+          establishment_slug: context.establishment_slug || null,
+          converted_at: Date.now(),
+        }));
+      }
+    }
     window.sessionStorage?.removeItem(REPEAT_ORDER_CONTEXT_KEY);
   } catch {
-    // Storage can be unavailable in hardened browser contexts.
+    try { window.sessionStorage?.removeItem(REPEAT_ORDER_CONTEXT_KEY); } catch { /* noop */ }
   }
 };
 
@@ -78,13 +92,13 @@ export const readRepeatOrderContext = (slug) => {
     const invalid = context?.source_order_id === undefined || context?.source_order_id === null || !contextSlug;
 
     if (expired || invalid || (expectedSlug && expectedSlug !== contextSlug)) {
-      clearRepeatOrderContext();
+      window.sessionStorage.removeItem(REPEAT_ORDER_CONTEXT_KEY);
       return null;
     }
 
     return context;
   } catch {
-    clearRepeatOrderContext();
+    window.sessionStorage.removeItem(REPEAT_ORDER_CONTEXT_KEY);
     return null;
   }
 };
@@ -106,7 +120,7 @@ export const rememberRepeatOrderConversion = (order, sourceContext = readRepeatO
   const context = {
     source_order_id: sourceContext.source_order_id,
     new_order_id: newOrderId,
-    establishment_id: order?.establishment_id ?? sourceContext.establishment_id ?? null,
+    establishment_id: order?.establishment?.id ?? order?.establishment_id ?? sourceContext.establishment_id ?? null,
     created_at: Date.now(),
     paid_tracked: false,
     completed_tracked: false,
@@ -117,6 +131,41 @@ export const rememberRepeatOrderConversion = (order, sourceContext = readRepeatO
     return true;
   } catch {
     return false;
+  }
+};
+
+export const claimRepeatOrderConversion = (order) => {
+  const newOrderId = order?.id;
+  if (newOrderId === undefined || newOrderId === null || typeof window === "undefined" || !window.localStorage) return null;
+
+  const existing = readRepeatOrderConversion(newOrderId);
+  if (existing) return existing;
+
+  try {
+    const raw = window.localStorage.getItem(REPEAT_ORDER_CONVERSION_SEED_KEY);
+    if (!raw) return null;
+    const seed = JSON.parse(raw);
+    const convertedAt = Number(seed?.converted_at || 0);
+    const orderEstablishmentId = order?.establishment?.id ?? order?.establishment_id ?? null;
+    const orderSlug = String(order?.establishment?.slug || "").trim();
+    const seedSlug = String(seed?.establishment_slug || "").trim();
+    const establishmentMatches = seed?.establishment_id && orderEstablishmentId
+      ? Number(seed.establishment_id) === Number(orderEstablishmentId)
+      : Boolean(seedSlug && orderSlug && seedSlug === orderSlug);
+    const invalid = seed?.source_order_id === undefined || seed?.source_order_id === null || String(seed.source_order_id) === String(newOrderId);
+    const expired = !convertedAt || Date.now() - convertedAt > REPEAT_ORDER_CONVERSION_SEED_TTL_MS;
+
+    if (invalid || expired || !establishmentMatches) {
+      if (expired || invalid) window.localStorage.removeItem(REPEAT_ORDER_CONVERSION_SEED_KEY);
+      return null;
+    }
+
+    if (!rememberRepeatOrderConversion(order, seed)) return null;
+    window.localStorage.removeItem(REPEAT_ORDER_CONVERSION_SEED_KEY);
+    return readRepeatOrderConversion(newOrderId);
+  } catch {
+    window.localStorage.removeItem(REPEAT_ORDER_CONVERSION_SEED_KEY);
+    return null;
   }
 };
 
