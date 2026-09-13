@@ -28,6 +28,22 @@ const readPendingSubscription = () => {
   }
 };
 
+const readPendingPixRecovery = () => {
+  try {
+    const pending = JSON.parse(localStorage.getItem("plat-pending-pix-order") || "null");
+    if (!pending?.id) return null;
+    const savedAt = pending?.saved_at ? Date.parse(pending.saved_at) : NaN;
+    if (!Number.isFinite(savedAt) || Date.now() - savedAt > PENDING_TTL_MS) {
+      localStorage.removeItem("plat-pending-pix-order");
+      return null;
+    }
+    return pending;
+  } catch {
+    localStorage.removeItem("plat-pending-pix-order");
+    return null;
+  }
+};
+
 const pendingFromIntent = (intent) => {
   const plan = String(intent?.plan_code || "").trim().toLowerCase();
   if (!intent?.id || intent?.application !== "plat" || !/^[a-z0-9_-]{1,80}$/i.test(plan)) return null;
@@ -61,6 +77,7 @@ export default function DashboardPage() {
   const [data, setData] = useState({ totals: {}, establishments: [] });
   const [loading, setLoading] = useState(true);
   const [pendingSubscription, setPendingSubscription] = useState(() => readPendingSubscription());
+  const [pendingPix] = useState(() => readPendingPixRecovery());
 
   useEffect(() => {
     let active = true;
@@ -130,9 +147,13 @@ export default function DashboardPage() {
   const recoveryTarget = recoverablePayment
     ? `/planos?plan=${encodeURIComponent(recoverablePayment.plan)}&resume=1&source=payment_recovery`
     : "";
+  const pixRecoveryTarget = pendingPix?.id
+    ? `/my-orders/${encodeURIComponent(String(pendingPix.id))}?recovery_source=resume`
+    : "";
 
   return <div className="dashboard-root"><NavlogComponent/><main className="dashboard-main">
     <header className="dashboard-hero"><div><span className="dashboard-eyebrow">Visão geral</span><h1>Operação Plat.</h1><p>Pedidos e receita calculados no servidor, exclusivamente para seus restaurantes da Plat.</p></div><div className="dashboard-hero__actions"><span className="dashboard-date">{new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"long",year:"numeric"}).format(new Date())}</span><Link to="/establishment/create" className="dashboard-primary-action"><FiPlus/> Novo estabelecimento</Link></div></header>
+    {pendingPix && <section className="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="status"><div><strong>Você tem um Pix de pedido aguardando pagamento.</strong><div className="small mt-1">Pedido #{pendingPix.order_number || pendingPix.id} · {pendingPix.establishment || "Estabelecimento"} · {money(pendingPix.amount)}. Retome sem montar o carrinho novamente.</div></div><Link to={pixRecoveryTarget} className="btn btn-dark flex-shrink-0">Concluir Pix agora <FiArrowRight/></Link></section>}
     {recoverablePayment && <section className="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="status"><div><strong>Seu plano ainda está aguardando pagamento.</strong><div className="small mt-1">Continue de onde parou para ativar a assinatura sem iniciar uma nova contratação.</div></div><Link to={recoveryTarget} className="btn btn-dark flex-shrink-0">Continuar pagamento <FiArrowRight/></Link></section>}
     <section className="dashboard-kpis"><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-gold"><FiDollarSign/></span><div><span>Receita de hoje</span><strong>{money(totals.revenue)}</strong><small>Pedidos não cancelados</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-blue"><FiShoppingBag/></span><div><span>Pedidos hoje</span><strong>{totals.orders || 0}</strong><small>Atualizados pela API</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-green"><FiTrendingUp/></span><div><span>Ticket médio</span><strong>{money(totals.average_ticket)}</strong><small>Média de hoje</small></div></article><article className="dashboard-kpi"><span className="dashboard-kpi__icon is-purple"><FiBriefcase/></span><div><span>Estabelecimentos</span><strong>{totals.establishments || 0}</strong><small>Vinculados à Plat</small></div></article></section>
     <section className="dashboard-grid"><div className="dashboard-panel dashboard-panel--establishments"><div className="dashboard-panel__header"><div><span className="dashboard-eyebrow">Operação</span><h2>Estabelecimentos</h2></div><Link to="/establishment">Ver todos <FiArrowRight/></Link></div>
