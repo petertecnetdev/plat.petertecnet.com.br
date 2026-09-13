@@ -7,8 +7,10 @@ import { FiArrowLeft, FiMinus, FiPlus, FiShoppingBag, FiX } from "react-icons/fi
 import { storageUrl } from "../../config";
 import NavlogComponent from "../../components/NavlogComponent";
 import { apiErrorMessage, createCheckout, getOrdering } from "../../services/platCommerceApi";
+import { trackTelemetryEvent } from "../../telemetry";
 import { clampCartQuantity, isModifierAvailableForQuantity, isSellableModifier, reconcileCartAvailability } from "../../utils/cartAvailability";
 import { canCheckoutAsGuest, checkoutMethodRequiresAuthentication, isAuthenticatedCheckout, preferredCheckoutMethod } from "../../utils/checkoutAccess";
+import { clearRepeatOrderContext, readRepeatOrderContext } from "../../utils/repeatOrder";
 import "./View.css";
 import "../public/PublicRestaurantsPage.css";
 import "./PlatCheckout.css";
@@ -29,6 +31,7 @@ export default function EstablishmentViewPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cart, setCart] = useState(() => { try { return normalizeCart(JSON.parse(localStorage.getItem(`plat-cart:${slug}`) || "{}")); } catch { return {}; } });
   const [form, setForm] = useState({ customer_name: "", customer_phone: "", fulfillment: "", payment_method: "", delivery_address: "", notes: "" });
+  const repeatContext = useMemo(() => readRepeatOrderContext(slug), [slug]);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +94,19 @@ export default function EstablishmentViewPage() {
       return;
     }
     if (subtotal < Number(ordering?.minimum_order || 0)) { Swal.fire("Pedido mínimo", `O pedido mínimo é ${money(ordering.minimum_order)}.`, "info"); return; }
+    if (repeatContext) {
+      trackTelemetryEvent("plat_guest_order_reorder_checkout_opened", {
+        target: "repeat_order",
+        label: String(repeatContext.source_order_id),
+        metadata: {
+          source_order_id: repeatContext.source_order_id,
+          establishment_id: establishment?.id || repeatContext.establishment_id || null,
+          item_count: cartCount,
+          amount: Number(total || 0),
+          authenticated: isAuthenticatedCheckout(),
+        },
+      });
+    }
     setCheckoutOpen(true);
   };
 
@@ -131,6 +147,23 @@ export default function EstablishmentViewPage() {
         return;
       }
       const result = await createCheckout({ establishment_id: establishment.id, ...form, items: cartLines.map((line)=>({ item_id: line.id, quantity: line.quantity, additions: line.additions || [], removals: line.removals || [], notes: line.notes || null })) });
+      if (repeatContext) {
+        trackTelemetryEvent("plat_guest_order_reorder_created", {
+          target: "repeat_order",
+          label: String(result.order?.order_number || result.order?.id || ""),
+          metadata: {
+            source_order_id: repeatContext.source_order_id,
+            new_order_id: result.order?.id || null,
+            establishment_id: establishment?.id || repeatContext.establishment_id || null,
+            item_count: cartCount,
+            amount: Number(result.order?.total_price ?? total ?? 0),
+            payment_method: form.payment_method,
+            fulfillment: form.fulfillment,
+            authenticated: isAuthenticatedCheckout(),
+          },
+        });
+        clearRepeatOrderContext();
+      }
       setCart({}); setCheckoutOpen(false);
       if (result.payment) sessionStorage.setItem(`plat-payment:${result.order.id}`, JSON.stringify(result.payment));
       const authenticated = isAuthenticatedCheckout();
