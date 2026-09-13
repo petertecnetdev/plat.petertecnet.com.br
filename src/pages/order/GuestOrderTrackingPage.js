@@ -5,7 +5,12 @@ import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, trackGuestOrder } from "../../services/platCommerceApi";
 import { readGuestOrder, rememberGuestOrderPhone } from "../../utils/guestOrderTracking";
-import { rememberRepeatOrderContext, restoreTrackedOrderCart } from "../../utils/repeatOrder";
+import {
+  claimRepeatOrderConversion,
+  markRepeatOrderConversionMilestone,
+  rememberRepeatOrderContext,
+  restoreTrackedOrderCart,
+} from "../../utils/repeatOrder";
 import { trackTelemetryEvent } from "../../telemetry";
 import "./CustomerOrders.css";
 
@@ -29,6 +34,48 @@ export default function GuestOrderTrackingPage() {
     let active = true;
     let timer;
 
+    const trackRepeatRevenue = (next) => {
+      const conversion = claimRepeatOrderConversion(next);
+      if (!conversion) return;
+
+      if (next?.payment_status === "paid") {
+        const paid = markRepeatOrderConversionMilestone(next.id, "paid");
+        if (paid) {
+          trackTelemetryEvent("plat_guest_order_reorder_paid", {
+            target: "repeat_order",
+            label: String(next?.order_number || next?.id || id),
+            metadata: {
+              source_order_id: paid.source_order_id,
+              new_order_id: next?.id || id,
+              establishment_id: next?.establishment?.id || paid.establishment_id || null,
+              amount: Number(next?.total_price || 0),
+              payment_method: next?.payment_method || null,
+              fulfillment: next?.fulfillment || null,
+            },
+          });
+        }
+      }
+
+      if (next?.status === "completed") {
+        const completed = markRepeatOrderConversionMilestone(next.id, "completed");
+        if (completed) {
+          trackTelemetryEvent("plat_guest_order_reorder_completed", {
+            target: "repeat_order",
+            label: String(next?.order_number || next?.id || id),
+            metadata: {
+              source_order_id: completed.source_order_id,
+              new_order_id: next?.id || id,
+              establishment_id: next?.establishment?.id || completed.establishment_id || null,
+              amount: Number(next?.total_price || 0),
+              payment_status: next?.payment_status || null,
+              payment_method: next?.payment_method || null,
+              fulfillment: next?.fulfillment || null,
+            },
+          });
+        }
+      }
+    };
+
     const load = async (silent = false) => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
@@ -37,6 +84,7 @@ export default function GuestOrderTrackingPage() {
         if (!active) return;
         setOrder(next);
         rememberGuestOrderPhone(id, credential);
+        trackRepeatRevenue(next);
         if (!openedRef.current) {
           openedRef.current = true;
           trackTelemetryEvent("plat_guest_order_tracking_opened", {
