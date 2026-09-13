@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
@@ -20,7 +20,7 @@ export default function GuestOrderTrackingPage() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(Boolean(stored?.phone));
   const [refreshing, setRefreshing] = useState(false);
-  const [opened, setOpened] = useState(false);
+  const openedRef = useRef(false);
 
   useEffect(() => {
     if (!credential) return undefined;
@@ -35,8 +35,8 @@ export default function GuestOrderTrackingPage() {
         if (!active) return;
         setOrder(next);
         rememberGuestOrderPhone(id, credential);
-        if (!opened) {
-          setOpened(true);
+        if (!openedRef.current) {
+          openedRef.current = true;
           trackTelemetryEvent("plat_guest_order_tracking_opened", {
             target: "guest_order",
             label: String(next?.order_number || next?.id || id),
@@ -69,12 +69,13 @@ export default function GuestOrderTrackingPage() {
       active = false;
       window.clearInterval(timer);
     };
-  }, [id, credential, opened]);
+  }, [id, credential]);
 
   const submitPhone = (event) => {
     event.preventDefault();
     const normalized = String(phone || "").trim();
     if (!normalized) return;
+    openedRef.current = false;
     setCredential(normalized);
   };
 
