@@ -10,6 +10,27 @@ import "./CustomerOrders.css";
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const stages = ["pending", "confirmed", "preparing", "ready", "completed"];
 const labels = { pending: "Recebido", confirmed: "Confirmado", preparing: "Em preparo", ready: "Pronto", completed: "Concluído", cancelled: "Cancelado" };
+const pendingPixStorageKey = "plat-pending-pix-order";
+
+const rememberPendingPix = (order) => {
+  if (order?.payment_method === "pix" && order?.payment_status !== "paid" && order?.status !== "cancelled") {
+    localStorage.setItem(pendingPixStorageKey, JSON.stringify({
+      id: order.id,
+      order_number: order.order_number || order.id,
+      establishment: order.establishment?.fantasy || order.establishment?.name || "Estabelecimento",
+      amount: Number(order.total_price || 0),
+      saved_at: new Date().toISOString(),
+    }));
+    return;
+  }
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(pendingPixStorageKey) || "null");
+    if (String(saved?.id || "") === String(order?.id || "")) localStorage.removeItem(pendingPixStorageKey);
+  } catch {
+    localStorage.removeItem(pendingPixStorageKey);
+  }
+};
 
 export default function OrderTrackingPage() {
   const { id } = useParams();
@@ -22,7 +43,7 @@ export default function OrderTrackingPage() {
   const recoveryPendingSeenRef = useRef(false);
   const recoveryPaidRef = useRef(false);
   const recoverySource = new URLSearchParams(location.search).get("recovery_source") || "";
-  const isRecovery = recoverySource === "in_app";
+  const isRecovery = ["in_app", "resume", "checkout"].includes(recoverySource);
 
   useEffect(() => {
     let active = true;
@@ -32,6 +53,7 @@ export default function OrderTrackingPage() {
         const next = await getMyOrder(id);
         if (!active) return;
         setOrder(next);
+        rememberPendingPix(next);
         const recoveryPayable = isRecovery && next?.status !== "cancelled" && next?.payment_status !== "paid";
 
         if (isRecovery && !recoveryOpenedRef.current) {
