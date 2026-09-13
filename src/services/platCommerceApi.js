@@ -280,9 +280,14 @@ export const createCheckout = async (payload) => {
   if (inFlight) return inFlight;
 
   const intent = checkoutIntentFor(requestKey);
+  const authenticated = Boolean(token());
+  const endpoint = authenticated ? "orders" : "guest-orders";
+  const requestHeaders = authenticated
+    ? { ...headers(), "Idempotency-Key": intent.idempotencyKey }
+    : { "Idempotency-Key": intent.idempotencyKey };
   const request = axios
-    .post(`${apiV1BaseUrl}/orders`, checkoutPayload, {
-      headers: { ...headers(), "Idempotency-Key": intent.idempotencyKey },
+    .post(`${apiV1BaseUrl}/${endpoint}`, checkoutPayload, {
+      headers: requestHeaders,
     })
     .then(({ data }) => {
       clearCheckoutIntent(intent);

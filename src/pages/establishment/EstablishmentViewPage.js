@@ -40,7 +40,8 @@ export default function EstablishmentViewPage() {
       setOrdering(data.ordering || null);
       const fulfillment = data.ordering?.fulfillment?.delivery ? "delivery" : data.ordering?.fulfillment?.pickup ? "pickup" : data.ordering?.fulfillment?.["dine-in"] ? "dine-in" : "";
       const methods = Array.isArray(data.ordering?.payment_methods) ? data.ordering.payment_methods : [];
-      setForm((current) => ({ ...current, fulfillment, payment_method: methods[0] || "cash" }));
+      const preferredMethod = localStorage.getItem("token") ? methods[0] : (methods.find((method) => method !== "pix") || methods[0]);
+      setForm((current) => ({ ...current, fulfillment, payment_method: preferredMethod || "cash" }));
     }).catch((error) => { console.error("[Plat] public restaurant", error); navigate("/restaurants", { replace: true }); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -81,7 +82,6 @@ export default function EstablishmentViewPage() {
 
   const openCheckout = () => {
     if (!ordering?.available) { Swal.fire("Pedidos indisponíveis", ordering?.unavailable_reason || "O restaurante não está recebendo pedidos agora.", "info"); return; }
-    if (!localStorage.getItem("token")) { navigate(`/login?redirect=${encodeURIComponent(`/establishment/view/${slug}`)}`); return; }
     if (subtotal < Number(ordering?.minimum_order || 0)) { Swal.fire("Pedido mínimo", `O pedido mínimo é ${money(ordering.minimum_order)}.`, "info"); return; }
     setCheckoutOpen(true);
   };
@@ -91,6 +91,11 @@ export default function EstablishmentViewPage() {
     if (!form.fulfillment || !form.payment_method) return;
     if (!form.customer_name.trim() || !form.customer_phone.trim()) { Swal.fire("Dados necessários", "Informe seu nome e telefone.", "warning"); return; }
     if (form.fulfillment === "delivery" && !form.delivery_address.trim()) { Swal.fire("Endereço necessário", "Informe o endereço completo para entrega.", "warning"); return; }
+    if (!localStorage.getItem("token") && form.payment_method === "pix") {
+      await Swal.fire("Entre para pagar com Pix", "Para proteger o pagamento e permitir acompanhamento, o Pix exige uma conta. Seu carrinho continuará salvo.", "info");
+      navigate(`/login?redirect=${encodeURIComponent(`/establishment/view/${slug}`)}`);
+      return;
+    }
     setSubmitting(true);
     try {
       const latest = await getOrdering(slug);
@@ -113,8 +118,17 @@ export default function EstablishmentViewPage() {
       const result = await createCheckout({ establishment_id: establishment.id, ...form, items: cartLines.map((line)=>({ item_id: line.id, quantity: line.quantity, additions: line.additions || [], removals: line.removals || [], notes: line.notes || null })) });
       setCart({}); setCheckoutOpen(false);
       if (result.payment) sessionStorage.setItem(`plat-payment:${result.order.id}`, JSON.stringify(result.payment));
-      await Swal.fire("Pedido enviado", result.payment?.provider === "mercadopago" ? "Pedido criado. O Pix está disponível na tela de acompanhamento." : "Seu pedido foi registrado na Plat.", "success");
-      navigate(`/my-orders/${result.order.id}`);
+      const authenticated = Boolean(localStorage.getItem("token"));
+      await Swal.fire(
+        "Pedido enviado",
+        result.payment?.provider === "mercadopago"
+          ? "Pedido criado. O Pix está disponível na tela de acompanhamento."
+          : authenticated
+            ? "Seu pedido foi registrado na Plat."
+            : `Pedido ${result.order?.order_number || ""} registrado sem cadastro. O estabelecimento recebeu seu nome e telefone para dar continuidade.`,
+        "success"
+      );
+      if (authenticated) navigate(`/my-orders/${result.order.id}`);
     } catch (error) { Swal.fire("Não foi possível concluir", apiErrorMessage(error, "Tente novamente."), "error"); }
     finally { setSubmitting(false); }
   };
@@ -138,7 +152,7 @@ export default function EstablishmentViewPage() {
       <label>Nome<input value={form.customer_name} onChange={(e)=>setForm({...form,customer_name:e.target.value})} autoComplete="name" required/></label><label>Telefone<input value={form.customer_phone} onChange={(e)=>setForm({...form,customer_phone:e.target.value})} autoComplete="tel" required/></label>
       <div className="plat-checkout__wide"><span>Como quer receber?</span><div className="plat-checkout__options">{ordering?.fulfillment?.delivery&&<button type="button" className={`plat-checkout__option${form.fulfillment==="delivery"?" is-active":""}`} onClick={()=>setForm({...form,fulfillment:"delivery"})}>Entrega</button>}{ordering?.fulfillment?.pickup&&<button type="button" className={`plat-checkout__option${form.fulfillment==="pickup"?" is-active":""}`} onClick={()=>setForm({...form,fulfillment:"pickup"})}>Retirada</button>}{ordering?.fulfillment?.["dine-in"]&&<button type="button" className={`plat-checkout__option${form.fulfillment==="dine-in"?" is-active":""}`} onClick={()=>setForm({...form,fulfillment:"dine-in"})}>No local</button>}</div></div>
       {form.fulfillment==="delivery"&&<label className="plat-checkout__wide">Endereço completo<textarea value={form.delivery_address} onChange={(e)=>setForm({...form,delivery_address:e.target.value})} placeholder="Rua, número, complemento, bairro e referência" required/></label>}
-      <label className="plat-checkout__wide">Pagamento<select value={form.payment_method} onChange={(e)=>setForm({...form,payment_method:e.target.value})}>{(ordering?.payment_methods||[]).map((method)=><option value={method} key={method}>{method==="pix"?"Pix online":method==="cash"?"Dinheiro na entrega/retirada":"Cartão na entrega/retirada"}</option>)}</select></label>
+      <label className="plat-checkout__wide">Pagamento<select value={form.payment_method} onChange={(e)=>setForm({...form,payment_method:e.target.value})}>{(ordering?.payment_methods||[]).map((method)=><option value={method} key={method}>{method==="pix"?(localStorage.getItem("token")?"Pix online":"Pix online · entrar para pagar"):method==="cash"?"Dinheiro na entrega/retirada":"Cartão na entrega/retirada"}</option>)}</select></label>
       <label className="plat-checkout__wide">Observações do pedido<textarea value={form.notes} onChange={(e)=>setForm({...form,notes:e.target.value})} placeholder="Portaria, troco, referência ou observação geral"/></label>
     </div><div className="plat-checkout__totals"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>{fee>0&&<div><span>Taxa de entrega</span><strong>{money(fee)}</strong></div>}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="plat-checkout__submit" disabled={submitting} type="submit">{submitting?"Enviando pedido…":`Confirmar · ${money(total)}`}</button></form></div>}
   </div>;
