@@ -22,6 +22,9 @@ export default function GuestOrderTrackingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const stored = useMemo(() => readGuestOrder(id), [id]);
+  const payment = useMemo(() => {
+    try { return JSON.parse(sessionStorage.getItem(`plat-payment:${id}`) || "null"); } catch { return null; }
+  }, [id]);
   const [phone, setPhone] = useState(stored?.phone || "");
   const [credential, setCredential] = useState(stored?.phone || "");
   const [order, setOrder] = useState(null);
@@ -181,6 +184,12 @@ export default function GuestOrderTrackingPage() {
         <div className="plat-track__row"><span>Total</span><strong>{money(order.total_price)}</strong></div>
         <div className="plat-track__row"><span>Atualização</span><strong>{refreshing ? "Atualizando…" : "Automática a cada 10s"}</strong></div>
       </section>
+      {order.payment_method === "pix" && order.payment_status !== "paid" && payment ? <section className="plat-payment-box" style={{marginTop:16}}>
+        <strong>Pague com Pix</strong>
+        <p>Conclua o pagamento para o estabelecimento receber a confirmação automaticamente.</p>
+        {payment.qr_code_base64 ? <img src={`data:image/png;base64,${payment.qr_code_base64}`} alt="QR Code Pix" style={{display:"block",width:220,maxWidth:"100%",margin:"16px auto",borderRadius:12}} /> : null}
+        {payment.qr_code || payment.pix_key ? <button type="button" className="btn btn-primary" onClick={async()=>{const code=payment.qr_code||payment.pix_key;try{await navigator.clipboard.writeText(code);await Swal.fire("Pix copiado", "O código Pix foi copiado. Abra o app do seu banco para pagar.", "success");}catch{await Swal.fire("Copie o Pix", code, "info");}}}>Copiar Pix</button> : null}
+      </section> : null}
       <section className="plat-track__items"><h2>Itens</h2>{(order.items || []).map((item)=><div className="plat-track__row" key={item.id}><span>{item.quantity}× {item.name || "Item"}</span><strong>{money(item.subtotal)}</strong></div>)}</section>
       {order.status === "completed" && order.establishment?.slug && (order.items || []).length > 0 ? <section className="plat-track__summary" style={{marginTop:16}}>
         <strong>Gostou do pedido?</strong>

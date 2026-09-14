@@ -1,8 +1,8 @@
-const OFFLINE_PAYMENT_METHODS = new Set(["cash", "card_on_delivery"]);
+const GUEST_PAYMENT_METHODS = new Set(["pix", "cash", "card_on_delivery"]);
 
 export const isAuthenticatedCheckout = () => Boolean(localStorage.getItem("token"));
 
-export const isGuestCheckoutMethod = (method) => OFFLINE_PAYMENT_METHODS.has(String(method || ""));
+export const isGuestCheckoutMethod = (method) => GUEST_PAYMENT_METHODS.has(String(method || ""));
 
 export const canCheckoutAsGuest = (methods = []) =>
   Array.isArray(methods) && methods.some(isGuestCheckoutMethod);
@@ -16,5 +16,4 @@ export const preferredCheckoutMethod = (methods = [], authenticated = false) => 
 export const checkoutResource = (authenticated = false) =>
   authenticated ? "orders" : "guest-orders";
 
-export const checkoutMethodRequiresAuthentication = (method) =>
-  String(method || "") === "pix";
+export const checkoutMethodRequiresAuthentication = () => false;
