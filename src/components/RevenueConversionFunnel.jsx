@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import { FiArrowRight, FiShare2, FiTrendingUp } from "react-icons/fi";
+import { FiArrowRight, FiDollarSign, FiShare2, FiTrendingUp } from "react-icons/fi";
 import { getEstablishmentRevenueFunnel, ORDERING_FUNNEL_EVENTS } from "../services/revenueFunnel";
 
 const LABELS = {
@@ -12,6 +12,7 @@ const LABELS = {
   plat_ordering_order_created: "Pedidos",
 };
 
+const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const percentage = (value, base) => (base > 0 ? Math.round((value / base) * 100) : 0);
 
 const diagnose = (counts) => {
@@ -29,7 +30,7 @@ const diagnose = (counts) => {
   return { title: "Funil saudável", text: "Aumente distribuição e recorrência mantendo a conversão atual.", action: "share" };
 };
 
-export default function RevenueConversionFunnel({ establishment }) {
+export default function RevenueConversionFunnel({ establishment, averageTicket = 0 }) {
   const [funnel, setFunnel] = useState(null);
   const establishmentId = establishment && establishment.id;
 
@@ -46,6 +47,11 @@ export default function RevenueConversionFunnel({ establishment }) {
 
   const counts = funnel.counts || {};
   const diagnosis = diagnose(counts);
+  const submitted = Number(counts.plat_ordering_checkout_submitted || 0);
+  const orders = Number(counts.plat_ordering_order_created || 0);
+  const confirmedTicket = Math.max(Number(averageTicket || 0), 0);
+  const nearRevenueLosses = Math.max(submitted - orders, 0);
+  const recoverableRevenueEstimate = nearRevenueLosses * confirmedTicket;
   const slug = encodeURIComponent(String(establishment?.slug || ""));
   const shareUrl = `${window.location.origin}/establishment/view/${slug}?source=merchant_funnel_recovery&utm_source=plat&utm_medium=dashboard&utm_campaign=revenue_funnel`;
   const name = String(establishment?.fantasy || establishment?.name || "seu estabelecimento").trim();
@@ -78,6 +84,15 @@ export default function RevenueConversionFunnel({ establishment }) {
           );
         })}
       </div>
+      {confirmedTicket > 0 && nearRevenueLosses > 0 && (
+        <div className="alert alert-warning border mt-3 mb-0 d-flex align-items-start gap-3" role="status">
+          <FiDollarSign className="mt-1 flex-shrink-0"/>
+          <div>
+            <strong>{money(recoverableRevenueEstimate)} em receita potencial próxima da venda</strong>
+            <div className="small mt-1">Estimativa baseada em {nearRevenueLosses} checkout{nearRevenueLosses === 1 ? "" : "s"} enviado{nearRevenueLosses === 1 ? "" : "s"} que não virou{nearRevenueLosses === 1 ? "" : "aram"} pedido × ticket confirmado de {money(confirmedTicket)}. Use como prioridade de recuperação, não como receita garantida.</div>
+          </div>
+        </div>
+      )}
       <div className="alert alert-light border mt-3 mb-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div><strong>{diagnosis.title}</strong><div className="small mt-1">{diagnosis.text}</div></div>
         <div className="dashboard-establishment__actions flex-shrink-0">{action}</div>
@@ -93,4 +108,5 @@ RevenueConversionFunnel.propTypes = {
     fantasy: PropTypes.string,
     name: PropTypes.string,
   }).isRequired,
+  averageTicket: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };
