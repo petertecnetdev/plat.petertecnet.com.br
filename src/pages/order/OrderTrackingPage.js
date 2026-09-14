@@ -14,12 +14,24 @@ const pendingPixStorageKey = "plat-pending-pix-order";
 
 const rememberPendingPix = (order) => {
   if (order?.payment_method === "pix" && order?.payment_status !== "paid" && order?.status !== "cancelled") {
+    let savedAt = new Date().toISOString();
+
+    try {
+      const existing = JSON.parse(localStorage.getItem(pendingPixStorageKey) || "null");
+      const existingSavedAt = Date.parse(existing?.saved_at || "");
+      if (String(existing?.id || "") === String(order.id) && Number.isFinite(existingSavedAt)) {
+        savedAt = existing.saved_at;
+      }
+    } catch {
+      // Recovery metadata is best-effort and must never interrupt order tracking.
+    }
+
     localStorage.setItem(pendingPixStorageKey, JSON.stringify({
       id: order.id,
       order_number: order.order_number || order.id,
       establishment: order.establishment?.fantasy || order.establishment?.name || "Estabelecimento",
       amount: Number(order.total_price || 0),
-      saved_at: new Date().toISOString(),
+      saved_at: savedAt,
     }));
     return;
   }
@@ -54,7 +66,7 @@ export default function OrderTrackingPage() {
         if (!active) return;
         setOrder(next);
         rememberPendingPix(next);
-        const recoveryPayable = isRecovery && next?.status !== "cancelled" && next?.payment_status !== "paid";
+        const recoveryPayable = isRecovery && next?.payment_method === "pix" && next?.status !== "cancelled" && next?.payment_status !== "paid";
 
         if (isRecovery && !recoveryOpenedRef.current) {
           recoveryOpenedRef.current = true;
@@ -112,9 +124,9 @@ export default function OrderTrackingPage() {
   }, [id, isRecovery, recoverySource]);
 
   useEffect(() => {
-    if (!isRecovery || !payment || order?.payment_status === "paid" || order?.status === "cancelled") return;
+    if (!isRecovery || !payment || order?.payment_method !== "pix" || order?.payment_status === "paid" || order?.status === "cancelled") return;
     paymentBoxRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
-  }, [isRecovery, order?.payment_status, order?.status, payment]);
+  }, [isRecovery, order?.payment_method, order?.payment_status, order?.status, payment]);
 
   const currentIndex = useMemo(() => stages.indexOf(order?.status), [order?.status]);
   const copyPix = async (value, method = "qr_code") => {
@@ -142,7 +154,7 @@ export default function OrderTrackingPage() {
   if (loading) return <ProcessingIndicatorComponent messages={["Carregando seu pedido…"]}/>;
   if (!order) return null;
 
-  const recoveryPayable = isRecovery && order.status !== "cancelled" && order.payment_status !== "paid";
+  const recoveryPayable = isRecovery && order.payment_method === "pix" && order.status !== "cancelled" && order.payment_status !== "paid";
 
   return <div className="plat-customer-orders"><NavlogComponent/><main className="plat-customer-orders__main plat-track">
     <header className="plat-customer-orders__head"><div><span className="plat-customer-orders__eyebrow">Acompanhamento ao vivo</span><h1>Pedido #{order.order_number || order.id}</h1><p>{order.establishment?.fantasy || order.establishment?.name}</p></div><Link to="/my-orders">Todos os pedidos</Link></header>
