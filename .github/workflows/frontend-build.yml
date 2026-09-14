@@ -34,3 +34,24 @@ jobs:
         env:
           CI: true
         run: npm run build
+
+      - name: Revenue SEO sitemap gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          for url in \
+            "https://plat.petertecnet.com.br/cardapio-digital/" \
+            "https://plat.petertecnet.com.br/cardapio-digital-restaurante/" \
+            "https://plat.petertecnet.com.br/cardapio-digital-bar/" \
+            "https://plat.petertecnet.com.br/cardapio-digital-pizzaria/" \
+            "https://plat.petertecnet.com.br/cardapio-digital-lanchonete/" \
+            "https://plat.petertecnet.com.br/cardapio-digital-cafeteria/" \
+            "https://plat.petertecnet.com.br/pedidos-online/" \
+            "https://plat.petertecnet.com.br/qrcode-cardapio/" \
+            "https://plat.petertecnet.com.br/planos"
+          do
+            grep -Fq "<loc>${url}</loc>" build/sitemap.xml || {
+              echo "Missing revenue URL from generated sitemap: ${url}" >&2
+              exit 1
+            }
+          done
