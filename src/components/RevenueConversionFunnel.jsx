@@ -30,15 +30,16 @@ const diagnose = (counts) => {
 
 export default function RevenueConversionFunnel({ establishment }) {
   const [funnel, setFunnel] = useState(null);
+  const establishmentId = establishment?.id;
 
   useEffect(() => {
-    if (!establishment?.id) return undefined;
+    if (!establishmentId) return undefined;
     let active = true;
-    getEstablishmentRevenueFunnel(establishment.id, 30)
+    getEstablishmentRevenueFunnel(establishmentId, 30)
       .then((result) => { if (active) setFunnel(result); })
       .catch(() => { if (active) setFunnel(null); });
     return () => { active = false; };
-  }, [establishment?.id]);
+  }, [establishmentId]);
 
   const counts = funnel?.counts || {};
   const diagnosis = diagnose(counts);
