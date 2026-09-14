@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import itemService from "../services/ItemService";
-import { getDashboardSummary, getOrderingSettings } from "../services/platCommerceApi";
+import { getDashboardSummary, getEstablishmentOrders, getOrderingSettings } from "../services/platCommerceApi";
 import { trackTelemetryEvent } from "../telemetry";
 
 const MAX_ESTABLISHMENTS_TO_INSPECT = 8;
@@ -12,6 +12,25 @@ const normalizeItems = (response) => {
   if (Array.isArray(response?.data?.items)) return response.data.items;
   if (Array.isArray(response?.data)) return response.data;
   return [];
+};
+
+const hasAnyOrders = (response) => {
+  const total = Number(response?.total ?? response?.meta?.total);
+  if (Number.isFinite(total)) return total > 0;
+  if (Array.isArray(response?.data)) return response.data.length > 0;
+  if (Array.isArray(response)) return response.length > 0;
+  return null;
+};
+
+const firstOrderShareTarget = (establishment) => {
+  if (typeof window === "undefined") return "";
+  const slug = String(establishment?.slug || "").trim();
+  const name = String(establishment?.fantasy || establishment?.name || "meu estabelecimento").trim();
+  if (!slug) return "";
+
+  const publicUrl = `${window.location.origin}/establishment/view/${encodeURIComponent(slug)}?source=merchant_first_order&utm_source=whatsapp&utm_medium=merchant_share&utm_campaign=first_order`;
+  const message = `Conheça o cardápio de ${name} na Plat e faça seu pedido: ${publicUrl}`;
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
 };
 
 const activationStep = async (establishment) => {
@@ -47,17 +66,40 @@ const activationStep = async (establishment) => {
       hasFulfillment
     );
 
-    if (readyToSell) return null;
+    if (!readyToSell) {
+      return {
+        establishment,
+        stage: "ordering",
+        title: "Falta pouco para começar a receber pedidos",
+        description: "Conclua formas de entrega, pagamento e disponibilidade. A Plat leva você direto para compartilhar o cardápio e gerar o QR Code.",
+        label: "Continuar configuração para vender",
+        target: `/establishment/${encodeURIComponent(String(id))}/ordering-settings`,
+        state: { onboarding: true, source: "dashboard-resume" },
+      };
+    }
 
-    return {
-      establishment,
-      stage: "ordering",
-      title: "Falta pouco para começar a receber pedidos",
-      description: "Conclua formas de entrega, pagamento e disponibilidade. A Plat leva você direto para compartilhar o cardápio e gerar o QR Code.",
-      label: "Continuar configuração para vender",
-      target: `/establishment/${encodeURIComponent(String(id))}/ordering-settings`,
-      state: { onboarding: true, source: "dashboard-resume" },
-    };
+    try {
+      const orders = await getEstablishmentOrders(id, { per_page: 1, page: 1 });
+      const hasOrders = hasAnyOrders(orders);
+      if (hasOrders === false) {
+        const target = firstOrderShareTarget(establishment);
+        if (!target) return null;
+
+        return {
+          establishment,
+          stage: "first_order",
+          title: "Seu cardápio está pronto. Agora busque o primeiro pedido",
+          description: "Compartilhe no WhatsApp com um link rastreável. A primeira venda valida sua operação e começa a transformar o cardápio em receita.",
+          label: "Compartilhar e buscar 1º pedido",
+          target,
+          external: true,
+        };
+      }
+    } catch {
+      // Do not interrupt an otherwise complete operation when order history cannot be inspected.
+    }
+
+    return null;
   } catch {
     return {
       establishment,
@@ -94,7 +136,7 @@ export default function RevenueOnboardingResume({ user = null }) {
           if (next) {
             setResume(next);
             trackTelemetryEvent("plat_onboarding_resume_offered", {
-              target: next.target,
+              target: next.external ? "merchant_share" : next.target,
               label: next.stage,
               metadata: {
                 establishment_id: next.establishment?.id || null,
@@ -118,15 +160,27 @@ export default function RevenueOnboardingResume({ user = null }) {
 
   const name = resume.establishment?.fantasy || resume.establishment?.name || "seu estabelecimento";
   const handleClick = () => trackTelemetryEvent("plat_onboarding_resume_clicked", {
-    target: resume.target,
+    target: resume.external ? "merchant_share" : resume.target,
     label: resume.stage,
     metadata: {
       establishment_id: resume.establishment?.id || null,
       establishment_slug: resume.establishment?.slug || null,
       stage: resume.stage,
       placement: "dashboard",
+      acquisition_source: resume.stage === "first_order" ? "merchant_first_order" : null,
     },
   });
+
+  const actionStyle = {
+    textDecoration: "none",
+    fontWeight: 800,
+    fontSize: 13,
+    color: "#11151b",
+    background: "#efd89d",
+    borderRadius: 999,
+    padding: "11px 16px",
+    whiteSpace: "nowrap",
+  };
 
   return (
     <aside
@@ -159,23 +213,26 @@ export default function RevenueOnboardingResume({ user = null }) {
           {name}: {resume.description}
         </span>
       </div>
-      <Link
-        to={resume.target}
-        state={resume.state}
-        onClick={handleClick}
-        style={{
-          textDecoration: "none",
-          fontWeight: 800,
-          fontSize: 13,
-          color: "#11151b",
-          background: "#efd89d",
-          borderRadius: 999,
-          padding: "11px 16px",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {resume.label}
-      </Link>
+      {resume.external ? (
+        <a
+          href={resume.target}
+          target="_blank"
+          rel="noreferrer"
+          onClick={handleClick}
+          style={actionStyle}
+        >
+          {resume.label}
+        </a>
+      ) : (
+        <Link
+          to={resume.target}
+          state={resume.state}
+          onClick={handleClick}
+          style={actionStyle}
+        >
+          {resume.label}
+        </Link>
+      )}
     </aside>
   );
 }
