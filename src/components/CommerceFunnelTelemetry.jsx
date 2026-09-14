@@ -69,8 +69,11 @@ export default function CommerceFunnelTelemetry() {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
+    const pathname = location.pathname;
+    const search = location.search;
+
     const onClick = (event) => {
-      const slug = orderingSlug(window.location.pathname);
+      const slug = orderingSlug(pathname);
       if (!slug) return;
       const button = event.target?.closest?.("button");
       if (!button) return;
@@ -80,7 +83,7 @@ export default function CommerceFunnelTelemetry() {
         trackTelemetryEvent("plat_ordering_item_added", {
           target: "cart",
           label: ariaLabel.replace(/^Adicionar\s+/i, "").trim(),
-          metadata: { slug, ...acquisitionMetadata(window.location.search) },
+          metadata: { slug, ...acquisitionMetadata(search) },
         });
         return;
       }
@@ -89,17 +92,17 @@ export default function CommerceFunnelTelemetry() {
         trackTelemetryEvent("plat_ordering_checkout_opened", {
           target: "checkout",
           label: slug,
-          metadata: { slug, ...acquisitionMetadata(window.location.search) },
+          metadata: { slug, ...acquisitionMetadata(search) },
         });
       }
     };
 
     const onSubmit = (event) => {
-      const slug = orderingSlug(window.location.pathname);
+      const slug = orderingSlug(pathname);
       if (!slug || !event.target?.matches?.("form.plat-checkout")) return;
       const itemCount = Array.from(document.querySelectorAll(".plat-cart-count b"))
         .reduce((total, node) => total + Number(node.textContent || 0), 0);
-      const acquisition = acquisitionMetadata(window.location.search);
+      const acquisition = acquisitionMetadata(search);
 
       sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
         slug,
@@ -121,7 +124,7 @@ export default function CommerceFunnelTelemetry() {
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("submit", onSubmit, true);
     };
-  }, []);
+  }, [location.pathname, location.search]);
 
   return null;
 }
