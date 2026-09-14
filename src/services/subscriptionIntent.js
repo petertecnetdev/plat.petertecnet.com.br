@@ -35,11 +35,11 @@ const createKey = () => {
 const wait = (milliseconds) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
-const shouldRetry = (error) => {
+export const shouldRetrySubscriptionRequest = (error) => {
   const status = Number(error?.response?.status || 0);
 
   if (!error?.response) return true;
-  return status === 408 || status === 429 || status >= 500;
+  return status === 408 || status === 425 || status === 429 || status >= 500;
 };
 
 const httpStatus = (error) => Number(error?.response?.status || 0) || "network";
@@ -205,10 +205,10 @@ export async function getRecoverableSubscriptionIntent() {
       return intent;
     } catch (error) {
       const lastAttempt = attempt >= MAX_ATTEMPTS;
-      if (lastAttempt || !shouldRetry(error)) {
+      if (lastAttempt || !shouldRetrySubscriptionRequest(error)) {
         trackRevenue("subscription_recovery_failed", {
           http_status: httpStatus(error),
-          retryable: shouldRetry(error),
+          retryable: shouldRetrySubscriptionRequest(error),
           attempt,
         });
         return null;
@@ -296,12 +296,12 @@ export async function createSubscriptionIntent({
       return intent;
     } catch (error) {
       const lastAttempt = attempt >= MAX_ATTEMPTS;
-      if (lastAttempt || !shouldRetry(error)) {
+      if (lastAttempt || !shouldRetrySubscriptionRequest(error)) {
         trackRevenue("subscription_intent_failed", {
           plan: normalizedPlanCode,
           source,
           http_status: httpStatus(error),
-          retryable: shouldRetry(error),
+          retryable: shouldRetrySubscriptionRequest(error),
           attempt,
         });
         return null;
@@ -347,11 +347,11 @@ export async function createSubscriptionPixCheckout(intentId) {
       return data || null;
     } catch (error) {
       const lastAttempt = attempt >= MAX_ATTEMPTS;
-      if (lastAttempt || !shouldRetry(error)) {
+      if (lastAttempt || !shouldRetrySubscriptionRequest(error)) {
         trackRevenue("subscription_checkout_failed", {
           method: "pix",
           http_status: httpStatus(error),
-          retryable: shouldRetry(error),
+          retryable: shouldRetrySubscriptionRequest(error),
           attempt,
         });
         return null;
@@ -367,31 +367,53 @@ export async function syncSubscriptionPayment(intentId) {
   const normalizedIntentId = String(intentId || "").trim();
   if (!normalizedIntentId) return null;
 
-  try {
-    const { data } = await api.post(
-      `/v1/apps/${APPLICATION}/subscription-intents/${encodeURIComponent(normalizedIntentId)}/sync`,
-      {},
-      { timeout: REQUEST_TIMEOUT_MS }
-    );
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const { data } = await api.post(
+        `/v1/apps/${APPLICATION}/subscription-intents/${encodeURIComponent(normalizedIntentId)}/sync`,
+        {},
+        { timeout: REQUEST_TIMEOUT_MS }
+      );
 
-    const subscriptionStatus = data?.subscription?.status || "";
-    const entitlementStatus = data?.entitlement?.status || "";
-    if (subscriptionStatus === "active" && entitlementStatus === "active") {
-      trackRevenue("subscription_activated", {
-        method: "pix",
-        subscription_status: subscriptionStatus,
-        entitlement_status: entitlementStatus,
-      });
+      const subscriptionStatus = data?.subscription?.status || "";
+      const entitlementStatus = data?.entitlement?.status || "";
+      if (subscriptionStatus === "active" && entitlementStatus === "active") {
+        trackRevenue("subscription_activated", {
+          method: "pix",
+          subscription_status: subscriptionStatus,
+          entitlement_status: entitlementStatus,
+          attempt,
+        });
+        return data || null;
+      }
+
+      const terminalStatus = terminalPaymentStatus(data);
+      if (terminalStatus) {
+        recoverFromTerminalPayment(normalizedIntentId, terminalStatus);
+      }
+
       return data || null;
-    }
+    } catch (error) {
+      const lastAttempt = attempt >= MAX_ATTEMPTS;
+      const retryable = shouldRetrySubscriptionRequest(error);
+      if (lastAttempt || !retryable) {
+        trackRevenue("subscription_payment_sync_failed", {
+          method: "pix",
+          http_status: httpStatus(error),
+          retryable,
+          attempt,
+        });
+        return error?.response?.data || null;
+      }
 
-    const terminalStatus = terminalPaymentStatus(data);
-    if (terminalStatus) {
-      recoverFromTerminalPayment(normalizedIntentId, terminalStatus);
+      trackRevenue("subscription_payment_sync_retry", {
+        method: "pix",
+        http_status: httpStatus(error),
+        attempt,
+      });
+      await wait(RETRY_DELAY_MS * attempt);
     }
-
-    return data || null;
-  } catch (error) {
-    return error?.response?.data || null;
   }
+
+  return null;
 }
