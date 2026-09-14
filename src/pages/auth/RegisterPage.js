@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { apiBaseUrl } from "../../config";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import AuthShell from "../../components/auth/AuthShell";
+import api from "../../services/api";
 
 const safeInternalPath = (value) => {
   if (!value || typeof value !== "string") return "";
@@ -40,22 +41,29 @@ const acquisitionOnboardingPath = (params) => {
   return `/establishment/create?${query.toString()}`;
 };
 
-const postRegisterLoginTarget = () => {
+const postRegisterDestination = () => {
   const params = new URLSearchParams(window.location.search);
   const explicitRedirect = safeInternalPath(params.get("redirect"));
-  if (explicitRedirect) return `/login?redirect=${encodeURIComponent(explicitRedirect)}`;
+  if (explicitRedirect) return explicitRedirect;
 
   const plan = String(params.get("plan") || "").trim();
   if (/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(plan)) {
-    const resumePath = `/planos?plan=${encodeURIComponent(plan)}&resume=1&source=signup_resume`;
-    return `/login?redirect=${encodeURIComponent(resumePath)}`;
+    return `/planos?plan=${encodeURIComponent(plan)}&resume=1&source=signup_resume`;
   }
 
-  const acquisitionPath = acquisitionOnboardingPath(params);
-  if (acquisitionPath) return `/login?redirect=${encodeURIComponent(acquisitionPath)}`;
-
-  return "/login";
+  return acquisitionOnboardingPath(params) || "/dashboard";
 };
+
+const postRegisterLoginTarget = (destination) =>
+  destination && destination !== "/dashboard"
+    ? `/login?redirect=${encodeURIComponent(destination)}`
+    : "/login";
+
+const extractToken = (payload = {}) =>
+  payload.token?.access_token ??
+  payload.token?.original?.access_token ??
+  payload.access_token ??
+  (typeof payload.token === "string" ? payload.token : null);
 
 class RegisterPage extends Component {
   constructor(props) {
@@ -80,9 +88,35 @@ class RegisterPage extends Component {
     this.setState({ loading: true });
     try {
       const response = await axios.post(`${apiBaseUrl}/auth/register`, { first_name, email, password });
-      const modalMessage = response?.data?.message || "Registro bem-sucedido";
-      Swal.fire({ title: "Sucesso!", text: modalMessage, icon: "success", confirmButtonText: "Ok", iconColor: "#28a745", customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" } })
-        .then(() => { window.location.href = postRegisterLoginTarget(); });
+      const destination = postRegisterDestination();
+
+      try {
+        const { data } = await api.post("/auth/login", {
+          username: email,
+          password,
+          latitude: null,
+          longitude: null,
+        });
+        const token = extractToken(data);
+        if (!token) throw new Error("Token de autenticação não recebido pela API.");
+
+        localStorage.setItem("token", token);
+        window.dispatchEvent(new Event("authChanged"));
+        window.location.replace(destination);
+        return;
+      } catch {
+        localStorage.removeItem("token");
+        const modalMessage = response?.data?.message || "Sua conta foi criada com sucesso.";
+        await Swal.fire({
+          title: "Conta criada!",
+          text: `${modalMessage} Entre para continuar a configuração da Plat.`,
+          icon: "success",
+          confirmButtonText: "Continuar",
+          iconColor: "#28a745",
+          customClass: { popup: "custom-swal", title: "custom-swal-title", content: "custom-swal-text" },
+        });
+        window.location.replace(postRegisterLoginTarget(destination));
+      }
     } catch (error) {
       let errorMessages = "";
       if (error.response?.data?.errors) {
@@ -103,7 +137,7 @@ class RegisterPage extends Component {
     const { loading, first_name, email, password, confirmPassword } = this.state;
     return (
       <>
-        {loading && <ProcessingIndicatorComponent messages={["Registrando usuário...", "Por favor, aguarde..."]} />}
+        {loading && <ProcessingIndicatorComponent messages={["Criando sua conta...", "Preparando seu acesso à Plat..."]} />}
         {!loading && (
           <AuthShell eyebrow="Nova conta" title="Comece na Plat" description="Crie sua conta para organizar seus estabelecimentos e centralizar sua operação em um só lugar." footer={<><p>Já possui uma conta? <a href="/login">Entrar</a></p><p>Esqueceu sua senha? <a href="/password-email">Recuperar senha</a></p></>}>
             <Form onSubmit={this.onSubmit} className="form-container">
