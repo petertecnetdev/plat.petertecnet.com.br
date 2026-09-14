@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { FiArrowRight, FiShare2, FiTrendingUp } from "react-icons/fi";
 import { getEstablishmentRevenueFunnel, ORDERING_FUNNEL_EVENTS } from "../services/revenueFunnel";
@@ -84,3 +85,12 @@ export default function RevenueConversionFunnel({ establishment }) {
     </section>
   );
 }
+
+RevenueConversionFunnel.propTypes = {
+  establishment: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+    slug: PropTypes.string,
+    fantasy: PropTypes.string,
+    name: PropTypes.string,
+  }).isRequired,
+};
