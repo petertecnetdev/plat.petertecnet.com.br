@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowRight, FiShare2, FiTrendingUp } from "react-icons/fi";
 import { getEstablishmentRevenueFunnel, ORDERING_FUNNEL_EVENTS } from "../services/revenueFunnel";
@@ -41,7 +41,7 @@ export default function RevenueConversionFunnel({ establishment }) {
   }, [establishment?.id]);
 
   const counts = funnel?.counts || {};
-  const diagnosis = useMemo(() => diagnose(counts), [counts]);
+  const diagnosis = diagnose(counts);
   if (!funnel) return null;
 
   const slug = encodeURIComponent(String(establishment?.slug || ""));
