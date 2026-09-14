@@ -106,6 +106,17 @@ const terminalPaymentStatus = (data) => {
   return candidates.find((status) => TERMINAL_PAYMENT_STATUSES.has(status)) || "";
 };
 
+export const canReuseTerminalSubscriptionIntent = (pending, intentId) => {
+  const planCode = String(pending?.plan || "").trim().toLowerCase();
+  const pendingIntentId = String(pending?.intent_id || "").trim();
+  const normalizedIntentId = String(intentId || "").trim();
+
+  return pending?.application === APPLICATION
+    && /^[a-z0-9_-]{1,80}$/i.test(planCode)
+    && Boolean(normalizedIntentId)
+    && pendingIntentId === normalizedIntentId;
+};
+
 const recoverFromTerminalPayment = (intentId, status) => {
   let pending = null;
 
@@ -122,10 +133,25 @@ const recoverFromTerminalPayment = (intentId, status) => {
   const locationReturnTo = returnToFromLocation();
   const pendingReturnTo = safeSubscriptionReturnTo(pending?.return_to);
   const returnTo = locationReturnTo || pendingReturnTo;
+  const reusableIntent = canReuseTerminalSubscriptionIntent(pending, intentId);
 
+  // A terminal provider attempt needs a fresh checkout idempotency key. The generic
+  // API can then create a new PIX attempt on the same subscription intent, preserving
+  // the payment aggregate, attribution and audit trail.
   sessionStorage.removeItem(checkoutStorageKey(intentId));
-  if (validPlanCode) sessionStorage.removeItem(storageKey(planCode));
-  localStorage.removeItem("pending_subscription_plan");
+
+  if (reusableIntent) {
+    const nextPending = {
+      ...pending,
+      intent_id: String(intentId).trim(),
+      intent_status: status,
+      ...(returnTo ? { return_to: returnTo } : {}),
+    };
+    localStorage.setItem("pending_subscription_plan", JSON.stringify(nextPending));
+  } else {
+    if (validPlanCode) sessionStorage.removeItem(storageKey(planCode));
+    localStorage.removeItem("pending_subscription_plan");
+  }
 
   trackRevenue("subscription_payment_recovery_started", {
     method: "pix",
@@ -133,6 +159,7 @@ const recoverFromTerminalPayment = (intentId, status) => {
     plan: validPlanCode ? planCode : undefined,
     referral: referral || undefined,
     campaign: campaign || undefined,
+    intent_reused: reusableIntent,
     return_to_preserved: Boolean(returnTo),
     return_to_source: returnTo ? (locationReturnTo ? "url" : "pending_subscription") : undefined,
   });
