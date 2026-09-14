@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import itemService from "../services/ItemService";
 import { getDashboardSummary, getOrderingSettings } from "../services/platCommerceApi";
@@ -28,8 +29,8 @@ const activationStep = async (establishment) => {
       title: "Seu cardápio ainda está vazio",
       description: "Cadastre o primeiro item para transformar o estabelecimento em um cardápio que já pode ser divulgado.",
       label: "Cadastrar primeiro item",
-      target: `/item/create/${encodeURIComponent(slug)}?onboarding=1&itemType=product&source=dashboard_resume`,
-      state: { onboarding: true, source: "dashboard-resume" },
+      target: `/item/create/${encodeURIComponent(slug)}`,
+      state: { onboarding: true, itemType: "product", source: "dashboard-resume" },
     };
   }
 
@@ -178,3 +179,7 @@ export default function RevenueOnboardingResume({ user = null }) {
     </aside>
   );
 }
+
+RevenueOnboardingResume.propTypes = {
+  user: PropTypes.object,
+};
