@@ -46,6 +46,12 @@ export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => lo
     return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, limit)
   }
 
+  function cleanMetadataValue(value) {
+    if (typeof value === "number") return Number.isFinite(value) ? value : null
+    if (typeof value === "boolean") return value
+    return clean(value, 500)
+  }
+
   function page() {
     return window.location.pathname + window.location.search
   }
@@ -54,7 +60,8 @@ export function startTelemetry({ apiBaseUrl, appSlug, appId, getToken = () => lo
     const metadata = {}
     for (const [key, value] of Object.entries(details.metadata || {})) {
       if (!SENSITIVE_KEY_PATTERN.test(key) && value !== undefined && value !== null) {
-        metadata[key] = clean(value, 500)
+        const cleaned = cleanMetadataValue(value)
+        if (cleaned !== null) metadata[key] = cleaned
       }
     }
 
