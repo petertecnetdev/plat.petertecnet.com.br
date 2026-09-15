@@ -19,7 +19,9 @@ const rememberPendingPix = (order) => {
       const existing = JSON.parse(localStorage.getItem(pendingPixStorageKey) || "null");
       const existingSavedAt = Date.parse(existing?.saved_at || "");
       if (String(existing?.id || "") === String(order.id) && Number.isFinite(existingSavedAt)) savedAt = existing.saved_at;
-    } catch {}
+    } catch {
+      // Invalid persisted recovery data is replaced below.
+    }
     localStorage.setItem(pendingPixStorageKey, JSON.stringify({ id: order.id, order_number: order.order_number || order.id, establishment: order.establishment?.fantasy || order.establishment?.name || "Estabelecimento", amount: Number(order.total_price || 0), saved_at: savedAt }));
     return;
   }
@@ -75,7 +77,7 @@ export default function OrderTrackingPage() {
         if (pixPayable) pixPendingSeenRef.current = true;
         if (isPix && pixPendingSeenRef.current && next?.payment_status === "paid" && !pixPaidRef.current) {
           pixPaidRef.current = true;
-          pixTelemetry("plat_pix_payment_paid", next, id);
+          pixTelemetry("frontend_payment_approved", next, id);
         }
 
         if (isRecovery && !recoveryOpenedRef.current) {
@@ -96,10 +98,12 @@ export default function OrderTrackingPage() {
               const hasPixInstructions = Boolean(nextPayment?.qr_code || nextPayment?.pix_key || nextPayment?.qr_code_base64 || nextPayment?.ticket_url);
               if (hasPixInstructions && !pixPresentedRef.current) {
                 pixPresentedRef.current = true;
-                pixTelemetry("plat_pix_payment_presented", next, id, { has_qr_code: Boolean(nextPayment?.qr_code || nextPayment?.qr_code_base64), has_pix_key: Boolean(nextPayment?.pix_key) });
+                pixTelemetry("frontend_pix_payment_ready", next, id, { has_qr_code: Boolean(nextPayment?.qr_code || nextPayment?.qr_code_base64), has_pix_key: Boolean(nextPayment?.pix_key) });
               }
             }
-          } catch {}
+          } catch {
+            // Polling retries transient payment-instruction failures automatically.
+          }
         } else setPayment(null);
       } catch (error) {
         if (!silent && active) Swal.fire("Erro", apiErrorMessage(error, "Não foi possível carregar o pedido."), "error");
@@ -117,7 +121,7 @@ export default function OrderTrackingPage() {
 
   const currentIndex = useMemo(() => stages.indexOf(order?.status), [order?.status]);
   const copyPix = async (value, method = "qr_code") => {
-    pixTelemetry("plat_pix_payment_copied", order, id, { copy_method: method, recovery_source: recoverySource || null });
+    pixTelemetry("frontend_pix_code_copied", order, id, { copy_method: method, recovery_source: recoverySource || null });
     if (isRecovery) trackTelemetryEvent("plat_checkout_recovery_pix_copied", { target: "pix_recovery", label: String(order?.order_number || order?.id || id), metadata: { order_id: order?.id || id, recovery_source: recoverySource, copy_method: method, amount: Number(order?.total_price || 0) } });
     try {
       await navigator.clipboard.writeText(value);
