@@ -15,34 +15,33 @@ const pendingPixStorageKey = "plat-pending-pix-order";
 const rememberPendingPix = (order) => {
   if (order?.payment_method === "pix" && order?.payment_status !== "paid" && order?.status !== "cancelled") {
     let savedAt = new Date().toISOString();
-
     try {
       const existing = JSON.parse(localStorage.getItem(pendingPixStorageKey) || "null");
       const existingSavedAt = Date.parse(existing?.saved_at || "");
-      if (String(existing?.id || "") === String(order.id) && Number.isFinite(existingSavedAt)) {
-        savedAt = existing.saved_at;
-      }
-    } catch {
-      // Recovery metadata is best-effort and must never interrupt order tracking.
-    }
-
-    localStorage.setItem(pendingPixStorageKey, JSON.stringify({
-      id: order.id,
-      order_number: order.order_number || order.id,
-      establishment: order.establishment?.fantasy || order.establishment?.name || "Estabelecimento",
-      amount: Number(order.total_price || 0),
-      saved_at: savedAt,
-    }));
+      if (String(existing?.id || "") === String(order.id) && Number.isFinite(existingSavedAt)) savedAt = existing.saved_at;
+    } catch {}
+    localStorage.setItem(pendingPixStorageKey, JSON.stringify({ id: order.id, order_number: order.order_number || order.id, establishment: order.establishment?.fantasy || order.establishment?.name || "Estabelecimento", amount: Number(order.total_price || 0), saved_at: savedAt }));
     return;
   }
-
   try {
     const saved = JSON.parse(localStorage.getItem(pendingPixStorageKey) || "null");
     if (String(saved?.id || "") === String(order?.id || "")) localStorage.removeItem(pendingPixStorageKey);
-  } catch {
-    localStorage.removeItem(pendingPixStorageKey);
-  }
+  } catch { localStorage.removeItem(pendingPixStorageKey); }
 };
+
+const pixTelemetry = (event, order, id, extra = {}) => trackTelemetryEvent(event, {
+  target: "pix_payment",
+  label: String(order?.order_number || order?.id || id),
+  metadata: {
+    order_id: order?.id || id,
+    establishment_id: order?.establishment?.id || null,
+    payment_method: "pix",
+    payment_status: order?.payment_status || null,
+    order_status: order?.status || null,
+    amount: Number(order?.total_price || 0),
+    ...extra,
+  },
+});
 
 export default function OrderTrackingPage() {
   const { id } = useParams();
@@ -54,6 +53,9 @@ export default function OrderTrackingPage() {
   const recoveryOpenedRef = useRef(false);
   const recoveryPendingSeenRef = useRef(false);
   const recoveryPaidRef = useRef(false);
+  const pixPresentedRef = useRef(false);
+  const pixPendingSeenRef = useRef(false);
+  const pixPaidRef = useRef(false);
   const recoverySource = new URLSearchParams(location.search).get("recovery_source") || "";
   const isRecovery = ["in_app", "resume", "checkout"].includes(recoverySource);
 
@@ -66,54 +68,39 @@ export default function OrderTrackingPage() {
         if (!active) return;
         setOrder(next);
         rememberPendingPix(next);
-        const recoveryPayable = isRecovery && next?.payment_method === "pix" && next?.status !== "cancelled" && next?.payment_status !== "paid";
+        const isPix = next?.payment_method === "pix";
+        const pixPayable = isPix && next?.status !== "cancelled" && next?.payment_status !== "paid";
+        const recoveryPayable = isRecovery && pixPayable;
+
+        if (pixPayable) pixPendingSeenRef.current = true;
+        if (isPix && pixPendingSeenRef.current && next?.payment_status === "paid" && !pixPaidRef.current) {
+          pixPaidRef.current = true;
+          pixTelemetry("plat_pix_payment_paid", next, id);
+        }
 
         if (isRecovery && !recoveryOpenedRef.current) {
           recoveryOpenedRef.current = true;
-          trackTelemetryEvent("plat_checkout_recovery_opened", {
-            target: "pix_recovery",
-            label: String(next?.order_number || next?.id || id),
-            metadata: {
-              order_id: next?.id || id,
-              recovery_source: recoverySource,
-              payment_method: next?.payment_method || null,
-              payment_status: next?.payment_status || null,
-              order_status: next?.status || null,
-              amount: Number(next?.total_price || 0),
-            },
-          });
+          trackTelemetryEvent("plat_checkout_recovery_opened", { target: "pix_recovery", label: String(next?.order_number || next?.id || id), metadata: { order_id: next?.id || id, recovery_source: recoverySource, payment_method: next?.payment_method || null, payment_status: next?.payment_status || null, order_status: next?.status || null, amount: Number(next?.total_price || 0) } });
         }
-
         if (recoveryPayable) recoveryPendingSeenRef.current = true;
-
-        if (
-          isRecovery &&
-          recoveryPendingSeenRef.current &&
-          next?.payment_status === "paid" &&
-          !recoveryPaidRef.current
-        ) {
+        if (isRecovery && recoveryPendingSeenRef.current && next?.payment_status === "paid" && !recoveryPaidRef.current) {
           recoveryPaidRef.current = true;
-          trackTelemetryEvent("plat_checkout_recovery_paid", {
-            target: "pix_recovery",
-            label: String(next?.order_number || next?.id || id),
-            metadata: {
-              order_id: next?.id || id,
-              recovery_source: recoverySource,
-              amount: Number(next?.total_price || 0),
-            },
-          });
+          trackTelemetryEvent("plat_checkout_recovery_paid", { target: "pix_recovery", label: String(next?.order_number || next?.id || id), metadata: { order_id: next?.id || id, recovery_source: recoverySource, amount: Number(next?.total_price || 0) } });
         }
 
-        if (next?.payment_method === "pix" && next?.payment_status !== "paid" && next?.status !== "cancelled") {
+        if (pixPayable) {
           try {
             const nextPayment = await getMyOrderPayment(id);
-            if (active) setPayment(nextPayment);
-          } catch {
-            // O pedido continua sendo acompanhado mesmo se o provedor de pagamento estiver indisponível.
-          }
-        } else {
-          setPayment(null);
-        }
+            if (active) {
+              setPayment(nextPayment);
+              const hasPixInstructions = Boolean(nextPayment?.qr_code || nextPayment?.pix_key || nextPayment?.qr_code_base64 || nextPayment?.ticket_url);
+              if (hasPixInstructions && !pixPresentedRef.current) {
+                pixPresentedRef.current = true;
+                pixTelemetry("plat_pix_payment_presented", next, id, { has_qr_code: Boolean(nextPayment?.qr_code || nextPayment?.qr_code_base64), has_pix_key: Boolean(nextPayment?.pix_key) });
+              }
+            }
+          } catch {}
+        } else setPayment(null);
       } catch (error) {
         if (!silent && active) Swal.fire("Erro", apiErrorMessage(error, "Não foi possível carregar o pedido."), "error");
       } finally { if (!silent && active) setLoading(false); }
@@ -130,30 +117,16 @@ export default function OrderTrackingPage() {
 
   const currentIndex = useMemo(() => stages.indexOf(order?.status), [order?.status]);
   const copyPix = async (value, method = "qr_code") => {
-    if (isRecovery) {
-      trackTelemetryEvent("plat_checkout_recovery_pix_copied", {
-        target: "pix_recovery",
-        label: String(order?.order_number || order?.id || id),
-        metadata: {
-          order_id: order?.id || id,
-          recovery_source: recoverySource,
-          copy_method: method,
-          amount: Number(order?.total_price || 0),
-        },
-      });
-    }
-
+    pixTelemetry("plat_pix_payment_copied", order, id, { copy_method: method, recovery_source: recoverySource || null });
+    if (isRecovery) trackTelemetryEvent("plat_checkout_recovery_pix_copied", { target: "pix_recovery", label: String(order?.order_number || order?.id || id), metadata: { order_id: order?.id || id, recovery_source: recoverySource, copy_method: method, amount: Number(order?.total_price || 0) } });
     try {
       await navigator.clipboard.writeText(value);
       Swal.fire({ icon: "success", title: "Pix copiado", timer: 1200, showConfirmButton: false });
-    } catch {
-      Swal.fire("Copie o código", value, "info");
-    }
+    } catch { Swal.fire("Copie o código", value, "info"); }
   };
 
   if (loading) return <ProcessingIndicatorComponent messages={["Carregando seu pedido…"]}/>;
   if (!order) return null;
-
   const recoveryPayable = isRecovery && order.payment_method === "pix" && order.status !== "cancelled" && order.payment_status !== "paid";
 
   return <div className="plat-customer-orders"><NavlogComponent/><main className="plat-customer-orders__main plat-track">
