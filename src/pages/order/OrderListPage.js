@@ -71,11 +71,12 @@ export default function OrderListPage() {
       return;
     }
     const orderNumber = order?.order_number || order?.id;
-    const message = `Olá${order?.customer_name ? `, ${order.customer_name}` : ""}! Seu pedido #${orderNumber} no valor de ${money(order?.total_price)} está aguardando a conclusão do Pix. Se precisar de ajuda para finalizar o pagamento, responda esta mensagem.`;
+    const recoveryUrl = `${window.location.origin}/pedido/${encodeURIComponent(order?.id)}?recovery_source=whatsapp`;
+    const message = `Olá${order?.customer_name ? `, ${order.customer_name}` : ""}! Seu pedido #${orderNumber} no valor de ${money(order?.total_price)} está aguardando a conclusão do Pix. Para retomar o pagamento com segurança, acesse ${recoveryUrl} e confirme o telefone usado no pedido.`;
     trackTelemetryEvent("plat_pix_recovery_whatsapp_started", {
       target: "pix_recovery",
       label: String(orderNumber),
-      metadata: { entity_type: "establishment", entity_id: Number(entityId), establishment_id: Number(entityId), order_id: order?.id, amount: Number(order?.total_price || 0), payment_method: "pix" },
+      metadata: { entity_type: "establishment", entity_id: Number(entityId), establishment_id: Number(entityId), order_id: order?.id, amount: Number(order?.total_price || 0), payment_method: "pix", recovery_source: "whatsapp" },
     });
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   };
