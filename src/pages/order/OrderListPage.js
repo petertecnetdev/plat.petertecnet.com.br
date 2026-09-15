@@ -4,11 +4,17 @@ import Swal from "sweetalert2";
 import NavlogComponent from "../../components/NavlogComponent";
 import ProcessingIndicatorComponent from "../../components/ProcessingIndicatorComponent";
 import { apiErrorMessage, getEstablishmentOrders, updateOrderStatus } from "../../services/platCommerceApi";
+import { trackTelemetryEvent } from "../../telemetry";
 import "./List.css";
 
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const formatDate = (value) => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleString("pt-BR") : "—";
 const isPixAtRisk = (order) => String(order?.payment_method || "").toLowerCase() === "pix" && !["paid", "approved"].includes(String(order?.payment_status || "").toLowerCase()) && !["cancelled", "completed"].includes(String(order?.status || "").toLowerCase());
+const whatsappPhone = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.startsWith("55") ? digits : `55${digits}`;
+};
 
 const beep = () => {
   try {
@@ -58,6 +64,22 @@ export default function OrderListPage() {
   const total = useMemo(() => filteredOrders.reduce((sum, order) => sum + Number(order.total_price || 0), 0), [filteredOrders]);
   const clearRecovery = () => { const next = new URLSearchParams(searchParams); next.delete("recovery"); setSearchParams(next, { replace: true }); };
 
+  const recoverOnWhatsApp = (order) => {
+    const phone = whatsappPhone(order?.customer_phone);
+    if (!phone) {
+      Swal.fire("Telefone não informado", "Este pedido não possui telefone para recuperação via WhatsApp.", "info");
+      return;
+    }
+    const orderNumber = order?.order_number || order?.id;
+    const message = `Olá${order?.customer_name ? `, ${order.customer_name}` : ""}! Seu pedido #${orderNumber} no valor de ${money(order?.total_price)} está aguardando a conclusão do Pix. Se precisar de ajuda para finalizar o pagamento, responda esta mensagem.`;
+    trackTelemetryEvent("plat_pix_recovery_whatsapp_started", {
+      target: "pix_recovery",
+      label: String(orderNumber),
+      metadata: { entity_type: "establishment", entity_id: Number(entityId), establishment_id: Number(entityId), order_id: order?.id, amount: Number(order?.total_price || 0), payment_method: "pix" },
+    });
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  };
+
   const changeStatus = async (order, nextStatus) => {
     if (!order?.id || !nextStatus || nextStatus === order.status) return;
     if (nextStatus === "cancelled" && order.payment_status === "paid") {
@@ -77,6 +99,6 @@ export default function OrderListPage() {
     {pixRiskOnly && <section className="alert alert-danger border mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3" role="status"><div><strong>Recuperação PIX priorizada por valor</strong><div className="small mt-1">Mostrando PIX ainda não pagos, do maior para o menor valor. Priorize os primeiros pedidos para recuperar receita mais rápido.</div></div><button type="button" className="btn btn-sm btn-outline-secondary flex-shrink-0" onClick={clearRecovery}>Ver todos os pedidos</button></section>}
     <section className="card-container mb-4"><div className="row g-3 align-items-end"><div className="col-12 col-lg-7"><label className="form-label">Buscar pedido</label><input className="form-control" value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Cliente, número ou pagamento"/></div><div className="col-12 col-lg-3"><label className="form-label">Status</label><select className="form-select" value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="confirmed">Confirmado</option><option value="preparing">Em preparo</option><option value="ready">Pronto</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></div><div className="col-12 col-lg-2"><button type="button" className="btn btn-secondary w-100" onClick={()=>load(false)}>Atualizar agora</button></div></div></section>
     <section className="card-container mb-4 plat-order-summary"><div><span className="text-muted">{pixRiskOnly ? "PIX em risco" : "Pedidos exibidos"}</span><strong>{filteredOrders.length}</strong></div><div><span className="text-muted">{pixRiskOnly ? "Receita em recuperação" : "Valor total"}</span><strong>{money(total)}</strong></div></section>
-    {loading ? <ProcessingIndicatorComponent compact messages={["Carregando pedidos…"]}/> : filteredOrders.length === 0 ? <section className="card-container text-center py-5"><h2 className="h5">{pixRiskOnly ? "Nenhum PIX em risco agora" : "Nenhum pedido encontrado"}</h2><p className="text-muted mb-3">{pixRiskOnly ? "Não há pedidos PIX pendentes para recuperar neste momento." : orders.length ? "Nenhum pedido corresponde aos filtros." : "Ainda não há pedidos neste estabelecimento."}</p></section> : <section className="card-container table-responsive p-0"><table className="table align-middle mb-0"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Consumo</th><th>Pagamento</th><th>Total</th><th>Status</th><th className="text-end">Ações</th></tr></thead><tbody>{filteredOrders.map((order)=><tr key={order.id}><td>#{order.order_number||order.id}</td><td>{order.customer_name||"Não informado"}<small className="d-block text-muted">{order.customer_phone||""}</small></td><td>{formatDate(order.created_at)}</td><td>{order.fulfillment||"—"}</td><td><div>{order.payment_method||"—"}</div><small className="text-muted">{order.payment_status||"—"}</small></td><td>{money(order.total_price)}</td><td style={{minWidth:160}}><select className="form-select form-select-sm" value={order.status||"pending"} disabled={updatingId===order.id || order.status==="cancelled"} onChange={(e)=>changeStatus(order,e.target.value)}><option value="pending">Pendente</option><option value="confirmed">Confirmado</option><option value="preparing">Em preparo</option><option value="ready">Pronto</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></td><td className="text-end"><Link className="btn btn-sm btn-secondary" to={`/order/edit/${entityId}/${order.id}`}>Detalhes</Link></td></tr>)}</tbody></table></section>}
+    {loading ? <ProcessingIndicatorComponent compact messages={["Carregando pedidos…"]}/> : filteredOrders.length === 0 ? <section className="card-container text-center py-5"><h2 className="h5">{pixRiskOnly ? "Nenhum PIX em risco agora" : "Nenhum pedido encontrado"}</h2><p className="text-muted mb-3">{pixRiskOnly ? "Não há pedidos PIX pendentes para recuperar neste momento." : orders.length ? "Nenhum pedido corresponde aos filtros." : "Ainda não há pedidos neste estabelecimento."}</p></section> : <section className="card-container table-responsive p-0"><table className="table align-middle mb-0"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Consumo</th><th>Pagamento</th><th>Total</th><th>Status</th><th className="text-end">Ações</th></tr></thead><tbody>{filteredOrders.map((order)=><tr key={order.id}><td>#{order.order_number||order.id}</td><td>{order.customer_name||"Não informado"}<small className="d-block text-muted">{order.customer_phone||""}</small></td><td>{formatDate(order.created_at)}</td><td>{order.fulfillment||"—"}</td><td><div>{order.payment_method||"—"}</div><small className="text-muted">{order.payment_status||"—"}</small></td><td>{money(order.total_price)}</td><td style={{minWidth:160}}><select className="form-select form-select-sm" value={order.status||"pending"} disabled={updatingId===order.id || order.status==="cancelled"} onChange={(e)=>changeStatus(order,e.target.value)}><option value="pending">Pendente</option><option value="confirmed">Confirmado</option><option value="preparing">Em preparo</option><option value="ready">Pronto</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></td><td className="text-end"><div className="d-flex flex-wrap justify-content-end gap-2">{pixRiskOnly && isPixAtRisk(order) && <button type="button" className="btn btn-sm btn-primary" onClick={()=>recoverOnWhatsApp(order)}>Recuperar no WhatsApp</button>}<Link className="btn btn-sm btn-secondary" to={`/order/edit/${entityId}/${order.id}`}>Detalhes</Link></div></td></tr>)}</tbody></table></section>}
   </main></>;
 }
