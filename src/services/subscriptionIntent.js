@@ -20,6 +20,7 @@ const TERMINAL_PAYMENT_STATUSES = new Set([
   "charged_back",
   "chargeback",
 ]);
+const REUSABLE_PIX_PAYMENT_STATUSES = new Set(["cancelled", "rejected"]);
 
 const storageKey = (planCode) =>
   `subscription_intent_idempotency:${APPLICATION}:${planCode}`;
@@ -56,6 +57,10 @@ const trackRevenue = (type, metadata = {}) => {
 };
 
 const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
+const normalizeRetryStatus = (value) => {
+  const status = normalizeStatus(value);
+  return status === "canceled" ? "cancelled" : status;
+};
 
 const returnToFromLocation = () => {
   const params = new URLSearchParams(window.location.search);
@@ -106,15 +111,17 @@ const terminalPaymentStatus = (data) => {
   return candidates.find((status) => TERMINAL_PAYMENT_STATUSES.has(status)) || "";
 };
 
-export const canReuseTerminalSubscriptionIntent = (pending, intentId) => {
+export const canReuseTerminalSubscriptionIntent = (pending, intentId, status) => {
   const planCode = String(pending?.plan || "").trim().toLowerCase();
   const pendingIntentId = String(pending?.intent_id || "").trim();
   const normalizedIntentId = String(intentId || "").trim();
+  const retryStatus = normalizeRetryStatus(status);
 
   return pending?.application === APPLICATION
     && /^[a-z0-9_-]{1,80}$/i.test(planCode)
     && Boolean(normalizedIntentId)
-    && pendingIntentId === normalizedIntentId;
+    && pendingIntentId === normalizedIntentId
+    && REUSABLE_PIX_PAYMENT_STATUSES.has(retryStatus);
 };
 
 const recoverFromTerminalPayment = (intentId, status) => {
@@ -133,22 +140,21 @@ const recoverFromTerminalPayment = (intentId, status) => {
   const locationReturnTo = returnToFromLocation();
   const pendingReturnTo = safeSubscriptionReturnTo(pending?.return_to);
   const returnTo = locationReturnTo || pendingReturnTo;
-  const reusableIntent = canReuseTerminalSubscriptionIntent(pending, intentId);
+  const reusableIntent = canReuseTerminalSubscriptionIntent(pending, intentId, status);
 
-  // A terminal provider attempt needs a fresh checkout idempotency key. The generic
-  // API can then create a new PIX attempt on the same subscription intent, preserving
-  // the payment aggregate, attribution and audit trail.
   sessionStorage.removeItem(checkoutStorageKey(intentId));
 
   if (reusableIntent) {
     const nextPending = {
       ...pending,
       intent_id: String(intentId).trim(),
-      intent_status: status,
+      intent_status: normalizeRetryStatus(status),
       ...(returnTo ? { return_to: returnTo } : {}),
     };
     localStorage.setItem("pending_subscription_plan", JSON.stringify(nextPending));
   } else {
+    // Expired/failed/reversed payments are not retryable on the same aggregate in the
+    // billing API. Clear the intent idempotency state so recovery creates a fresh intent.
     if (validPlanCode) sessionStorage.removeItem(storageKey(planCode));
     localStorage.removeItem("pending_subscription_plan");
   }
