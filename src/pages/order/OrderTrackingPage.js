@@ -35,6 +35,8 @@ const pixTelemetry = (event, order, id, extra = {}) => trackTelemetryEvent(event
   target: "pix_payment",
   label: String(order?.order_number || order?.id || id),
   metadata: {
+    entity_type: "establishment",
+    entity_id: order?.establishment?.id || null,
     order_id: order?.id || id,
     establishment_id: order?.establishment?.id || null,
     payment_method: "pix",
@@ -77,7 +79,7 @@ export default function OrderTrackingPage() {
         if (pixPayable) pixPendingSeenRef.current = true;
         if (isPix && pixPendingSeenRef.current && next?.payment_status === "paid" && !pixPaidRef.current) {
           pixPaidRef.current = true;
-          pixTelemetry("frontend_payment_approved", next, id);
+          pixTelemetry("payment_approved", next, id);
         }
 
         if (isRecovery && !recoveryOpenedRef.current) {
@@ -98,7 +100,7 @@ export default function OrderTrackingPage() {
               const hasPixInstructions = Boolean(nextPayment?.qr_code || nextPayment?.pix_key || nextPayment?.qr_code_base64 || nextPayment?.ticket_url);
               if (hasPixInstructions && !pixPresentedRef.current) {
                 pixPresentedRef.current = true;
-                pixTelemetry("frontend_pix_payment_ready", next, id, { has_qr_code: Boolean(nextPayment?.qr_code || nextPayment?.qr_code_base64), has_pix_key: Boolean(nextPayment?.pix_key) });
+                pixTelemetry("pix_payment_ready", next, id, { has_qr_code: Boolean(nextPayment?.qr_code || nextPayment?.qr_code_base64), has_pix_key: Boolean(nextPayment?.pix_key) });
               }
             }
           } catch {
@@ -121,7 +123,7 @@ export default function OrderTrackingPage() {
 
   const currentIndex = useMemo(() => stages.indexOf(order?.status), [order?.status]);
   const copyPix = async (value, method = "qr_code") => {
-    pixTelemetry("frontend_pix_code_copied", order, id, { copy_method: method, recovery_source: recoverySource || null });
+    pixTelemetry("pix_code_copied", order, id, { copy_method: method, recovery_source: recoverySource || null });
     if (isRecovery) trackTelemetryEvent("plat_checkout_recovery_pix_copied", { target: "pix_recovery", label: String(order?.order_number || order?.id || id), metadata: { order_id: order?.id || id, recovery_source: recoverySource, copy_method: method, amount: Number(order?.total_price || 0) } });
     try {
       await navigator.clipboard.writeText(value);
