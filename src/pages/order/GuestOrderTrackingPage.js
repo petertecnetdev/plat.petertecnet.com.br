@@ -17,6 +17,7 @@ export default function GuestOrderTrackingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const stored = useMemo(() => readGuestOrder(id), [id]);
+  const recoverySource = useMemo(() => new URLSearchParams(window.location.search).get("recovery_source") || null, []);
   const [phone, setPhone] = useState(stored?.phone || "");
   const [credential, setCredential] = useState(stored?.phone || "");
   const [order, setOrder] = useState(null);
@@ -24,6 +25,7 @@ export default function GuestOrderTrackingPage() {
   const [refreshing, setRefreshing] = useState(false);
   const openedRef = useRef(false);
   const recoveryPresentedRef = useRef(false);
+  const recoveryPaidRef = useRef(false);
   const payment = order?.payment || null;
 
   useEffect(() => {
@@ -54,11 +56,15 @@ export default function GuestOrderTrackingPage() {
         trackRepeatRevenue(next);
         if (!openedRef.current) {
           openedRef.current = true;
-          trackTelemetryEvent("plat_guest_order_tracking_opened", { target: "guest_order", label: String(next?.order_number || next?.id || id), metadata: { order_id: next?.id || id, order_status: next?.status || null, payment_status: next?.payment_status || null, fulfillment: next?.fulfillment || null, amount: Number(next?.total_price || 0) } });
+          trackTelemetryEvent("plat_guest_order_tracking_opened", { target: "guest_order", label: String(next?.order_number || next?.id || id), metadata: { order_id: next?.id || id, order_status: next?.status || null, payment_status: next?.payment_status || null, fulfillment: next?.fulfillment || null, amount: Number(next?.total_price || 0), recovery_source: recoverySource } });
         }
         if (next?.payment && next?.payment_method === "pix" && next?.payment_status !== "paid" && !recoveryPresentedRef.current) {
           recoveryPresentedRef.current = true;
-          trackTelemetryEvent("plat_guest_pix_recovery_presented", { target: "pix_recovery", label: String(next?.order_number || next?.id || id), metadata: { entity_type: "establishment", entity_id: next?.establishment?.id || null, establishment_id: next?.establishment?.id || null, order_id: next?.id || id, amount: Number(next?.total_price || 0), recovery_source: new URLSearchParams(window.location.search).get("recovery_source") || null } });
+          trackTelemetryEvent("plat_guest_pix_recovery_presented", { target: "pix_recovery", label: String(next?.order_number || next?.id || id), metadata: { entity_type: "establishment", entity_id: next?.establishment?.id || null, establishment_id: next?.establishment?.id || null, order_id: next?.id || id, amount: Number(next?.total_price || 0), recovery_source: recoverySource } });
+        }
+        if (recoveryPresentedRef.current && next?.payment_method === "pix" && next?.payment_status === "paid" && !recoveryPaidRef.current) {
+          recoveryPaidRef.current = true;
+          trackTelemetryEvent("plat_guest_pix_recovery_paid", { target: "pix_recovery", label: String(next?.order_number || next?.id || id), metadata: { entity_type: "establishment", entity_id: next?.establishment?.id || null, establishment_id: next?.establishment?.id || null, order_id: next?.id || id, amount: Number(next?.total_price || 0), recovery_source: recoverySource } });
         }
       } catch (error) {
         if (!silent && active) {
@@ -71,7 +77,7 @@ export default function GuestOrderTrackingPage() {
     load();
     timer = window.setInterval(() => load(true), 10000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [id, credential]);
+  }, [id, credential, recoverySource]);
 
   const submitPhone = (event) => {
     event.preventDefault();
@@ -79,13 +85,14 @@ export default function GuestOrderTrackingPage() {
     if (!normalized) return;
     openedRef.current = false;
     recoveryPresentedRef.current = false;
+    recoveryPaidRef.current = false;
     setCredential(normalized);
   };
 
   const copyPix = async () => {
     const code = payment?.qr_code || payment?.pix_key;
     if (!code) return;
-    trackTelemetryEvent("plat_guest_pix_recovery_copied", { target: "pix_recovery", label: String(order?.order_number || order?.id || id), metadata: { entity_type: "establishment", entity_id: order?.establishment?.id || null, establishment_id: order?.establishment?.id || null, order_id: order?.id || id, amount: Number(order?.total_price || 0) } });
+    trackTelemetryEvent("plat_guest_pix_recovery_copied", { target: "pix_recovery", label: String(order?.order_number || order?.id || id), metadata: { entity_type: "establishment", entity_id: order?.establishment?.id || null, establishment_id: order?.establishment?.id || null, order_id: order?.id || id, amount: Number(order?.total_price || 0), recovery_source: recoverySource } });
     try { await navigator.clipboard.writeText(code); await Swal.fire("Pix copiado", "O código Pix foi copiado. Abra o app do seu banco para pagar.", "success"); }
     catch { await Swal.fire("Copie o Pix", code, "info"); }
   };
