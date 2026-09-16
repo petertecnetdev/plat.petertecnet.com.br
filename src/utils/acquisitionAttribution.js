@@ -15,14 +15,58 @@ const normalizeAttribution = (value = {}) => ({
   utm_campaign: safeValue(value.utm_campaign),
 });
 
-const readStoredAttribution = () => {
+const parseStoredAttribution = (storage) => {
   try {
-    const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null");
+    const stored = JSON.parse(storage?.getItem(STORAGE_KEY) || "null");
     const capturedAt = stored?.captured_at ? Date.parse(stored.captured_at) : NaN;
-    if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > TTL_MS) return {};
+    if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > TTL_MS) {
+      storage?.removeItem(STORAGE_KEY);
+      return {};
+    }
     return normalizeAttribution(stored);
   } catch {
     return {};
+  }
+};
+
+const readStoredAttribution = () => {
+  // Acquisition can span more than one browser session (SEO visit -> signup ->
+  // establishment setup later). localStorage keeps the original 7-day intent
+  // window while sessionStorage remains a compatibility fallback for users who
+  // started onboarding before this persistence change.
+  const persistent = parseStoredAttribution(window.localStorage);
+  if (persistent.source) return persistent;
+
+  const legacy = parseStoredAttribution(window.sessionStorage);
+  if (legacy.source) {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...legacy, captured_at: new Date().toISOString() })
+      );
+    } catch {
+      // Hardened browsers can deny persistent storage; keep the legacy value.
+    }
+  }
+  return legacy;
+};
+
+const persistAttribution = (attribution) => {
+  const payload = JSON.stringify({ ...attribution, captured_at: new Date().toISOString() });
+  let persisted = false;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, payload);
+    persisted = true;
+  } catch {
+    // Storage can be unavailable in hardened browsers and embedded webviews.
+  }
+
+  if (!persisted) {
+    try {
+      window.sessionStorage.setItem(STORAGE_KEY, payload);
+    } catch {
+      // Attribution is best-effort and must never block signup/onboarding.
+    }
   }
 };
 
@@ -45,16 +89,7 @@ export const captureAcquisitionAttribution = (fallback = {}) => {
     utm_campaign: query.utm_campaign || fallbackAttribution.utm_campaign || stored.utm_campaign || "",
   };
 
-  if (attribution.source) {
-    try {
-      sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ ...attribution, captured_at: new Date().toISOString() })
-      );
-    } catch {
-      // Storage can be unavailable in hardened browsers and embedded webviews.
-    }
-  }
+  if (attribution.source) persistAttribution(attribution);
 
   return attribution;
 };
