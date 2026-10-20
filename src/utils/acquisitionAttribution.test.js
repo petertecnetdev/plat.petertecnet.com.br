@@ -2,6 +2,7 @@ import { acquisitionTelemetryMetadata, captureAcquisitionAttribution } from "./a
 
 describe("acquisition attribution", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.clear();
     window.history.replaceState({}, "", "/establishment/create");
   });
@@ -49,6 +50,7 @@ describe("acquisition attribution", () => {
       utm_medium: "",
       utm_campaign: "",
     });
+    expect(localStorage.getItem("plat_acquisition_attribution")).toBeNull();
     expect(sessionStorage.getItem("plat_acquisition_attribution")).toBeNull();
   });
 });

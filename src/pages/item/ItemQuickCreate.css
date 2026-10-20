@@ -1,0 +1,320 @@
+.plat-item-create-page {
+  --item-gold: #d6b56c;
+  --item-border: rgba(255, 255, 255, .1);
+  --item-muted: #9ca6b4;
+  padding-bottom: 42px;
+}
+
+.plat-quick-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.plat-quick-header p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: var(--item-muted);
+  font-size: .94rem;
+}
+
+.plat-fast-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(214, 181, 108, .32);
+  border-radius: 999px;
+  background: rgba(214, 181, 108, .08);
+  color: #e8cc8d;
+  font-size: .72rem;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.plat-smart-preview {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid var(--item-border);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(18, 24, 31, .96), rgba(9, 13, 18, .9));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .18);
+}
+
+.plat-smart-preview__media {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  border-right: 1px solid var(--item-border);
+  background: radial-gradient(circle at 30% 20%, rgba(214, 181, 108, .1), transparent 60%);
+}
+
+.plat-smart-preview__media label {
+  position: relative;
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(214, 181, 108, .28);
+  border-radius: 18px;
+  background: #0a0f14;
+  color: #e5c675;
+  cursor: pointer;
+  font-size: 2.2rem;
+  font-weight: 950;
+}
+
+.plat-smart-preview__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plat-smart-preview__media small {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 10px;
+  background: rgba(4, 7, 10, .78);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.plat-smart-preview__copy {
+  align-self: center;
+  min-width: 0;
+  padding: 28px 30px;
+}
+
+.plat-smart-preview__copy > span {
+  color: #dfbd70;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.plat-smart-preview__copy h2 {
+  margin: 8px 0 6px;
+  color: #fff;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -.03em;
+}
+
+.plat-smart-preview__copy p {
+  max-width: 820px;
+  margin: 0 0 12px;
+  color: #aab3bf;
+}
+
+.plat-smart-preview__copy strong {
+  color: #efd28f;
+  font-size: 1.08rem;
+}
+
+.plat-quick-form {
+  padding: clamp(20px, 3vw, 34px);
+  border-radius: 22px;
+}
+
+.plat-quick-form .form-label small {
+  color: #7f8a97;
+  font-size: .72rem;
+  font-weight: 650;
+}
+
+.plat-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.plat-field-head .form-label {
+  margin: 0;
+}
+
+.plat-ai-button.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid rgba(214, 181, 108, .38);
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(214, 181, 108, .16), rgba(214, 181, 108, .07));
+  color: #f0d28d;
+  font-size: .8rem;
+  font-weight: 850;
+  box-shadow: none;
+}
+
+.plat-ai-button.btn:hover,
+.plat-ai-button.btn:focus-visible {
+  border-color: rgba(235, 201, 124, .65);
+  background: rgba(214, 181, 108, .2);
+  color: #fff0c5;
+}
+
+.plat-smart-preview__media .plat-ai-button {
+  width: 100%;
+  white-space: normal;
+}
+
+.plat-item-type-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--item-border);
+  border-radius: 13px;
+  background: rgba(4, 8, 12, .55);
+}
+
+.plat-item-type-switch button {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #9ba5b2;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 800;
+  transition: .16s ease;
+}
+
+.plat-item-type-switch button:hover {
+  color: #fff;
+}
+
+.plat-item-type-switch button.is-active {
+  border-color: rgba(214, 181, 108, .35);
+  background: rgba(214, 181, 108, .13);
+  color: #f1d38e;
+}
+
+.plat-advanced-block {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+
+.plat-advanced-toggle.btn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  gap: 14px;
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 13px;
+  background: rgba(7, 11, 16, .5);
+  color: #e6e9ed;
+  text-align: left;
+}
+
+.plat-advanced-toggle.btn span {
+  font-weight: 850;
+}
+
+.plat-advanced-toggle.btn small {
+  overflow: hidden;
+  color: #818c99;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plat-advanced-fields {
+  margin: 12px 0 0 !important;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 14px;
+  background: rgba(5, 9, 13, .38);
+}
+
+.plat-item-submit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+
+.plat-item-submit-bar .btn {
+  min-height: 44px;
+  padding-inline: 18px;
+}
+
+@media (max-width: 767.98px) {
+  .plat-quick-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .plat-smart-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .plat-smart-preview__media {
+    border-right: 0;
+    border-bottom: 1px solid var(--item-border);
+  }
+
+  .plat-smart-preview__media label {
+    width: min(100%, 260px);
+    margin: 0 auto;
+  }
+
+  .plat-smart-preview__copy {
+    padding: 22px;
+  }
+
+  .plat-advanced-toggle.btn {
+    grid-template-columns: 1fr auto;
+  }
+
+  .plat-advanced-toggle.btn small {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .plat-item-create-page {
+    padding-inline: 12px;
+  }
+
+  .plat-quick-form {
+    padding: 16px;
+    border-radius: 17px;
+  }
+
+  .plat-item-submit-bar {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .plat-item-submit-bar .btn {
+    width: 100%;
+  }
+}
