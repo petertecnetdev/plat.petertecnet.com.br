@@ -2,6 +2,7 @@ import { acquisitionTelemetryMetadata, captureAcquisitionAttribution } from "./a
 
 describe("acquisition attribution", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.clear();
     window.history.replaceState({}, "", "/establishment/create");
   });
