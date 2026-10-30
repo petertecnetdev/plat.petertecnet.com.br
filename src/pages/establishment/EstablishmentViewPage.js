@@ -12,6 +12,7 @@ import { clampCartQuantity, isModifierAvailableForQuantity, isSellableModifier, 
 import { canCheckoutAsGuest, checkoutMethodRequiresAuthentication, isAuthenticatedCheckout, preferredCheckoutMethod } from "../../utils/checkoutAccess";
 import { clearRepeatOrderContext, readRepeatOrderContext } from "../../utils/repeatOrder";
 import { rememberGuestOrder } from "../../utils/guestOrderTracking";
+import { reviewCheckoutConditions } from "../../utils/checkoutQuote";
 import "./View.css";
 import "../public/PublicRestaurantsPage.css";
 import "./PlatCheckout.css";
@@ -135,6 +136,15 @@ export default function EstablishmentViewPage() {
       const latestCatalog = Array.isArray(latest.items) ? latest.items : [];
       const refreshedCart = reconcileCartAvailability(cart, latestCatalog);
       const availabilityChanged = JSON.stringify(refreshedCart) !== JSON.stringify(cart);
+      const commercialReview = reviewCheckoutConditions({
+        cart: refreshedCart,
+        currentItems: items,
+        latestItems: latestCatalog,
+        currentOrdering: ordering,
+        latestOrdering: latest.ordering,
+        fulfillment: form.fulfillment,
+        paymentMethod: form.payment_method,
+      });
       setItems(latestCatalog);
       setOrdering(latest.ordering || null);
       if (!latest.ordering?.available) {
@@ -146,6 +156,17 @@ export default function EstablishmentViewPage() {
         setCart(refreshedCart);
         setCheckoutOpen(false);
         await Swal.fire("Carrinho atualizado", "Algum item ou adicional mudou de estoque enquanto você finalizava. Ajustamos o carrinho para você revisar sem perder o restante do pedido.", "info");
+        return;
+      }
+      if (commercialReview.requiresReview) {
+        setCheckoutOpen(false);
+        await Swal.fire(
+          "Revise as condições do pedido",
+          commercialReview.priceChanged || commercialReview.minimumChanged
+            ? "Preços, taxas ou pedido mínimo mudaram. Confira os valores atualizados antes de confirmar."
+            : "O pedido mínimo, a forma de pagamento ou a modalidade de recebimento mudou. Revise suas escolhas antes de confirmar.",
+          "info"
+        );
         return;
       }
       const result = await createCheckout({ establishment_id: establishment.id, ...form, items: cartLines.map((line)=>({ item_id: line.id, quantity: line.quantity, additions: line.additions || [], removals: line.removals || [], notes: line.notes || null })) });
