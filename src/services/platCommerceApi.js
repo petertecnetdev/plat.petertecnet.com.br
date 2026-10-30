@@ -245,17 +245,18 @@ const getOwnerPreviewFallback = async (slug) => {
   };
 };
 
-export const getOrdering = async (slug) => {
+export const getOrdering = async (slug, { forceRefresh = false } = {}) => {
   captureAcquisitionAttribution();
   const key = String(slug || "").trim();
   const cached = orderingRequests.get(key);
-  if (cached && Date.now() - cached.createdAt < 5000) return cached.promise;
+  if (!forceRefresh && cached && Date.now() - cached.createdAt < 5000) return cached.promise;
 
   const promise = axios
     .get(`${apiV1BaseUrl}/establishments/${encodeURIComponent(key)}/ordering`)
     .then(({ data }) => data?.data || {})
     .catch(async (error) => {
-      orderingRequests.delete(key);
+      // A failed older request must not evict a newer checkout refresh.
+      if (orderingRequests.get(key)?.promise === promise) orderingRequests.delete(key);
 
       if (error?.response?.status !== 404) throw error;
 
