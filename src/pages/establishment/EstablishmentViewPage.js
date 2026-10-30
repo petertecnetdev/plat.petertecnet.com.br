@@ -130,7 +130,8 @@ export default function EstablishmentViewPage() {
     if (form.fulfillment === "delivery" && !form.delivery_address.trim()) { Swal.fire("Endereço necessário", "Informe o endereço completo para entrega.", "warning"); return; }
     setSubmitting(true);
     try {
-      const latest = await getOrdering(slug);
+      // Checkout exige leitura atual, não o cache de descoberta de cinco segundos.
+      const latest = await getOrdering(slug, { forceRefresh: true });
       const latestCatalog = Array.isArray(latest.items) ? latest.items : [];
       const refreshedCart = reconcileCartAvailability(cart, latestCatalog);
       const availabilityChanged = JSON.stringify(refreshedCart) !== JSON.stringify(cart);
